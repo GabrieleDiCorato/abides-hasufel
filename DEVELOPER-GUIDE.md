@@ -76,7 +76,9 @@ Currently the following hooks are enabled:
 
 To install pre-commit run:
 ```
-$ python -m pip install -r requirements-dev.txt
+$ uv sync --dev
+# or with pip
+$ pip install -e .[dev]
 ```
 
 To enable pre-commit hooks run:

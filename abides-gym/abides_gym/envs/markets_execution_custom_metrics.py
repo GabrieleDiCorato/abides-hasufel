@@ -2,10 +2,10 @@ from collections import defaultdict
 from typing import Dict
 
 import numpy as np
-from ray.rllib.agents.callbacks import DefaultCallbacks
-from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.env import BaseEnv
-from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
+from ray.rllib.evaluation import RolloutWorker
+from ray.rllib.evaluation.episode import Episode
 from ray.rllib.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 
@@ -21,7 +21,7 @@ class MyCallbacks(DefaultCallbacks):
         worker: RolloutWorker,
         base_env: BaseEnv,
         policies: Dict[str, Policy],
-        episode: MultiAgentEpisode,
+        episode: Episode,
         env_index: int,
         **kwargs,
     ):
@@ -33,7 +33,7 @@ class MyCallbacks(DefaultCallbacks):
                         env object can be gotten by calling base_env.get_unwrapped().
                 policies (dict): Mapping of policy id to policy objects. In single
                         agent mode there will only be a single "default" policy.
-                episode (MultiAgentEpisode): Episode object which contains episode
+                episode (Episode): Episode object which contains episode
                         state. You can use the `episode.user_data` dict to store
                         temporary data, and `episode.custom_metrics` to store custom
                         metrics for the episode.
@@ -55,7 +55,7 @@ class MyCallbacks(DefaultCallbacks):
         *,
         worker: RolloutWorker,
         base_env: BaseEnv,
-        episode: MultiAgentEpisode,
+        episode: Episode,
         env_index: int,
         **kwargs,
     ):
@@ -68,7 +68,7 @@ class MyCallbacks(DefaultCallbacks):
                 policies (Optional[Dict[PolicyID, Policy]]): Mapping of policy id
                         to policy objects. In single agent mode there will only be a
                         single "default_policy".
-                episode (MultiAgentEpisode): Episode object which contains episode
+                episode (Episode): Episode object which contains episode
                         state. You can use the `episode.user_data` dict to store
                         temporary data, and `episode.custom_metrics` to store custom
                         metrics for the episode.
@@ -93,7 +93,7 @@ class MyCallbacks(DefaultCallbacks):
         worker: RolloutWorker,
         base_env: BaseEnv,
         policies: Dict[str, Policy],
-        episode: MultiAgentEpisode,
+        episode: Episode,
         env_index: int,
         **kwargs,
     ):
@@ -106,7 +106,7 @@ class MyCallbacks(DefaultCallbacks):
                 policies (Dict[PolicyID, Policy]): Mapping of policy id to policy
                         objects. In single agent mode there will only be a single
                         "default_policy".
-                episode (MultiAgentEpisode): Episode object which contains episode
+                episode (Episode): Episode object which contains episode
                         state. You can use the `episode.user_data` dict to store
                         temporary data, and `episode.custom_metrics` to store custom
                         metrics for the episode.
@@ -218,7 +218,7 @@ class MyCallbacks(DefaultCallbacks):
         self,
         *,
         worker: RolloutWorker,
-        episode: MultiAgentEpisode,
+        episode: Episode,
         agent_id: str,
         policy_id: str,
         policies: Dict[str, Policy],
@@ -234,7 +234,7 @@ class MyCallbacks(DefaultCallbacks):
 
         Args:
                 worker (RolloutWorker): Reference to the current rollout worker.
-                episode (MultiAgentEpisode): Episode object.
+                episode (Episode): Episode object.
                 agent_id (str): Id of the current agent.
                 policy_id (str): Id of the current policy for the agent.
                 policies (dict): Mapping of policy id to policy objects. In single

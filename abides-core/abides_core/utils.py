@@ -94,7 +94,19 @@ def str_to_ns(string: str) -> NanosecondTime:
         - "1min" -> 6e10 ns
         - "00:00:30" -> 3e10 ns
     """
-    return pd.to_timedelta(string).to_timedelta64().astype(int)
+    import re
+    
+    # If already a numeric type, return as int64
+    if isinstance(string, (int, float, np.integer, np.floating)):
+        return int(string)
+    
+    # Handle 'm' as minutes (pandas treats 'm' as months in newer versions)
+    # Replace standalone 'm' with 'min' for minute interpretation
+    # But don't replace 'ms' (milliseconds), 'min', 'minute', etc.
+    if re.match(r'^[\d.]+m$', string.lower()):
+        string = string[:-1] + 'min'
+    
+    return pd.to_timedelta(string).to_timedelta64().astype("int64")
 
 
 def datetime_str_to_ns(string: str) -> NanosecondTime:

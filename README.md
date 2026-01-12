@@ -81,14 +81,37 @@ or by using the following BibTeX:
 
     ```bash
     git clone https://github.com/jpmorganchase/abides-jpmc-public
+    cd abides-jpmc-public
     ```
 
     **Note:** The latest stable version is contained within the `main` branch.
 
-2. Run the install script to install the ABIDES packages and their dependencies:
+2. **Option A: Quick Install with UV (Recommended)**
 
+    ```bash
+    # Install UV if you haven't already
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Install ABIDES and all dependencies
+    uv sync
+    
+    # For development (includes dev dependencies)
+    uv sync --dev
     ```
+
+3. **Option B: Using the install script**
+
+    ```bash
     sh install.sh
+    ```
+
+4. **Option C: Traditional pip install**
+
+    ```bash
+    pip install -e .
+    
+    # For development
+    pip install -e .[dev]
     ```
 
 
@@ -131,7 +154,7 @@ in the config file.
 ABIDES can also be run through a Gym interface using ABIDES-Gym environments.
 
 ```python
-import gym
+import gymnasium as gym
 import abides_gym
 
 env = gym.make(
@@ -139,10 +162,9 @@ env = gym.make(
     background_config="rmsc04",
 )
 
-env.seed(0)
-initial_state = env.reset()
+initial_state, info = env.reset(seed=0)
 for i in range(5):
-    state, reward, done, info = env.step(0)
+    state, reward, terminated, truncated, info = env.step(0)
 ```
 
 ## Default Available Markets Configurations

@@ -2,9 +2,8 @@ from copy import deepcopy
 from abc import abstractmethod, ABC
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import gym
+import gymnasium as gym
 import numpy as np
-from gym.utils import seeding
 
 from abides_core import Kernel, NanosecondTime
 from abides_core.generators import InterArrivalTimeGenerator
@@ -39,28 +38,50 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         self.state_buffer_length: int = state_buffer_length
         self.gymAgentConstructor = gymAgentConstructor
 
-        self.seed()  # fix random seed if no seed specified
+        # Initialize random number generator
+        self.np_random = None
+        self._seed = None
 
         self.state: Optional[np.ndarray] = None
         self.reward: Optional[float] = None
-        self.done: Optional[bool] = None
+        self.terminated: Optional[bool] = None
+        self.truncated: Optional[bool] = None
         self.info: Optional[Dict[str, Any]] = None
 
-    def reset(self):
+    def reset(
+        self,
+        *,
+        seed: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
         Reset the state of the environment and returns an initial observation.
 
+        Parameters
+        ----------
+        seed : int, optional
+            The seed for the random number generator.
+        options : dict, optional
+            Additional options for reset.
+
         Returns
         -------
-        observation (object): the initial observation of the space.
+        observation : np.ndarray
+            The initial observation of the space.
+        info : dict
+            Additional information about the reset.
         """
+        # Handle seeding
+        if seed is not None:
+            self._seed = seed
+        super().reset(seed=seed)
 
         # get seed to initialize random states for ABIDES
-        seed = self.np_random.randint(low=0, high=2 ** 32, dtype="uint64")
+        internal_seed = self.np_random.integers(low=0, high=2 ** 32, dtype="uint64")
         # instanciate back ground config state
         background_config_args = self.background_config_pair[1]
         background_config_args.update(
-            {"seed": seed, **self.extra_background_config_kvargs}
+            {"seed": internal_seed, **self.extra_background_config_kvargs}
         )
         background_config_state = self.background_config_pair[0](
             **background_config_args
@@ -80,7 +101,7 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         # KERNEL
         # instantiate the kernel object
         kernel = Kernel(
-            random_state=np.random.RandomState(seed=seed),
+            random_state=np.random.RandomState(seed=internal_seed),
             **subdict(
                 config_state,
                 [
@@ -99,9 +120,10 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         state = self.raw_state_to_state(deepcopy(raw_state["result"]))
         # attach kernel
         self.kernel = kernel
-        return state
+        info = self.raw_state_to_info(deepcopy(raw_state["result"]))
+        return state, info
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """
         The agent takes a step in the environment.
 
@@ -111,7 +133,7 @@ class AbidesGymCoreEnv(gym.Env, ABC):
 
         Returns
         -------
-        observation, reward, done, info : tuple
+        observation, reward, terminated, truncated, info : tuple
             observation (object) :
                 an environment-specific object representing your observation of
                 the environment.
@@ -121,11 +143,13 @@ class AbidesGymCoreEnv(gym.Env, ABC):
                 varies between environments, but the goal is always to increase
                 your total reward.
 
-            done (bool) :
-                whether it's time to reset the environment again. Most (but not
-                all) tasks are divided up into well-defined episodes, and done
-                being True indicates the episode has terminated. (For example,
-                perhaps the pole tipped too far, or you lost your last life.)
+            terminated (bool) :
+                whether the episode has ended due to reaching a terminal state.
+                (For example, the agent achieved its goal or failed definitively.)
+
+            truncated (bool) :
+                whether the episode has ended due to a time limit or other
+                truncation condition outside the scope of the MDP.
 
             info (dict) :
                  diagnostic information useful for debugging. It can sometimes
@@ -148,18 +172,21 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         ), f"INVALID STATE {self.state}"
 
         self.reward = self.raw_state_to_reward(deepcopy(raw_state["result"]))
-        self.done = raw_state["done"] or self.raw_state_to_done(
-            deepcopy(raw_state["result"])
-        )
+        
+        # In gymnasium, done is split into terminated and truncated
+        # terminated: episode ended due to environment dynamics (e.g., agent failed)
+        # truncated: episode ended due to time limit
+        self.terminated = self.raw_state_to_done(deepcopy(raw_state["result"]))
+        self.truncated = raw_state["done"] and not self.terminated
 
-        if self.done:
+        if self.terminated or self.truncated:
             self.reward += self.raw_state_to_update_reward(
                 deepcopy(raw_state["result"])
             )
 
         self.info = self.raw_state_to_info(deepcopy(raw_state["result"]))
 
-        return (self.state, self.reward, self.done, self.info)
+        return (self.state, self.reward, self.terminated, self.truncated, self.info)
 
     def render(self, mode: str = "human") -> None:
         """Renders the environment.
@@ -186,24 +213,6 @@ class AbidesGymCoreEnv(gym.Env, ABC):
             mode (str): the mode to render with
         """
         print(self.state, self.reward, self.info)
-
-    def seed(self, seed: Optional[int] = None) -> List[Any]:
-        """Sets the seed for this env's random number generator(s).
-
-        Note:
-            Some environments use multiple pseudorandom number generators.
-            We want to capture all such seeds used in order to ensure that
-            there aren't accidental correlations between multiple generators.
-
-        Returns:
-            list<bigint>: Returns the list of seeds used in this env's random
-              number generators. The first value in the list should be the
-              "main" seed, or the value which a reproducer should pass to
-              'seed'. Often, the main seed equals the provided 'seed', but
-              this won't be true if seed=None, for example.
-        """
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
     def close(self) -> None:
         """Override close in your subclass to perform any necessary cleanup.

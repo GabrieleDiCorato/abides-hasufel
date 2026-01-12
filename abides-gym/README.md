@@ -42,11 +42,14 @@ to illustrate problem representation for [RLlib](https://rllib.io/) use cases.
 
 Clone the repo and connect into its top level directory.
 
-To initialize and run the `gym` example:
+To initialize and run the gymnasium example:
 
-```
-pip install -r requirements.txt
-pip install -e gym-example
+```bash
+# Using UV (recommended)
+uv sync
+
+# Or using pip
+pip install -e .
 
 python sample.py
 ```
