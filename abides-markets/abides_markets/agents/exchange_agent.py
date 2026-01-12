@@ -1,4 +1,3 @@
-import datetime as dt
 import logging
 import warnings
 from abc import ABC
@@ -9,55 +8,53 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-
 from abides_core import Kernel, Message, NanosecondTime
 
 from ..messages.market import (
     MarketClosedMsg,
+    MarketClosePriceMsg,
+    MarketClosePriceRequestMsg,
     MarketHoursMsg,
     MarketHoursRequestMsg,
-    MarketClosePriceRequestMsg,
-    MarketClosePriceMsg,
 )
 from ..messages.marketdata import (
     BookImbalanceDataMsg,
-    L1SubReqMsg,
-    L2SubReqMsg,
-    L3SubReqMsg,
-    TransactedVolSubReqMsg,
-    MarketDataSubReqMsg,
-    L1DataMsg,
-    L2DataMsg,
-    L3DataMsg,
-    TransactedVolDataMsg,
     BookImbalanceSubReqMsg,
+    L1DataMsg,
+    L1SubReqMsg,
+    L2DataMsg,
+    L2SubReqMsg,
+    L3DataMsg,
+    L3SubReqMsg,
     MarketDataEventMsg,
+    MarketDataSubReqMsg,
+    TransactedVolDataMsg,
+    TransactedVolSubReqMsg,
 )
 from ..messages.order import (
+    CancelOrderMsg,
     LimitOrderMsg,
     MarketOrderMsg,
-    PartialCancelOrderMsg,
-    CancelOrderMsg,
     ModifyOrderMsg,
-    ReplaceOrderMsg,
     OrderMsg,
+    PartialCancelOrderMsg,
+    ReplaceOrderMsg,
 )
-from ..messages.orderbook import OrderAcceptedMsg, OrderExecutedMsg, OrderCancelledMsg
+from ..messages.orderbook import OrderAcceptedMsg, OrderCancelledMsg, OrderExecutedMsg
 from ..messages.query import (
     QueryLastTradeMsg,
     QueryLastTradeResponseMsg,
     QueryMsg,
-    QuerySpreadMsg,
-    QuerySpreadResponseMsg,
     QueryOrderStreamMsg,
     QueryOrderStreamResponseMsg,
+    QuerySpreadMsg,
+    QuerySpreadResponseMsg,
     QueryTransactedVolMsg,
     QueryTransactedVolResponseMsg,
 )
-from ..orders import Side
 from ..order_book import OrderBook
+from ..orders import Side
 from .financial_agent import FinancialAgent
-
 
 logger = logging.getLogger(__name__)
 pd.set_option("display.max_rows", 500)
@@ -273,7 +270,7 @@ class ExchangeAgent(FinancialAgent):
                 symbol
             ].last_trade
 
-        if self.log_orders == None:
+        if self.log_orders is None:
             return
 
         # If the oracle supports writing the fundamental value series for its
@@ -384,7 +381,7 @@ class ExchangeAgent(FinancialAgent):
             if message.symbol not in self.order_books:
                 return
 
-            if message.cancel == True:
+            if message.cancel:
                 logger.debug(
                     "{} received MarketDataSubscriptionCancellation request from agent {}".format(
                         self.name, sender_id
@@ -922,17 +919,17 @@ class ExchangeAgent(FinancialAgent):
         T_null_asks = 0
 
         for _, row in df.iterrows():
-            if (len(row["bids"]) == 0) & (is_null_bids == False):
+            if (len(row["bids"]) == 0) & (not is_null_bids):
                 t_null_bids_first = row["QuoteTime"]
                 is_null_bids = True
-            elif (len(row["bids"]) != 0) & (is_null_bids == True):
+            elif (len(row["bids"]) != 0) & (is_null_bids):
                 T_null_bids += row["QuoteTime"] - t_null_bids_first
                 is_null_bids = False
 
-            if (len(row["asks"]) == 0) & (is_null_asks == False):
+            if (len(row["asks"]) == 0) & (not is_null_asks):
                 t_null_asks_first = row["QuoteTime"]
                 is_null_asks = True
-            elif (len(row["asks"]) != 0) & (is_null_asks == True):
+            elif (len(row["asks"]) != 0) & (is_null_asks):
                 T_null_asks += row["QuoteTime"] - t_null_asks_first
                 is_null_asks = False
 

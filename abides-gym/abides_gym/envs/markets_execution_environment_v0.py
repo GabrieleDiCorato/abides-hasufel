@@ -1,15 +1,14 @@
 import importlib
+from abc import ABC
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List
-from abc import ABC
-
-import gymnasium as gym
-import numpy as np
 
 import abides_markets.agents.utils as markets_agent_utils
+import gymnasium as gym
+import numpy as np
 from abides_core import NanosecondTime
-from abides_core.utils import str_to_ns
 from abides_core.generators import ConstantTimeGenerator
+from abides_core.utils import str_to_ns
 
 from .markets_environment import AbidesGymMarketsEnv
 
@@ -154,19 +153,19 @@ class SubGymMarketsExecutionEnv_v0(AbidesGymMarketsEnv):
             self.timestep_duration >= str_to_ns("00:00:00")
         ), "Select authorized timestep_duration"
 
-        assert (type(self.starting_cash) == int) & (
+        assert isinstance(self.starting_cash, int) & (
             self.starting_cash >= 0
         ), "Select positive integer value for starting_cash"
 
-        assert (type(self.order_fixed_size) == int) & (
+        assert isinstance(self.order_fixed_size, int) & (
             self.order_fixed_size >= 0
         ), "Select positive integer value for order_fixed_size"
 
-        assert (type(self.state_history_length) == int) & (
+        assert isinstance(self.state_history_length, int) & (
             self.state_history_length >= 0
         ), "Select positive integer value for order_fixed_size"
 
-        assert (type(self.market_data_buffer_length) == int) & (
+        assert isinstance(self.market_data_buffer_length, int) & (
             self.market_data_buffer_length >= 0
         ), "Select positive integer value for order_fixed_size"
 
@@ -180,7 +179,7 @@ class SubGymMarketsExecutionEnv_v0(AbidesGymMarketsEnv):
             "SELL",
         ], "direction needs to be BUY or SELL"
 
-        assert (type(self.parent_order_size) == int) & (
+        assert isinstance(self.parent_order_size, int) & (
             self.order_fixed_size >= 0
         ), "Select positive integer value for parent_order_size"
 
@@ -188,15 +187,15 @@ class SubGymMarketsExecutionEnv_v0(AbidesGymMarketsEnv):
             self.execution_window >= str_to_ns("00:00:00")
         ), "Select authorized execution_window"
 
-        assert (
-            type(self.too_much_reward_update) == int
+        assert isinstance(
+            self.too_much_reward_update, int
         ), "Select integer value for too_much_reward_update"
 
-        assert (
-            type(self.not_enough_reward_update) == int
+        assert isinstance(
+            self.not_enough_reward_update, int
         ), "Select integer value for not_enough_reward_update"
-        assert (
-            type(self.just_quantity_reward_update) == int
+        assert isinstance(
+            self.just_quantity_reward_update, int
         ), "Select integer value for just_quantity_reward_update"
 
         background_config_args = {"end_time": self.mkt_close}
@@ -629,7 +628,7 @@ class SubGymMarketsExecutionEnv_v0(AbidesGymMarketsEnv):
         # 5) Holdings
         holdings = raw_state["internal_data"]["holdings"]
 
-        if self.debug_mode == True:
+        if self.debug_mode:
             return {
                 "last_transaction": last_transaction,
                 "best_bid": best_bid,

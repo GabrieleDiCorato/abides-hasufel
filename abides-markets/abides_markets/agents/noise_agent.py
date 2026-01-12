@@ -2,14 +2,12 @@ import logging
 from typing import Optional
 
 import numpy as np
-
 from abides_core import Message, NanosecondTime
 
 from ..generators import OrderSizeGenerator
 from ..messages.query import QuerySpreadResponseMsg
 from ..orders import Side
 from .trading_agent import TradingAgent
-
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +136,7 @@ class NoiseAgent(TradingAgent):
             self.state = "AWAITING_SPREAD"
             return
 
-        if type(self) == NoiseAgent:
+        if type(self) is NoiseAgent:
             self.get_current_spread(self.symbol)
             self.state = "AWAITING_SPREAD"
         else:

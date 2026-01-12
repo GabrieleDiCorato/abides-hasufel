@@ -1,9 +1,7 @@
 from copy import deepcopy
 
 import pytest
-
-from abides_markets.orders import Order, LimitOrder, MarketOrder
-
+from abides_markets.orders import LimitOrder, MarketOrder, Order
 
 TIME = 0
 

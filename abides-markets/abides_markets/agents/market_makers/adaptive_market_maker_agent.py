@@ -1,23 +1,21 @@
 import logging
-from math import floor, ceil
+from math import ceil, floor
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-
 from abides_core import Message, NanosecondTime
 
-from ...utils import sigmoid
 from ...messages.marketdata import (
-    MarketDataMsg,
-    L2SubReqMsg,
     BookImbalanceDataMsg,
     BookImbalanceSubReqMsg,
+    L2SubReqMsg,
     MarketDataEventMsg,
+    MarketDataMsg,
 )
 from ...messages.query import QuerySpreadResponseMsg, QueryTransactedVolResponseMsg
 from ...orders import Side
+from ...utils import sigmoid
 from ..trading_agent import TradingAgent
-
 
 ANCHOR_TOP_STR = "top"
 ANCHOR_BOTTOM_STR = "bottom"
@@ -85,7 +83,9 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             window_size
         )  # Size in ticks (cents) of how wide the window around mid price is. If equal to
         # string 'adaptive' then ladder starts at best bid and ask
-        self.num_ticks: int = num_ticks  # number of ticks on each side of window in which to place liquidity
+        self.num_ticks: int = (
+            num_ticks  # number of ticks on each side of window in which to place liquidity
+        )
         self.level_spacing: float = (
             level_spacing  #  level spacing as a fraction of the spread
         )
@@ -96,14 +96,20 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         if self.poisson_arrival:
             self.arrival_rate = self.wake_up_freq
 
-        self.subscribe: bool = subscribe  # Flag to determine whether to subscribe to data or use polling mechanism
-        self.subscribe_freq: float = subscribe_freq  # Frequency in nanoseconds^-1 at which to receive market updates
+        self.subscribe: bool = (
+            subscribe  # Flag to determine whether to subscribe to data or use polling mechanism
+        )
+        self.subscribe_freq: float = (
+            subscribe_freq  # Frequency in nanoseconds^-1 at which to receive market updates
+        )
         # in subscribe mode
         self.min_imbalance = min_imbalance
         self.subscribe_num_levels: int = (
             subscribe_num_levels  # Number of orderbook levels in subscription mode
         )
-        self.cancel_limit_delay: int = cancel_limit_delay  # delay in nanoseconds between order cancellations and new limit order placements
+        self.cancel_limit_delay: int = (
+            cancel_limit_delay  # delay in nanoseconds between order cancellations and new limit order placements
+        )
 
         self.skew_beta = (
             skew_beta  # parameter for determining order placement imbalance
@@ -111,8 +117,12 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         self.price_skew_param = (
             price_skew_param  # parameter determining how much to skew price level.
         )
-        self.spread_alpha: float = spread_alpha  # parameter for exponentially weighted moving average of spread. 1 corresponds to ignoring old values, 0 corresponds to no updates
-        self.backstop_quantity: int = backstop_quantity  # how many orders to place at outside order level, to prevent liquidity dropouts. If None then place same as at other levels.
+        self.spread_alpha: float = (
+            spread_alpha  # parameter for exponentially weighted moving average of spread. 1 corresponds to ignoring old values, 0 corresponds to no updates
+        )
+        self.backstop_quantity: int = (
+            backstop_quantity  # how many orders to place at outside order level, to prevent liquidity dropouts. If None then place same as at other levels.
+        )
         self.log_orders: float = log_orders
 
         self.has_subscribed = False
@@ -178,7 +188,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
 
         try:  # fixed window size specified
             return int(window_size)
-        except:
+        except (ValueError, AttributeError):
             if window_size.lower() == "adaptive":
                 self.is_adaptive = True
                 self.anchor = ANCHOR_MIDDLE_STR
@@ -258,7 +268,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 try:
                     self.place_orders(mid)
                     self.last_time_book_order = current_time
-                except:
+                except Exception:
                     pass
 
         if not self.subscribe:
@@ -277,9 +287,9 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                     self.state["AWAITING_SPREAD"] = False
                 else:
                     logger.debug("SPREAD MISSING at time {}", current_time)
-                    self.state[
-                        "AWAITING_SPREAD"
-                    ] = False  # use last mid price and spread
+                    self.state["AWAITING_SPREAD"] = (
+                        False  # use last mid price and spread
+                    )
 
             if (
                 self.state["AWAITING_SPREAD"] is False

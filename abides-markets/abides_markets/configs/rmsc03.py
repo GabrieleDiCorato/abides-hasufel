@@ -6,20 +6,18 @@
 # - 5000  Noise Agents
 
 import numpy as np
-
-from abides_core.utils import str_to_ns, datetime_str_to_ns, get_wake_time
+from abides_core.utils import datetime_str_to_ns, get_wake_time, str_to_ns
 from abides_markets.agents import (
-    ExchangeAgent,
-    NoiseAgent,
-    ValueAgent,
     AdaptiveMarketMakerAgent,
+    ExchangeAgent,
     MomentumAgent,
+    NoiseAgent,
     POVExecutionAgent,
+    ValueAgent,
 )
 from abides_markets.oracles import SparseMeanRevertingOracle
 from abides_markets.orders import Side
 from abides_markets.utils import generate_latency_model
-
 
 ########################################################################################################################
 ############################################### GENERAL CONFIG #########################################################
@@ -68,7 +66,6 @@ def build_config(
     val_vol=1e-8,
     val_lambda_a=7e-11,
 ):
-    fund_sigma_n = fund_r_bar / 10
     val_sigma_n = val_r_bar / 10
     symbol = ticker
 
@@ -176,7 +173,7 @@ def build_config(
            the market maker places at each level
     num_ticks == Number of levels to place orders in around the spread
     wake_up_freq == How often the market maker wakes up
-    
+
     """
 
     # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)

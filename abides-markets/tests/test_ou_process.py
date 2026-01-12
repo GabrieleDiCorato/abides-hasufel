@@ -1,11 +1,10 @@
 import os
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
+import pandas as pd
+from abides_core.utils import str_to_ns
 from abides_markets.oracles import SparseMeanRevertingOracle
-from abides_core.utils import get_wake_time, str_to_ns
 
 
 def test_ou_process():

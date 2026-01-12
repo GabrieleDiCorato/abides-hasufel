@@ -1,7 +1,7 @@
 from abides_markets.messages.orderbook import OrderReplacedMsg
 from abides_markets.orders import LimitOrder, Side
 
-from . import setup_book_with_orders, SYMBOL, TIME
+from . import SYMBOL, TIME, setup_book_with_orders
 
 # fmt: off
 

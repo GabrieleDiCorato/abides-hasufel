@@ -1,8 +1,6 @@
+# Import to register environments
 import gymnasium as gym
 from tqdm import tqdm
-
-# Import to register environments
-import abides_gym
 
 if __name__ == "__main__":
 

@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
+
 from ..price_level import PriceLevel
 
 
@@ -92,7 +93,6 @@ def ignore_buffers_decorator(func):
 def get_mid_price(
     bids: List[PriceLevel], asks: List[PriceLevel], last_transaction: int
 ) -> int:
-
     """
     Utility that computes the mid price from the snapshot of bid and ask side
 
@@ -131,7 +131,7 @@ def get_val(book: List[PriceLevel], level: int) -> Tuple[int, int]:
             price = book[level][0]
             volume = book[level][1]
             return price, volume
-        except:
+        except (IndexError, KeyError):
             return 0, 0
 
 
@@ -201,7 +201,7 @@ def get_imbalance(
         else:
             return 0
     else:
-        if depth == None:
+        if depth is None:
             bid_vol = sum([v[1] for v in bids])
             ask_vol = sum([v[1] for v in asks])
         else:

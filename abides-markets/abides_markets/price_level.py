@@ -57,7 +57,7 @@ class PriceLevel:
             self.hidden_orders.append((order, metadata or {}))
         elif order.insert_by_id:
             insert_index = 0
-            for (order2, _) in self.visible_orders:
+            for order2, _ in self.visible_orders:
                 if order2.order_id > order.order_id:
                     break
                 insert_index += 1

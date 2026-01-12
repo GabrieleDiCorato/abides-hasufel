@@ -1,25 +1,19 @@
 import ray
-from ray import tune
-
-from ray.tune.logger import DEFAULT_LOGGERS
-from ray.tune.integration.wandb import WandbLoggerCallback
 import wandb
 from abides_gym.envs.markets_execution_custom_metrics import MyCallbacks
+from abides_gym.envs.markets_execution_environment_v0 import (
+    SubGymMarketsExecutionEnv_v0,
+)
+from ray import tune
+from ray.tune.integration.wandb import WandbLoggerCallback
+from ray.tune.registry import register_env
 
 api_key = wandb.api.api_key
 
 # Example with custom callbacks and WandB
 
-# Import to register environments
-import abides_gym
-
-from ray.tune.registry import register_env
-
 # import env
 
-from abides_gym.envs.markets_execution_environment_v0 import (
-    SubGymMarketsExecutionEnv_v0,
-)
 
 register_env(
     "markets-execution-v0",

@@ -4,8 +4,7 @@ from abides_markets.messages.orderbook import OrderAcceptedMsg, OrderExecutedMsg
 from abides_markets.order_book import OrderBook
 from abides_markets.orders import LimitOrder, MarketOrder, Side
 
-
-from . import FakeExchangeAgent, SYMBOL, TIME
+from . import SYMBOL, TIME, FakeExchangeAgent
 
 
 def test_create_price_to_comply_order():
@@ -61,8 +60,6 @@ def test_fill_price_to_comply_order():
     hidden_half.is_hidden = True
     hidden_half.limit_price += 1
 
-    visible_half = order
-
     market_order = MarketOrder(
         agent_id=2,
         time_placed=TIME,
@@ -114,7 +111,7 @@ def test_cancel_price_to_comply_order():
     book = OrderBook(agent, SYMBOL)
     book.handle_limit_order(order)
 
-    assert book.cancel_order(order) == True
+    assert book.cancel_order(order)
 
     assert len(book.asks) == 0
     assert len(book.bids) == 0

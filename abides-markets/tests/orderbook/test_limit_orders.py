@@ -1,11 +1,10 @@
 import pytest
-
 from abides_markets.messages.orderbook import OrderExecutedMsg
 from abides_markets.order_book import OrderBook
 from abides_markets.orders import LimitOrder, Side
 from abides_markets.price_level import PriceLevel
 
-from . import setup_book_with_orders, FakeExchangeAgent, SYMBOL, TIME
+from . import SYMBOL, TIME, FakeExchangeAgent, setup_book_with_orders
 
 
 def test_handle_limit_orders():
@@ -81,7 +80,7 @@ def test_handle_hidden_limit_orders():
     assert agent.messages[0][0] == 1
     assert agent.messages[0][1].order.agent_id == 1
     assert agent.messages[0][1].order.side == Side.BID
-    assert agent.messages[0][1].order.is_hidden == True
+    assert agent.messages[0][1].order.is_hidden
     assert agent.messages[0][1].order.limit_price == 100
     assert agent.messages[0][1].order.quantity == 10
 
@@ -107,7 +106,7 @@ def test_handle_hidden_limit_orders():
     assert agent.messages[0][0] == 1
     assert agent.messages[0][1].order.agent_id == 1
     assert agent.messages[0][1].order.side == Side.ASK
-    assert agent.messages[0][1].order.is_hidden == True
+    assert agent.messages[0][1].order.is_hidden
     assert agent.messages[0][1].order.limit_price == 100
     assert agent.messages[0][1].order.quantity == 10
 

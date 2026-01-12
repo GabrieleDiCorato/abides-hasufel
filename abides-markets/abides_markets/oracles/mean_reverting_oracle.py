@@ -1,15 +1,13 @@
 import datetime as dt
 import logging
 from math import sqrt
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
-
 from abides_core import NanosecondTime
 
 from .oracle import Oracle
-
 
 logger = logging.getLogger(__name__)
 

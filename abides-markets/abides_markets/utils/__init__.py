@@ -1,15 +1,13 @@
 import datetime
-import sys
-import traceback
 import warnings
 from contextlib import contextmanager
 from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from abides_core import LatencyModel
 from scipy.spatial.distance import pdist, squareform
 
-from abides_core import LatencyModel
 
 # Utility method to flatten nested lists.
 def delist(list_of_lists):
@@ -162,7 +160,9 @@ def generate_latency_model(agent_count, latency_type="deterministic"):
         "no_latency",
     ], "Please select a correct latency_type"
 
-    latency_rstate = np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype="uint64"))
+    latency_rstate = np.random.RandomState(
+        seed=np.random.randint(low=0, high=2**32, dtype="uint64")
+    )
     pairwise = (agent_count, agent_count)
 
     if latency_type == "deterministic":

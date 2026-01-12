@@ -3,14 +3,14 @@
 ## New TODO list
 
 ### General things
-- Clean proper version of the gym script 
+- Clean proper version of the gym script
 - Clean proper version of the ray tune script
 - Get a working version of the rollout
-- Check and clean the MDP formulation for the environment 
+- Check and clean the MDP formulation for the environment
 
 ### Core Environment
 TODO: look at whether some cleaning functions needed for abides
-Close function -> Do we implement some cleaning ? 
+Close function -> Do we implement some cleaning ?
 
 ### Market Exec Env
 raw_state_to_update_reward -> to be verified
@@ -24,13 +24,13 @@ Check the different asserts
 - todo: test corner cases when liquidity drops: is it a None or an empty list ????
 - todo: think if some should be function of the DIRECTION
 
-### Financial GYM Agent 
-Lookback period for volume subs, not sure what we should set 
+### Financial GYM Agent
+Lookback period for volume subs, not sure what we should set
 - TODO: probably do something smarter for the lookback
 - TODO: should be a parameter of the environment maybe
 
 
-## TODO List 
+## TODO List
 
 ### File Name:
 
@@ -73,18 +73,18 @@ h/t:
   - <https://stackoverflow.com/questions/45068568/how-to-create-a-new-gym-environment-in-openai>
 
 
-# TODO List 
+# TODO List
 
 32 in total:
    - 5 in experimental agent folder
-   - 24 in gim-abides folder 
+   - 24 in gim-abides folder
    - 3 in runner folder
-   
+
 ## experimental agent
 - l156 # TODO: probaly will need to include what type of subscription in parameters here
-        
 
-## gym_runner 
+
+## gym_runner
 - l11 #TODO: GOOD EXAMPLE OF HOW TO DO REGISTRATION : https://github.com/openai/gym-soccer
 - l43     #todo: probably better way to register event: see the original medium
 - l44 # todo: the mothod here was found: https://github.com/ray-project/ray/blob/master/rllib/examples/custom_env.py
@@ -92,9 +92,9 @@ h/t:
 
 ## abides_gym ( the main one)
 ### test_config_making
-- maybe no need to modify here -> will get rid 
-### abides_example_env 
-( I m not sure for all of them... I guess we need to see irectly the TODOs in the source code) 
+- maybe no need to modify here -> will get rid
+### abides_example_env
+( I m not sure for all of them... I guess we need to see irectly the TODOs in the source code)
 - l55     #TODO: resolve why doesn't work with 0 lower bound
 - l83 todo:all of this is hardcoded - will need further study
 - l90 # TODO: Heads-up to be replaced by the new config_gym.py
@@ -105,11 +105,9 @@ h/t:
 - l317 # todo: need to implements levels etc
 - l460 # todo: handle empty book
 
-In summary: 
-- transformative state function - need to make sure it takes into account corner cases 
-- need to figure out how the seed is fixed in a gym env 
-- then how to pass this seed to abides config 
+In summary:
+- transformative state function - need to make sure it takes into account corner cases
+- need to figure out how the seed is fixed in a gym env
+- then how to pass this seed to abides config
 - need to refactor (formalize) the definition of the simulation env ( parameters/conf etc)
-- need to solve the issue with the state space lower bound not working 
-
-
+- need to solve the issue with the state space lower bound not working

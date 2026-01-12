@@ -1,8 +1,8 @@
 from gymnasium.envs.registration import register
 from ray.tune.registry import register_env
 
-from .envs import *
-
+from .envs.markets_daily_investor_environment_v0 import SubGymMarketsDailyInvestorEnv_v0
+from .envs.markets_execution_environment_v0 import SubGymMarketsExecutionEnv_v0
 
 # REGISTER ENVS FOR GYM USE
 

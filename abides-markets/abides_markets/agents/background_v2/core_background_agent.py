@@ -3,19 +3,15 @@ from copy import deepcopy
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import numpy as np
-
 from abides_core import Message, NanosecondTime
 from abides_core.generators import ConstantTimeGenerator, InterArrivalTimeGenerator
 from abides_core.utils import str_to_ns
 from abides_markets.agents.trading_agent import TradingAgent
 from abides_markets.messages.marketdata import (
-    MarketDataMsg,
-    L2SubReqMsg,
-    TransactedVolDataMsg,
-)
-from abides_markets.messages.marketdata import (
     L2DataMsg,
     L2SubReqMsg,
+    MarketDataMsg,
+    TransactedVolDataMsg,
     TransactedVolSubReqMsg,
 )
 from abides_markets.orders import Order, Side
@@ -70,25 +66,25 @@ class CoreBackgroundAgent(TradingAgent):
         self.state_buffer_length: int = state_buffer_length
         self.market_data_buffer_length: int = market_data_buffer_length
         self.first_interval: Optional[NanosecondTime] = first_interval
-        if self.order_size_generator != None:  # TODO: check this one
+        if self.order_size_generator is not None:  # TODO: check this one
             self.order_size_generator.random_generator = self.random_state
 
         self.lookback_period: NanosecondTime = self.wakeup_interval_generator.mean()
 
         # internal variables
         self.has_subscribed: bool = False
-        self.episode_executed_orders: List[
-            Order
-        ] = []  # list of executed orders during full episode
+        self.episode_executed_orders: List[Order] = (
+            []
+        )  # list of executed orders during full episode
 
         # list of executed orders between steps - is reset at every step
-        self.inter_wakeup_executed_orders: List[
-            Order
-        ] = []  # list of executed orders between steps - is reset at every step
+        self.inter_wakeup_executed_orders: List[Order] = (
+            []
+        )  # list of executed orders between steps - is reset at every step
         self.parsed_episode_executed_orders: List[Tuple[int, int]] = []  # (price, qty)
-        self.parsed_inter_wakeup_executed_orders: List[
-            Tuple[int, int]
-        ] = []  # (price, qty)
+        self.parsed_inter_wakeup_executed_orders: List[Tuple[int, int]] = (
+            []
+        )  # (price, qty)
         self.parsed_mkt_data: Dict[str, Any] = {}
         self.parsed_mkt_data_buffer: Deque[Dict[str, Any]] = deque(
             maxlen=self.market_data_buffer_length
@@ -128,7 +124,7 @@ class CoreBackgroundAgent(TradingAgent):
 
             self.has_subscribed = True
         # compute the following wake up
-        if (self.mkt_open != None) and (
+        if (self.mkt_open is not None) and (
             current_time >= self.mkt_open
         ):  # compute the state (returned to the Gym Env)
             raw_state = self.act_on_wakeup()
@@ -167,7 +163,7 @@ class CoreBackgroundAgent(TradingAgent):
         # first wakeup interval from open
         time_first_wakeup = (
             self.first_interval
-            if self.first_interval != None
+            if self.first_interval is not None
             else self.wakeup_interval_generator.next()
         )
         return time_first_wakeup

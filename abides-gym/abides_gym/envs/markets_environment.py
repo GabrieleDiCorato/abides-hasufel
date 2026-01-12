@@ -1,18 +1,12 @@
-from copy import deepcopy
-from abc import abstractmethod, ABC
-from typing import Any, Callable, Dict, List, Optional, Tuple
-
-import gymnasium as gym
-import numpy as np
+from abc import ABC
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import abides_markets.agents.utils as markets_agent_utils
-from abides_core import Kernel, NanosecondTime
+from abides_core import NanosecondTime
 from abides_core.generators import InterArrivalTimeGenerator
-from abides_core.utils import subdict
-from abides_markets.utils import config_add_agents
-from .core_environment import AbidesGymCoreEnv
 
 from ..experimental_agents.financial_gym_agent import FinancialGymAgent
+from .core_environment import AbidesGymCoreEnv
 
 
 class AbidesGymMarketsEnv(AbidesGymCoreEnv, ABC):

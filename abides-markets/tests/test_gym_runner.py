@@ -1,8 +1,5 @@
-import gymnasium as gym
-from tqdm import tqdm
-
 # Import to register environments
-import abides_gym
+import gymnasium as gym
 
 
 def test_gym_runner_markets_execution():

@@ -1,8 +1,5 @@
-import psutil
 import pathlib
 import sys
-
-import pandas as pd
 
 
 def get_path(level):
@@ -73,8 +70,8 @@ def generate_command(parameters):
 
     shared_command = [f"--{key} {val}" for key, val in parameters["shared"].items()]
     shared_command = " ".join(shared_command)
-    command_old = f"python3 -W ignore -u " + specific_command_old + " " + shared_command
-    command_new = f"python3 -W ignore -u " + specific_command_new + " " + shared_command
+    command_old = "python3 -W ignore -u " + specific_command_old + " " + shared_command
+    command_new = "python3 -W ignore -u " + specific_command_new + " " + shared_command
     # f"python3 -u {parameter_dict['script']} -c {parameter_dict['config_old']} -t ABM -d 20200603 --end-time {parameters['end-time']}:00:00 -s {parameters['seed']} "
     return {"old": command_old, "new": command_new}
 

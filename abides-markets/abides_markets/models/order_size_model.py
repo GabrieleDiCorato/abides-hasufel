@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import stats
 
-
 # Order size distribution parameters
 # This replaces the old pomegranate-based GeneralMixtureModel
 # with a simpler numpy/scipy implementation
@@ -38,11 +37,11 @@ ORDER_SIZE_PARAMS = {
 class OrderSizeModel:
     """
     A mixture model for generating order sizes.
-    
+
     This model uses a mixture of log-normal and normal distributions
     to generate realistic order sizes for market simulation.
     """
-    
+
     def __init__(self) -> None:
         self.distributions = ORDER_SIZE_PARAMS["distributions"]
         self.weights = np.array(ORDER_SIZE_PARAMS["weights"])
@@ -52,29 +51,29 @@ class OrderSizeModel:
     def sample(self, random_state: np.random.RandomState) -> float:
         """
         Sample an order size from the mixture model.
-        
+
         Args:
             random_state: A numpy random state for reproducibility.
-            
+
         Returns:
             A rounded order size value.
         """
         # Select which distribution to sample from
         dist_idx = random_state.choice(len(self.distributions), p=self.weights)
         dist = self.distributions[dist_idx]
-        
+
         if dist["type"] == "lognormal":
             # scipy lognormal uses s=sigma and scale=exp(mean)
             value = stats.lognorm.rvs(
                 s=dist["params"]["sigma"],
                 scale=np.exp(dist["params"]["mean"]),
-                random_state=random_state
+                random_state=random_state,
             )
         else:  # normal
             value = stats.norm.rvs(
                 loc=dist["params"]["loc"],
                 scale=dist["params"]["scale"],
-                random_state=random_state
+                random_state=random_state,
             )
-        
+
         return round(max(1, value))  # Ensure at least 1 share

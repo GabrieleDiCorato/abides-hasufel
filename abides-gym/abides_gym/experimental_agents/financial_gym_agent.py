@@ -3,10 +3,9 @@ from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-
 from abides_core import NanosecondTime
-from abides_core.utils import str_to_ns
 from abides_core.generators import ConstantTimeGenerator, InterArrivalTimeGenerator
+from abides_core.utils import str_to_ns
 from abides_markets.agents.background_v2.core_background_agent import (
     CoreBackgroundAgent,
 )
@@ -87,16 +86,16 @@ class FinancialGymAgent(CoreBackgroundAgent, CoreGymAgent):
         self.first_interval: Optional[NanosecondTime] = first_interval
         # internal variables
         self.has_subscribed: bool = False
-        self.episode_executed_orders: List[
-            Order
-        ] = []  # list of executed orders during full episode
+        self.episode_executed_orders: List[Order] = (
+            []
+        )  # list of executed orders during full episode
 
         # list of executed orders between steps - is reset at every step
         self.inter_wakeup_executed_orders: List[Order] = []
         self.parsed_episode_executed_orders: List[Tuple[int, int]] = []  # (price, qty)
-        self.parsed_inter_wakeup_executed_orders: List[
-            Tuple[int, int]
-        ] = []  # (price, qty)
+        self.parsed_inter_wakeup_executed_orders: List[Tuple[int, int]] = (
+            []
+        )  # (price, qty)
         self.parsed_mkt_data: Dict[str, Any] = {}
         self.parsed_mkt_data_buffer = deque(maxlen=self.market_data_buffer_length)
         self.parsed_volume_data = {}

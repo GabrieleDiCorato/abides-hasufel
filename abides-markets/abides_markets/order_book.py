@@ -6,21 +6,19 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
-
 from abides_core import Agent, NanosecondTime
-from abides_core.utils import str_to_ns, ns_date
+from abides_core.utils import ns_date, str_to_ns
 
 from .messages.orderbook import (
     OrderAcceptedMsg,
-    OrderExecutedMsg,
     OrderCancelledMsg,
-    OrderPartialCancelledMsg,
+    OrderExecutedMsg,
     OrderModifiedMsg,
+    OrderPartialCancelledMsg,
     OrderReplacedMsg,
 )
 from .orders import LimitOrder, MarketOrder, Order, Side
 from .price_level import PriceLevel
-
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +231,7 @@ class OrderBook:
                 # half of the order from the book.
                 if matched_order.is_price_to_comply:
                     is_ptc_exec = True
-                    if matched_order_metadata["ptc_hidden"] == False:
+                    if not matched_order_metadata["ptc_hidden"]:
                         raise Exception(
                             "Should not be executing on the visible half of a price to comply order!"
                         )
@@ -259,7 +257,7 @@ class OrderBook:
                 # quantity of the other half of the pair.
                 if book_order.is_price_to_comply:
                     is_ptc_exec = True
-                    if book_order_metadata["ptc_hidden"] == False:
+                    if not book_order_metadata["ptc_hidden"]:
                         raise Exception(
                             "Should not be executing on the visible half of a price to comply order!"
                         )
@@ -289,9 +287,9 @@ class OrderBook:
                     agent_id=matched_order.agent_id,
                     oppos_order_id=order.order_id,
                     oppos_agent_id=order.agent_id,
-                    side="SELL"
-                    if order.side.is_bid()
-                    else "BUY",  # by def exec if from point of view of passive order being exec
+                    side=(
+                        "SELL" if order.side.is_bid() else "BUY"
+                    ),  # by def exec if from point of view of passive order being exec
                     quantity=matched_order.quantity,
                     price=matched_order.limit_price if is_ptc_exec else None,
                 )
@@ -319,7 +317,7 @@ class OrderBook:
             )
             self.owner.send_message(order.agent_id, OrderExecutedMsg(filled_order))
 
-            if self.owner.book_logging == True:
+            if self.owner.book_logging:
                 # append current OB state to book_log2
                 self.append_book_log2()
 
@@ -388,7 +386,7 @@ class OrderBook:
                     book[i].add_order(order, metadata or {})
                     break
 
-        if quiet == False:
+        if not quiet:
             self.history.append(
                 dict(
                     time=self.owner.current_time,
@@ -401,7 +399,7 @@ class OrderBook:
                 )
             )
 
-        if (self.owner.book_logging == True) and (quiet == False):
+        if (self.owner.book_logging) and (not quiet):
             # append current OB state to book_log2
             self.append_book_log2()
 
@@ -469,9 +467,9 @@ class OrderBook:
                             type="CANCEL",
                             order_id=cancelled_order.order_id,
                             tag=tag,
-                            metadata=cancellation_metadata
-                            if tag == "auctionFill"
-                            else None,
+                            metadata=(
+                                cancellation_metadata if tag == "auctionFill" else None
+                            ),
                         )
                     )
 
@@ -482,7 +480,7 @@ class OrderBook:
                 # We found the order and cancelled it, so stop looking.
                 self.last_update_ts = self.owner.current_time
 
-                if (self.owner.book_logging == True) and (quiet == False):
+                if (self.owner.book_logging) and (not quiet):
 
                     ### append current OB state to book_log2
                     self.append_book_log2()
@@ -529,7 +527,7 @@ class OrderBook:
 
                 self.last_update_ts = self.owner.current_time
 
-                if self.owner.book_logging == True is not None:
+                if self.owner.book_logging is True is not None:
                     # append current OB state to book_log2
                     self.append_book_log2()
 
@@ -566,9 +564,9 @@ class OrderBook:
                         order_id=order.order_id,
                         quantity=quantity,
                         tag=tag,
-                        metadata=cancellation_metadata
-                        if tag == "auctionFill"
-                        else None,
+                        metadata=(
+                            cancellation_metadata if tag == "auctionFill" else None
+                        ),
                     )
                 )
 
@@ -584,7 +582,7 @@ class OrderBook:
 
                 self.last_update_ts = self.owner.current_time
 
-                if self.owner.book_logging == True:
+                if self.owner.book_logging:
                     ### append current OB state to book_log2
                     self.append_book_log2()
 
@@ -607,7 +605,7 @@ class OrderBook:
             new_order: The new order to be inserted into the order book.
         """
 
-        if self.cancel_order(old_order, quiet=True) == True:
+        if self.cancel_order(old_order, quiet=True):
             self.history.append(
                 dict(
                     time=self.owner.current_time,
@@ -627,7 +625,7 @@ class OrderBook:
 
             self.owner.send_message(agent_id, OrderReplacedMsg(old_order, new_order))
 
-        if self.owner.book_logging == True:
+        if self.owner.book_logging:
             # append current OB state to book_log2
             self.append_book_log2()
 
@@ -891,7 +889,7 @@ class OrderBook:
 
         history_l3["printable"] = np.nan
         history_l3["stock"] = np.nan
-        if not "REPLACE" in history_l3.type.unique():
+        if "REPLACE" not in history_l3.type.unique():
             history_l3["new_order_id"] = np.nan
             history_l3["old_order_id"] = np.nan
 

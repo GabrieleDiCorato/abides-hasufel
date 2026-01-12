@@ -1,7 +1,6 @@
 import shutil
 
 import numpy as np
-
 from abides_core import Kernel
 from abides_core.utils import subdict
 from abides_markets.configs.rmsc04 import build_config as build_config_rmsc04
@@ -16,7 +15,7 @@ def test_rmsc04():
         exchange_log_orders=False,
     )
 
-    kernel_seed = np.random.randint(low=0, high=2 ** 32, dtype="uint64")
+    kernel_seed = np.random.randint(low=0, high=2**32, dtype="uint64")
 
     kernel = Kernel(
         log_dir="__test_logs",

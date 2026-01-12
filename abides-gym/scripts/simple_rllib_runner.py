@@ -1,24 +1,17 @@
+# Import to register environments
 import ray
+from abides_gym.envs.markets_execution_environment_v0 import (
+    SubGymMarketsExecutionEnv_v0,
+)
 from ray import tune
-
-from ray.tune.logger import DEFAULT_LOGGERS
-from ray.tune.integration.wandb import WandbLoggerCallback
-import wandb
-from abides_gym.envs.markets_execution_custom_metrics import MyCallbacks
+from ray.tune.registry import register_env
 
 # Example to run RLlib in simple mode
 # no custom metrics/callbacks or WandB
 
-# Import to register environments
-import abides_gym
-
-from ray.tune.registry import register_env
 
 # import env
 
-from abides_gym.envs.markets_execution_environment_v0 import (
-    SubGymMarketsExecutionEnv_v0,
-)
 
 register_env(
     "markets-execution-v0",

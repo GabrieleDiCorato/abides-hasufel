@@ -1,6 +1,6 @@
 from abides_markets.orders import MarketOrder, Side
 
-from . import setup_book_with_orders, SYMBOL, TIME
+from . import SYMBOL, TIME, setup_book_with_orders
 
 # fmt: off
 
@@ -8,8 +8,8 @@ from . import setup_book_with_orders, SYMBOL, TIME
 def test_get_l1_bid_ask_data():
     book, _, _ = setup_book_with_orders(bids=[], asks=[])
 
-    assert book.get_l1_bid_data() == None
-    assert book.get_l1_ask_data() == None
+    assert book.get_l1_bid_data() is None
+    assert book.get_l1_ask_data() is None
 
     book, _, _ = setup_book_with_orders(
         bids=[

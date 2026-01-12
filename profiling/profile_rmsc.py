@@ -6,16 +6,14 @@
 # - 5000  Noise Agents
 # - 1     (Optional) POV Execution agent
 
+import datetime as dt
 import logging
 
 import coloredlogs
 import numpy as np
-import datetime as dt
-
 from abides_core import Kernel
 from abides_core.utils import subdict
 from abides_markets.configs.rmsc04 import build_config
-
 
 logger = logging.getLogger("profile_rmsc")
 coloredlogs.install(
@@ -24,11 +22,12 @@ coloredlogs.install(
 
 # from memory_profiler import profile
 
+
 # @profile
 def run(
     config,
     log_dir="",
-    kernel_seed=np.random.randint(low=0, high=2 ** 32, dtype="uint64"),
+    kernel_seed=np.random.randint(low=0, high=2**32, dtype="uint64"),
 ):
 
     print()

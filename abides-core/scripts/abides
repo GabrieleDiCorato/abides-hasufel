@@ -10,11 +10,9 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import coloredlogs
 import numpy as np
-from termcolor import colored
-
 from abides_core.kernel import Kernel
 from abides_core.utils import subdict
-
+from termcolor import colored
 
 logger = logging.getLogger("abides")
 
@@ -96,7 +94,6 @@ def main():
         level=config["stdout_log_level"],
         fmt="[%(process)d] %(levelname)s %(name)s %(message)s",
     )
-
 
     kernel = Kernel(
         random_state=np.random.RandomState(seed=1),

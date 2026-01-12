@@ -1,11 +1,10 @@
 from typing import List, Optional
 
 import numpy as np
-
 from abides_core import Message, NanosecondTime
 from abides_core.utils import str_to_ns
 
-from ...messages.marketdata import MarketDataMsg, L2SubReqMsg
+from ...messages.marketdata import L2SubReqMsg, MarketDataMsg
 from ...messages.query import QuerySpreadResponseMsg
 from ...orders import Side
 from ..trading_agent import TradingAgent

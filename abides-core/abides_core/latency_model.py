@@ -128,7 +128,7 @@ class LatencyModel:
             x = self.random_state.uniform(low=clip, high=1.0)
 
             # Now apply the cubic model to compute jitter and the final message latency.
-            latency = min_latency + ((a / x ** 3) * (min_latency / unit))
+            latency = min_latency + ((a / x**3) * (min_latency / unit))
             return latency
 
         else:  # self.latency_model == 'deterministic'

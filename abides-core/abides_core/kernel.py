@@ -1,6 +1,6 @@
 import logging
-import queue
 import os
+import queue
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Type
 
@@ -9,10 +9,9 @@ import pandas as pd
 
 from . import NanosecondTime
 from .agent import Agent
-from .message import Message, MessageBatch, WakeupMsg
 from .latency_model import LatencyModel
+from .message import Message, MessageBatch, WakeupMsg
 from .utils import fmt_ts, str_to_ns
-
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ class Kernel:
         self.random_state: np.random.RandomState = (
             random_state
             or np.random.RandomState(
-                seed=np.random.randint(low=0, high=2 ** 32, dtype="uint64")
+                seed=np.random.randint(low=0, high=2**32, dtype="uint64")
             )
         )
 
@@ -189,7 +188,7 @@ class Kernel:
 
         self.show_trace_messages: bool = False
 
-        logger.debug(f"Kernel initialized")
+        logger.debug("Kernel initialized")
 
     def run(self) -> Dict[str, Any]:
         """
@@ -377,7 +376,7 @@ class Kernel:
                         )
                     )
                 # catch kernel interruption signal and return wakeup_result which is the raw state from gym agent
-                if wakeup_result != None:
+                if wakeup_result is not None:
                     return {"done": False, "result": wakeup_result}
             else:
                 # Test to see if the agent is already in the future.  If so,
@@ -484,9 +483,9 @@ class Kernel:
 
         # The Kernel adds a handful of custom state results for all simulations,
         # which configurations may use, print, log, or discard.
-        self.custom_state[
-            "kernel_event_queue_elapsed_wallclock"
-        ] = event_queue_wall_clock_elapsed
+        self.custom_state["kernel_event_queue_elapsed_wallclock"] = (
+            event_queue_wall_clock_elapsed
+        )
         self.custom_state["kernel_slowest_agent_finish_time"] = max(
             self.agent_current_times
         )

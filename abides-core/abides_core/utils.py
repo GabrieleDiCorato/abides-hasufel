@@ -3,11 +3,12 @@ General purpose utility functions for the simulator, attached to no particular c
 Available to any agent or other module/utility.  Should not require references to
 any simulator object (kernel, agent, etc).
 """
-import inspect
+
 import hashlib
+import inspect
 import os
 import pickle
-from typing import List, Dict, Any, Callable
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -95,17 +96,17 @@ def str_to_ns(string: str) -> NanosecondTime:
         - "00:00:30" -> 3e10 ns
     """
     import re
-    
+
     # If already a numeric type, return as int64
     if isinstance(string, (int, float, np.integer, np.floating)):
         return int(string)
-    
+
     # Handle 'm' as minutes (pandas treats 'm' as months in newer versions)
     # Replace standalone 'm' with 'min' for minute interpretation
     # But don't replace 'ms' (milliseconds), 'min', 'minute', etc.
-    if re.match(r'^[\d.]+m$', string.lower()):
-        string = string[:-1] + 'min'
-    
+    if re.match(r"^[\d.]+m$", string.lower()):
+        string = string[:-1] + "min"
+
     return pd.to_timedelta(string).to_timedelta64().astype("int64")
 
 
@@ -147,7 +148,7 @@ def parse_logs_df(end_state: dict) -> pd.DataFrame:
                 "Event": m[2],
             }
             event = m.get("Event", None)
-            if event == None:
+            if event is None:
                 event = {"EmptyEvent": True}
             elif not isinstance(event, dict):
                 event = {"ScalarEventValue": event}
@@ -155,10 +156,10 @@ def parse_logs_df(end_state: dict) -> pd.DataFrame:
                 pass
             try:
                 del m["Event"]
-            except:
+            except KeyError:
                 pass
             m.update(event)
-            if m.get("agent_id") == None:
+            if m.get("agent_id") is None:
                 m["agent_id"] = agent.id
             m["agent_type"] = agent.type
             messages.append(m)
@@ -176,7 +177,7 @@ def input_sha_wrapper(func: Callable) -> Callable:
     def inner(*args, **kvargs):
         argspec = inspect.getfullargspec(func)
         index_first_kv = len(argspec.args) - (
-            len(argspec.defaults) if argspec.defaults != None else 0
+            len(argspec.defaults) if argspec.defaults is not None else 0
         )
         if len(argspec.args) > 0:
             total_kvargs = dict(

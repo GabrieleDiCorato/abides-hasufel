@@ -1,9 +1,9 @@
 from copy import deepcopy
 
 from abides_markets.messages.orderbook import OrderModifiedMsg
-from abides_markets.orders import LimitOrder, Order, Side
+from abides_markets.orders import Side
 
-from . import setup_book_with_orders, SYMBOL, TIME
+from . import setup_book_with_orders
 
 # fmt: off
 

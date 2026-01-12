@@ -49,7 +49,7 @@ the following BibTeX:
 
 ```
 @misc{amrouni2021abidesgym,
-      title={ABIDES-Gym: Gym Environments for Multi-Agent Discrete Event Simulation and Application to Financial Markets}, 
+      title={ABIDES-Gym: Gym Environments for Multi-Agent Discrete Event Simulation and Application to Financial Markets},
       author={Selim Amrouni and Aymeric Moulin and Jared Vann and Svitlana Vyetrenko and Tucker Balch and Manuela Veloso},
       year={2021},
       eprint={2110.14771},
@@ -63,7 +63,7 @@ or by using the following BibTeX:
 
 ```
 @misc{byrd2019abides,
-      title={ABIDES: Towards High-Fidelity Market Simulation for AI Research}, 
+      title={ABIDES: Towards High-Fidelity Market Simulation for AI Research},
       author={David Byrd and Maria Hybinette and Tucker Hybinette Balch},
       year={2019},
       eprint={1904.12066},
@@ -91,10 +91,10 @@ or by using the following BibTeX:
     ```bash
     # Install UV if you haven't already
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    
+
     # Install ABIDES and all dependencies
     uv sync
-    
+
     # For development (includes dev dependencies)
     uv sync --dev
     ```
@@ -109,7 +109,7 @@ or by using the following BibTeX:
 
     ```bash
     pip install -e .
-    
+
     # For development
     pip install -e .[dev]
     ```
@@ -172,7 +172,7 @@ for i in range(5):
 ABIDES currently has the following available background Market Simulation Configuration:
 
 * RMSC03: 1 Exchange Agent, 1 POV Market Maker Agent, 100 Value Agents, 25 Momentum Agents, 5000 Noise Agents
- 
+
 * RMSC04: 1 Exchange Agent, 2 Market Maker Agents, 102 Value Agents, 12 Momentum Agents, 1000  Noise Agents
 
 <p align="right">(<a href="#top">back to top</a>)</p>

@@ -8,7 +8,6 @@ import numpy as np
 from .kernel import Kernel
 from .utils import subdict
 
-
 logger = logging.getLogger("abides")
 
 

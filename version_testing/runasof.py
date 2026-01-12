@@ -1,9 +1,7 @@
-import os
-import subprocess
-import shutil
-
 import datetime as dt
-import time
+import os
+import shutil
+import subprocess
 
 
 def version_greaterorequal(l1, l2):

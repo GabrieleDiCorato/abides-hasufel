@@ -5,48 +5,46 @@ from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
-
 from abides_core import Message, NanosecondTime
 from abides_core.utils import fmt_ts
 
 from ..messages.market import (
-    MarketClosePriceRequestMsg,
-    MarketClosePriceMsg,
     MarketClosedMsg,
-    MarketHoursRequestMsg,
+    MarketClosePriceMsg,
+    MarketClosePriceRequestMsg,
     MarketHoursMsg,
+    MarketHoursRequestMsg,
 )
-from ..messages.marketdata import MarketDataSubReqMsg, MarketDataMsg, L2DataMsg
+from ..messages.marketdata import L2DataMsg, MarketDataMsg, MarketDataSubReqMsg
 from ..messages.order import (
+    CancelOrderMsg,
     LimitOrderMsg,
     MarketOrderMsg,
-    PartialCancelOrderMsg,
-    CancelOrderMsg,
     ModifyOrderMsg,
+    PartialCancelOrderMsg,
     ReplaceOrderMsg,
 )
 from ..messages.orderbook import (
     OrderAcceptedMsg,
-    OrderExecutedMsg,
     OrderCancelledMsg,
-    OrderPartialCancelledMsg,
+    OrderExecutedMsg,
     OrderModifiedMsg,
+    OrderPartialCancelledMsg,
     OrderReplacedMsg,
 )
 from ..messages.query import (
     QueryLastTradeMsg,
     QueryLastTradeResponseMsg,
-    QuerySpreadMsg,
-    QuerySpreadResponseMsg,
     QueryOrderStreamMsg,
     QueryOrderStreamResponseMsg,
+    QuerySpreadMsg,
+    QuerySpreadResponseMsg,
     QueryTransactedVolMsg,
     QueryTransactedVolResponseMsg,
 )
-from ..orders import Order, LimitOrder, MarketOrder, Side
-from .financial_agent import FinancialAgent
+from ..orders import LimitOrder, MarketOrder, Order, Side
 from .exchange_agent import ExchangeAgent
-
+from .financial_agent import FinancialAgent
 
 logger = logging.getLogger(__name__)
 

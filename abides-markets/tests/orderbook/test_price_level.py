@@ -1,5 +1,4 @@
 import pytest
-
 from abides_markets.orders import LimitOrder, Side
 from abides_markets.price_level import PriceLevel
 
@@ -47,26 +46,26 @@ def test_update_order_quantity(price_level):
     # VISIBLE:
 
     # Update with lower price, same position kept in queue:
-    assert price_level.update_order_quantity(0, 5) == True
+    assert price_level.update_order_quantity(0, 5)
     assert price_level.visible_orders[0][0].order_id == 0
 
     # Update with higher price, moved to end of queue:
-    assert price_level.update_order_quantity(0, 15) == True
+    assert price_level.update_order_quantity(0, 15)
     assert price_level.visible_orders[-1][0].order_id == 0
 
     # HIDDEN:
 
     # Update with lower price, same position kept in queue:
-    assert price_level.update_order_quantity(1, 5) == True
+    assert price_level.update_order_quantity(1, 5)
     assert price_level.hidden_orders[0][0].order_id == 1
 
     # Update with higher price, moved to end of queue:
-    assert price_level.update_order_quantity(1, 15) == True
+    assert price_level.update_order_quantity(1, 15)
     assert price_level.hidden_orders[-1][0].order_id == 1
 
     # NOT IN BOOK:
 
-    assert price_level.update_order_quantity(10, 5) == False
+    assert not price_level.update_order_quantity(10, 5)
 
 
 def test_remove_order(price_level):
@@ -86,7 +85,7 @@ def test_remove_order(price_level):
 
     # NOT IN BOOK:
 
-    assert price_level.remove_order(10) == None
+    assert price_level.remove_order(10) is None
 
 
 def test_peek(price_level):
@@ -128,13 +127,13 @@ def test_pop(price_level):
 def test_order_is_match(price_level):
     # Test orders on opposite side of book:
     order = LimitOrder(0, 0, "", 10, Side.ASK, 90, is_hidden=False)
-    assert price_level.order_is_match(order) == True
+    assert price_level.order_is_match(order)
 
     order = LimitOrder(0, 0, "", 10, Side.ASK, 100, is_hidden=False)
-    assert price_level.order_is_match(order) == True
+    assert price_level.order_is_match(order)
 
     order = LimitOrder(0, 0, "", 10, Side.ASK, 110, is_hidden=False)
-    assert price_level.order_is_match(order) == False
+    assert not price_level.order_is_match(order)
 
     # Test order on same side of book:
     order = LimitOrder(0, 0, "", 10, Side.BID, 100, is_hidden=False)
@@ -153,13 +152,13 @@ def test_order_is_match(price_level):
 def test_order_has_better_price(price_level):
     # Test orders on same side of book:
     order = LimitOrder(0, 0, "", 10, Side.BID, 90, is_hidden=False)
-    assert price_level.order_has_better_price(order) == False
+    assert not price_level.order_has_better_price(order)
 
     order = LimitOrder(0, 0, "", 10, Side.BID, 100, is_hidden=False)
-    assert price_level.order_has_better_price(order) == False
+    assert not price_level.order_has_better_price(order)
 
     order = LimitOrder(0, 0, "", 10, Side.BID, 110, is_hidden=False)
-    assert price_level.order_has_better_price(order) == True
+    assert price_level.order_has_better_price(order)
 
     # Test order on opposite side of book:
     order = LimitOrder(0, 0, "", 10, Side.ASK, 100, is_hidden=False)
@@ -178,13 +177,13 @@ def test_order_has_better_price(price_level):
 def test_order_has_worse_price(price_level):
     # Test orders on same side of book:
     order = LimitOrder(0, 0, "", 10, Side.BID, 90, is_hidden=False)
-    assert price_level.order_has_worse_price(order) == True
+    assert price_level.order_has_worse_price(order)
 
     order = LimitOrder(0, 0, "", 10, Side.BID, 100, is_hidden=False)
-    assert price_level.order_has_worse_price(order) == False
+    assert not price_level.order_has_worse_price(order)
 
     order = LimitOrder(0, 0, "", 10, Side.BID, 110, is_hidden=False)
-    assert price_level.order_has_worse_price(order) == False
+    assert not price_level.order_has_worse_price(order)
 
     # Test order on opposite side of book:
     order = LimitOrder(0, 0, "", 10, Side.ASK, 100, is_hidden=False)
@@ -203,13 +202,13 @@ def test_order_has_worse_price(price_level):
 def test_order_has_equal_price(price_level):
     # Test orders on same side of book:
     order = LimitOrder(0, 0, "", 10, Side.BID, 90, is_hidden=False)
-    assert price_level.order_has_equal_price(order) == False
+    assert not price_level.order_has_equal_price(order)
 
     order = LimitOrder(0, 0, "", 10, Side.BID, 100, is_hidden=False)
-    assert price_level.order_has_equal_price(order) == True
+    assert price_level.order_has_equal_price(order)
 
     order = LimitOrder(0, 0, "", 10, Side.BID, 110, is_hidden=False)
-    assert price_level.order_has_worse_price(order) == False
+    assert not price_level.order_has_worse_price(order)
 
     # Test order on opposite side of book:
     order = LimitOrder(0, 0, "", 10, Side.ASK, 100, is_hidden=False)
@@ -236,13 +235,13 @@ def test_total_quantity(price_level):
 
 
 def test_is_empty(price_level):
-    assert price_level.is_empty == False
+    assert not price_level.is_empty
 
     price_level.visible_orders = []
-    assert price_level.is_empty == False
+    assert not price_level.is_empty
 
     price_level.hidden_orders = []
-    assert price_level.is_empty == True
+    assert price_level.is_empty
 
 
 def test_eq(price_level):

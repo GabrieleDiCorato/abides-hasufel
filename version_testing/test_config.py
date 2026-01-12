@@ -1,14 +1,10 @@
-import os
-import pandas as pd
 import datetime as dt
-import numpy as np
-from multiprocessing import Pool
-import psutil
-import pathlib
-from tqdm import tqdm
-
-from p_tqdm import p_map
 import itertools
+import os
+import pathlib
+
+import pandas as pd
+from p_tqdm import p_map
 
 
 def get_path(level):
@@ -30,7 +26,6 @@ import sys
 sys.path.insert(0, root_path_abides)
 
 import version_testing.runasof as runasof
-
 
 # TODO: use different end time in the new config
 

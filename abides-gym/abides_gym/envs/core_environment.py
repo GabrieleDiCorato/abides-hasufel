@@ -1,10 +1,9 @@
+from abc import ABC, abstractmethod
 from copy import deepcopy
-from abc import abstractmethod, ABC
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
-
 from abides_core import Kernel, NanosecondTime
 from abides_core.generators import InterArrivalTimeGenerator
 from abides_core.utils import subdict
@@ -25,9 +24,9 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         gymAgentConstructor=None,
     ) -> None:
 
-        self.background_config_pair: Tuple[
-            Callable, Optional[Dict[str, Any]]
-        ] = background_config_pair
+        self.background_config_pair: Tuple[Callable, Optional[Dict[str, Any]]] = (
+            background_config_pair
+        )
         if background_config_pair[1] is None:
             background_config_pair[1] = {}
 
@@ -77,7 +76,7 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         super().reset(seed=seed)
 
         # get seed to initialize random states for ABIDES
-        internal_seed = self.np_random.integers(low=0, high=2 ** 32, dtype="uint64")
+        internal_seed = self.np_random.integers(low=0, high=2**32, dtype="uint64")
         # instanciate back ground config state
         background_config_args = self.background_config_pair[1]
         background_config_args.update(
@@ -172,7 +171,7 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         ), f"INVALID STATE {self.state}"
 
         self.reward = self.raw_state_to_reward(deepcopy(raw_state["result"]))
-        
+
         # In gymnasium, done is split into terminated and truncated
         # terminated: episode ended due to environment dynamics (e.g., agent failed)
         # truncated: episode ended due to time limit

@@ -1,13 +1,12 @@
 import importlib
 from typing import Any, Dict, List
 
+import abides_markets.agents.utils as markets_agent_utils
 import gymnasium as gym
 import numpy as np
-
-import abides_markets.agents.utils as markets_agent_utils
 from abides_core import NanosecondTime
-from abides_core.utils import str_to_ns
 from abides_core.generators import ConstantTimeGenerator
+from abides_core.utils import str_to_ns
 
 from .markets_environment import AbidesGymMarketsEnv
 
@@ -106,24 +105,24 @@ class SubGymMarketsDailyInvestorEnv_v0(AbidesGymMarketsEnv):
             self.timestep_duration >= str_to_ns("00:00:00")
         ), "Select authorized timestep_duration"
 
-        assert (type(self.starting_cash) == int) & (
+        assert isinstance(self.starting_cash, int) & (
             self.starting_cash >= 0
         ), "Select positive integer value for starting_cash"
 
-        assert (type(self.order_fixed_size) == int) & (
+        assert isinstance(self.order_fixed_size, int) & (
             self.order_fixed_size >= 0
         ), "Select positive integer value for order_fixed_size"
 
-        assert (type(self.state_history_length) == int) & (
+        assert isinstance(self.state_history_length, int) & (
             self.state_history_length >= 0
         ), "Select positive integer value for order_fixed_size"
 
-        assert (type(self.market_data_buffer_length) == int) & (
+        assert isinstance(self.market_data_buffer_length, int) & (
             self.market_data_buffer_length >= 0
         ), "Select positive integer value for order_fixed_size"
 
         assert (
-            (type(self.done_ratio) == float)
+            isinstance(self.done_ratio, float)
             & (self.done_ratio >= 0)
             & (self.done_ratio < 1)
         ), "Select positive float value for order_fixed_size between 0 and 1"
@@ -466,7 +465,7 @@ class SubGymMarketsDailyInvestorEnv_v0(AbidesGymMarketsEnv):
         # 4) compute the marked to market
         marked_to_market = cash + holdings * last_transaction
 
-        if self.debug_mode == True:
+        if self.debug_mode:
             return {
                 "last_transaction": last_transaction,
                 "best_bid": best_bid,

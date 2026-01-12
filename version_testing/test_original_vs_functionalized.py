@@ -1,7 +1,7 @@
-import psutil
 import pathlib
 
 import pandas as pd
+import psutil
 
 
 def get_path(level):

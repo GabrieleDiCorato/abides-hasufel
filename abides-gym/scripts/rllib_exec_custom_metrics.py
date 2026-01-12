@@ -1,18 +1,13 @@
 import ray
-from ray import tune
-from abides_markets.configs import rmsc04
-
-from ray.tune.logger import DEFAULT_LOGGERS
-from ray.tune.integration.wandb import WandbLoggerCallback
 import wandb
 from abides_gym.envs.markets_execution_custom_metrics import MyCallbacks
-
+from ray import tune
+from ray.tune.integration.wandb import WandbLoggerCallback
 
 api_key = wandb.api.api_key
 
 
 # Import to register environments
-import abides_gym
 
 ray.shutdown()
 ray.init(num_cpus=10)

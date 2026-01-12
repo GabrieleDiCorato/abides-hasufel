@@ -106,14 +106,14 @@ directories named `test` within the respective sub-project directories.
 
 ### Regression Testing (Macro-testing)
 In order to test the code, it is possible to use [test_current_vs_past_commit](version_testing/test_current_vs_pastcommit.py)
-The following steps are happening: 
-* Running simulation 
+The following steps are happening:
+* Running simulation
     * ABIDES simulation is run with a commit version of your choice (sha_old)
     * The Order Book and the simulation time are saved
     * ABIDES simulation is run with a commit version of your choice (sha_new) or with your current working tree (sha_new = 'CURRENT')
     * The Order Book and the simulation time are saved
 * Comparison of the Order Books
-    * If the Order Books are matching, the test is passed 
+    * If the Order Books are matching, the test is passed
     * Else the test is failed
 
 

@@ -141,9 +141,11 @@ class LimitOrder(Order):
             self.side.value,
             self.quantity,
             self.symbol,
-            dollarize(self.limit_price)
-            if abs(self.limit_price) < sys.maxsize
-            else "MKT",
+            (
+                dollarize(self.limit_price)
+                if abs(self.limit_price) < sys.maxsize
+                else "MKT"
+            ),
             filled,
         )
 

@@ -2,13 +2,11 @@ import logging
 from typing import Optional
 
 import numpy as np
-
 from abides_core import Message, NanosecondTime
 
 from ..messages.query import QuerySpreadResponseMsg
 from ..orders import Side
 from .trading_agent import TradingAgent
-
 
 logger = logging.getLogger(__name__)
 
@@ -136,14 +134,14 @@ class ValueAgent(TradingAgent):
         delta_time = self.random_state.exponential(scale=1.0 / self.lambda_a)
         self.set_wakeup(current_time + int(round(delta_time)))
 
-        if self.mkt_closed and (not self.symbol in self.daily_close_price):
+        if self.mkt_closed and (self.symbol not in self.daily_close_price):
             self.get_current_spread(self.symbol)
             self.state = "AWAITING_SPREAD"
             return
 
         self.cancel_all_orders()
 
-        if type(self) == ValueAgent:
+        if type(self) is ValueAgent:
             self.get_current_spread(self.symbol)
             self.state = "AWAITING_SPREAD"
         else:
