@@ -159,3 +159,6 @@ cython_debug/
 
 # Log directories
 **/log/
+
+# ruff
+.ruff-cache/
