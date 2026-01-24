@@ -98,11 +98,11 @@ or by using the following BibTeX:
     # Install UV if you haven't already
     curl -LsSf https://astral.sh/uv/install.sh | sh
 
-    # Install ABIDES and all dependencies
-    uv sync
+    # Install ABIDES and all dependencies (runtime only)
+    uv sync --no-dev
 
-    # For development (includes dev dependencies)
-    uv sync --dev
+    # For development (includes dev dependencies, tests, docs)
+    uv sync
     ```
 
 3. **Option B: Using the install script**
@@ -116,8 +116,8 @@ or by using the following BibTeX:
     ```bash
     pip install -e .
 
-    # For development
-    pip install -e .[dev]
+    # For testing and docs support
+    pip install -e .[test,docs]
     ```
 
 

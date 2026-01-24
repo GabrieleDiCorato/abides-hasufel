@@ -11,23 +11,18 @@ dependencies = [
     "numpy>=2.0.0",
     "pandas>=2.2.0",
     "psutil>=6.0.0",
-    "pytest>=9.0.2",
     "ray[rllib]>=2.40.0",
     "scipy>=1.14.0",
     "tqdm>=4.67.0",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "black>=24.10.0",
-    "isort>=5.13.0",
-    "mypy>=1.13.0",
-    "nb-clean>=4.0.1",
-    "p-tqdm>=1.4.0",
-    "pre-commit>=4.0.0",
-    "pytest>=8.3.0",
+test = [
+    "pytest>=9.0.2",
     "pytest-cov>=6.0.0",
-    "ruff>=0.8.0",
+    "p-tqdm>=1.4.0",
+]
+docs = [
     "sphinx>=8.0.0",
     "sphinx-autodoc-typehints>=2.5.0",
     "sphinx-book-theme>=1.1.0",
@@ -49,5 +44,12 @@ python_files = "test_*.py"
 
 [dependency-groups]
 dev = [
+    "black>=24.10.0",
+    "ipykernel>=7.1.0",
+    "isort>=5.13.0",
+    "mypy>=1.13.0",
+    "nb-clean>=4.0.1",
     "pre-commit>=4.5.1",
+    "ruff>=0.8.0",
+    "abides-jpmc-public[test,docs]",
 ]

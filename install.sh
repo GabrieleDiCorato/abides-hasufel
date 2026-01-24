@@ -11,9 +11,9 @@ then
     exit 1
 fi
 
-# Install the project and all dependencies
+# Install the project and all dependencies (excluding dev dependencies)
 echo "Installing ABIDES with UV..."
-uv sync
+uv sync --no-dev
 
 echo "Installation complete!"
 echo "To activate the virtual environment, run: source .venv/bin/activate"
