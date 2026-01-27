@@ -748,7 +748,9 @@ class OrderBook:
             for price_level in self.asks[:depth]
         ]
 
-    def get_transacted_volume(self, lookback_period: str = "10min") -> Tuple[int, int]:
+    def get_transacted_volume(
+        self, lookback_period: str | NanosecondTime = "10min"
+    ) -> Tuple[int, int]:
         """Method retrieves the total transacted volume for a symbol over a lookback
         period finishing at the current simulation time.
 

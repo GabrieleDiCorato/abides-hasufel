@@ -1,6 +1,6 @@
 import logging
 from copy import deepcopy
-from typing import Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -8,6 +8,9 @@ import pandas as pd
 from . import NanosecondTime
 from .message import Message, MessageBatch
 from .utils import fmt_ts
+
+if TYPE_CHECKING:
+    from abides_core.kernel import Kernel
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +52,7 @@ class Agent:
         self.log_to_file: bool = log_to_file & log_events
 
         # Kernel is supplied via kernel_initializing method of kernel lifecycle.
-        self.kernel = None
+        self.kernel: "Kernel | None" = None
 
         # What time does the agent think it is?  Should be updated each time
         # the agent wakes via wakeup or receive_message.  (For convenience
@@ -74,7 +77,7 @@ class Agent:
     ### Flow of required kernel listening methods:
     ### init -> start -> (entire simulation) -> end -> terminate
 
-    def kernel_initializing(self, kernel) -> None:
+    def kernel_initializing(self, kernel: "Kernel") -> None:
         """
         Called by the kernel one time when simulation first begins.
 

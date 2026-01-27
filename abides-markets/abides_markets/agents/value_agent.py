@@ -237,7 +237,7 @@ class ValueAgent(TradingAgent):
                 adjust_int = 0
             else:
                 adjust_int = self.random_state.randint(
-                    0, min(9223372036854775807 - 1, self.depth_spread * spread)
+                    0, int(min(9223372036854775807 - 1, self.depth_spread * spread))
                 )
                 # adjustment to the limit price, allowed to post inside the spread
                 # or deeper in the book as a passive order to maximize surplus

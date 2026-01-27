@@ -3,8 +3,8 @@ from typing import Optional
 
 import numpy as np
 from abides_core import Message, NanosecondTime
+from abides_markets.models.order_size_model import OrderSizeModel
 
-from ..generators import OrderSizeGenerator
 from ..messages.query import QuerySpreadResponseMsg
 from ..orders import Side
 from .trading_agent import TradingAgent
@@ -20,14 +20,14 @@ class NoiseAgent(TradingAgent):
     def __init__(
         self,
         id: int,
+        wakeup_time: NanosecondTime,
         name: Optional[str] = None,
         type: Optional[str] = None,
         random_state: Optional[np.random.RandomState] = None,
         symbol: str = "IBM",
         starting_cash: int = 100000,
         log_orders: bool = False,
-        order_size_model: Optional[OrderSizeGenerator] = None,
-        wakeup_time: Optional[NanosecondTime] = None,
+        order_size_model: Optional[OrderSizeModel] = None,
     ) -> None:
 
         # Base class init.

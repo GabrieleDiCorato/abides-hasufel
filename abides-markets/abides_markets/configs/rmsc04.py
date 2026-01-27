@@ -38,7 +38,7 @@ def build_config(
     book_logging=True,
     book_log_depth=10,
     stream_history_length=500,
-    exchange_log_orders=None,
+    exchange_log_orders=False,
     # 2) Noise Agent
     num_noise_agents=1000,
     # 3) Value Agents

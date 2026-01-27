@@ -1062,7 +1062,9 @@ class TradingAgent(FinancialAgent):
     # Utility functions that perform calculations from available knowledge, but implement no
     # particular strategy.
 
-    def get_known_bid_ask(self, symbol: str, best: bool = True):
+    def get_known_bid_ask(
+        self, symbol: str
+    ) -> tuple[float | None, int, float | None, int]:
         """
         Extract the current known bid and asks.
 
@@ -1070,19 +1072,13 @@ class TradingAgent(FinancialAgent):
 
         Arguments:
             symbol: The symbol to query.
-            best:
         """
 
-        if best:
-            bid = self.known_bids[symbol][0][0] if self.known_bids[symbol] else None
-            ask = self.known_asks[symbol][0][0] if self.known_asks[symbol] else None
-            bid_vol = self.known_bids[symbol][0][1] if self.known_bids[symbol] else 0
-            ask_vol = self.known_asks[symbol][0][1] if self.known_asks[symbol] else 0
-            return bid, bid_vol, ask, ask_vol
-        else:
-            bids = self.known_bids[symbol] if self.known_bids[symbol] else None
-            asks = self.known_asks[symbol] if self.known_asks[symbol] else None
-            return bids, asks
+        bid = self.known_bids[symbol][0][0] if self.known_bids[symbol] else None
+        ask = self.known_asks[symbol][0][0] if self.known_asks[symbol] else None
+        bid_vol = self.known_bids[symbol][0][1] if self.known_bids[symbol] else 0
+        ask_vol = self.known_asks[symbol][0][1] if self.known_asks[symbol] else 0
+        return bid, bid_vol, ask, ask_vol
 
     def get_known_liquidity(self, symbol: str, within: float = 0.00) -> Tuple[int, int]:
         """

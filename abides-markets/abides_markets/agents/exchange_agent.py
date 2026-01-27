@@ -270,7 +270,7 @@ class ExchangeAgent(FinancialAgent):
                 symbol
             ].last_trade
 
-        if self.log_orders is None:
+        if self.log_orders is None or self.log_orders:
             return
 
         # If the oracle supports writing the fundamental value series for its
@@ -337,7 +337,10 @@ class ExchangeAgent(FinancialAgent):
                 else:
                     logger.debug(
                         "{} received {}: {}".format(
-                            self.name, message.type(), message.order
+                            # All the other order messages have an 'order' attribute. The hierarchy is not well designed.
+                            self.name,
+                            message.type(),
+                            message.order,  # type: ignore
                         )
                     )
 
@@ -371,7 +374,10 @@ class ExchangeAgent(FinancialAgent):
                     )
                 else:
                     self.logEvent(
-                        message.type(), message.order.to_dict(), deepcopy_event=False
+                        # TODO All other message types have an 'order' attribute.
+                        message.type(),
+                        message.order.to_dict(),
+                        deepcopy_event=False,  # type: ignore
                     )
         else:
             self.logEvent(message.type(), message)
@@ -405,9 +411,7 @@ class ExchangeAgent(FinancialAgent):
                 )
 
                 if isinstance(message, L1SubReqMsg):
-                    sub: self.BaseDataSubscription = self.L1DataSubscription(
-                        sender_id, current_time, message.freq
-                    )
+                    sub = self.L1DataSubscription(sender_id, current_time, message.freq)
                 elif isinstance(message, L2SubReqMsg):
                     sub = self.L2DataSubscription(
                         sender_id, current_time, message.freq, message.depth

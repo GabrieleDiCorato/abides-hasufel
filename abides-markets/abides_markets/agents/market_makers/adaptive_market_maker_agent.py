@@ -49,7 +49,9 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         random_state: Optional[np.random.RandomState] = None,
         pov: float = 0.05,
         min_order_size: int = 20,
-        window_size: float = 5,
+        window_size: (
+            int | str
+        ) = 5,  # size in ticks or 'adaptive'. Will be converted in internal int | None
         anchor: str = ANCHOR_MIDDLE_STR,
         num_ticks: int = 20,
         level_spacing: float = 0.5,
@@ -79,7 +81,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         self.anchor: str = self.validate_anchor(
             anchor
         )  # anchor either top of window or bottom of window to mid-price
-        self.window_size: float = self.validate_window_size(
+        self.window_size: int | None = self.validate_window_size(
             window_size
         )  # Size in ticks (cents) of how wide the window around mid price is. If equal to
         # string 'adaptive' then ladder starts at best bid and ask
@@ -89,7 +91,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         self.level_spacing: float = (
             level_spacing  #  level spacing as a fraction of the spread
         )
-        self.wake_up_freq: str = wake_up_freq  # Frequency of agent wake up
+        self.wake_up_freq: NanosecondTime = wake_up_freq  # Frequency of agent wake up
         self.poisson_arrival: bool = (
             poisson_arrival  # Whether to arrive as a Poisson process
         )
@@ -123,7 +125,6 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         self.backstop_quantity: int = (
             backstop_quantity  # how many orders to place at outside order level, to prevent liquidity dropouts. If None then place same as at other levels.
         )
-        self.log_orders: float = log_orders
 
         self.has_subscribed = False
 
@@ -176,7 +177,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         else:
             return anchor
 
-    def validate_window_size(self, window_size: float) -> Optional[int]:
+    def validate_window_size(self, window_size: int | str) -> int | None:
         """Checks that input parameter window_size takes allowed value, raises ``ValueError`` if not.
 
         Arguments:
@@ -186,17 +187,17 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             The window_size if validated
         """
 
-        try:  # fixed window size specified
-            return int(window_size)
-        except (ValueError, AttributeError):
-            if window_size.lower() == "adaptive":
+        if isinstance(window_size, int):
+            return window_size
+        elif isinstance(window_size, str):
+            if window_size.lower() == ADAPTIVE_SPREAD_STR:
                 self.is_adaptive = True
                 self.anchor = ANCHOR_MIDDLE_STR
                 return None
-            else:
-                raise ValueError(
-                    f"Variable window_size must be of type int or string {ADAPTIVE_SPREAD_STR}."
-                )
+        else:
+            raise ValueError(
+                f"Variable window_size must be of type int or string {ADAPTIVE_SPREAD_STR}."
+            )
 
     def kernel_starting(self, start_time: NanosecondTime) -> None:
         super().kernel_starting(start_time)

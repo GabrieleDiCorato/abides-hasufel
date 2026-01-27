@@ -240,7 +240,7 @@ def build_config(
     pov_agent_start_time = mkt_open + str_to_ns("00:30:00")
     pov_agent_end_time = mkt_close - str_to_ns("00:30:00")
     pov_proportion_of_volume = execution_pov
-    pov_quantity = 12e5
+    pov_quantity: int = int(12e5)
     pov_frequency = str_to_ns("1min")
     pov_direction = Side.BID
 

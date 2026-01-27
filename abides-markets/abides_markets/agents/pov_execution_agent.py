@@ -119,8 +119,8 @@ class POVExecutionAgent(TradingAgent):
         self.execution_complete: bool = False
 
         # Market data
-        self.last_bid: Optional[int] = None
-        self.last_ask: Optional[int] = None
+        self.last_bid: Optional[float] = None
+        self.last_ask: Optional[float] = None
         self.last_transacted_volume: int = 0
 
         # Logging and statistics
@@ -261,7 +261,7 @@ class POVExecutionAgent(TradingAgent):
 
         # Process spread response
         if isinstance(message, QuerySpreadResponseMsg):
-            result = self.get_known_bid_ask(self.symbol, best=True)
+            result = self.get_known_bid_ask(self.symbol)
             if len(result) == 4:
                 bid, bid_vol, ask, ask_vol = result
                 self.last_bid = bid

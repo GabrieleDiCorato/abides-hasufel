@@ -47,7 +47,7 @@ def custom_eq(a: Any, b: Any) -> bool:
 
 
 # Utility function to get agent wake up times to follow a U-quadratic distribution.
-def get_wake_time(open_time, close_time, a=0, b=1):
+def get_wake_time(open_time, close_time, a=0, b=1) -> NanosecondTime:
     """
     Draw a time U-quadratically distributed between open_time and close_time.
 
@@ -83,7 +83,7 @@ def fmt_ts(timestamp: NanosecondTime) -> str:
     return pd.Timestamp(timestamp, unit="ns").strftime("%Y-%m-%d %H:%M:%S")
 
 
-def str_to_ns(string: str) -> NanosecondTime:
+def str_to_ns(string: str | NanosecondTime) -> NanosecondTime:
     """
     Converts a human readable time-delta string into nanoseconds.
 
