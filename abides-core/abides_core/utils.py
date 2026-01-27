@@ -111,12 +111,7 @@ def str_to_ns(string: str | NanosecondTime) -> NanosecondTime:
     if re.match(r"^[\d.]+d$", string.lower()):
         string = string[:-1] + "D"
 
-    return (
-        pd.to_timedelta(string)
-        .to_timedelta64()
-        .astype("timedelta64[ns]")
-        .astype("int64")
-    )
+    return int(pd.to_timedelta(string).value)
 
 
 def datetime_str_to_ns(string: str) -> NanosecondTime:
