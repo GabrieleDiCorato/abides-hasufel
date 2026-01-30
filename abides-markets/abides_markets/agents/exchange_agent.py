@@ -908,34 +908,49 @@ class ExchangeAgent(FinancialAgent):
         self.get_time_dropout(book, symbol)
 
     def get_time_dropout(self, book: List[Dict[str, Any]], symbol: str):
-        if len(book) == 0:
-            return
+        # Calculate simulation duration
+        start_time = self.mkt_open
+        end_time = self.mkt_close
+        total_time = end_time - start_time
 
-        df = pd.DataFrame(book)
-
-        total_time = df["QuoteTime"].iloc[-1] - df["QuoteTime"].iloc[0]
-        is_null_bids = False
-        t_null_bids_first = 0
         T_null_bids = 0
-
-        is_null_asks = False
-        t_null_asks_first = 0
         T_null_asks = 0
 
-        for _, row in df.iterrows():
-            if (len(row["bids"]) == 0) & (not is_null_bids):
-                t_null_bids_first = row["QuoteTime"]
-                is_null_bids = True
-            elif (len(row["bids"]) != 0) & (is_null_bids):
-                T_null_bids += row["QuoteTime"] - t_null_bids_first
-                is_null_bids = False
+        # Handle edge cases or bad config
+        if total_time <= 0:
+            total_time = 1  # Avoid division by zero
+        elif len(book) == 0:
+            # No updates means no liquidity for the entire duration (assuming empty start)
+            T_null_bids = total_time
+            T_null_asks = total_time
+        else:
+            df = pd.DataFrame(book)
+            times = df["QuoteTime"].values
 
-            if (len(row["asks"]) == 0) & (not is_null_asks):
-                t_null_asks_first = row["QuoteTime"]
-                is_null_asks = True
-            elif (len(row["asks"]) != 0) & (is_null_asks):
-                T_null_asks += row["QuoteTime"] - t_null_asks_first
-                is_null_asks = False
+            # Initial period (mkt_open to first update)
+            # Assumption: Book starts empty
+            if times[0] > start_time:
+                T_null_bids += times[0] - start_time
+                T_null_asks += times[0] - start_time
+
+            # Iterate through intervals between updates
+            # During interval [t_i, t_{i+1}), the state is determined by updates at t_i
+            # We access book[i] directly to avoid DataFrame overhead/issues with list cells
+            for i in range(len(times) - 1):
+                duration = times[i + 1] - times[i]
+                if duration > 0:
+                    if len(book[i]["bids"]) == 0:
+                        T_null_bids += duration
+                    if len(book[i]["asks"]) == 0:
+                        T_null_asks += duration
+
+            # Final period (last update to mkt_close)
+            if end_time > times[-1]:
+                duration = end_time - times[-1]
+                if len(book[-1]["bids"]) == 0:
+                    T_null_bids += duration
+                if len(book[-1]["asks"]) == 0:
+                    T_null_asks += duration
 
         self.metric_trackers[symbol] = self.MetricTracker(
             total_time_no_liquidity_asks=T_null_asks / 1e9,
