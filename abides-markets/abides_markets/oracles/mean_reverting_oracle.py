@@ -80,7 +80,7 @@ class MeanRevertingOracle(Oracle):
 
         # Create the time series into which values will be projected and initialize the first value.
         date_range = pd.date_range(
-            self.mkt_open, self.mkt_close, closed="left", freq="N"
+            self.mkt_open, self.mkt_close, inclusive="left", freq="ns"
         )
 
         s = pd.Series(index=date_range)
@@ -118,7 +118,7 @@ class MeanRevertingOracle(Oracle):
             "Oracle: client requested {symbol} at market open: {}", self.mkt_open
         )
 
-        open_price = self.r[symbol].loc[self.mkt_open]
+        open_price = self.r[symbol].loc[pd.Timestamp(self.mkt_open, unit="ns")]
         logger.debug("Oracle: market open price was was {}", open_price)
 
         return open_price
@@ -147,9 +147,9 @@ class MeanRevertingOracle(Oracle):
 
         # If the request is made after market close, return the close price.
         if current_time >= self.mkt_close:
-            r_t = self.r[symbol].loc[self.mkt_close - 1]
+            r_t = self.r[symbol].loc[pd.Timestamp(self.mkt_close - 1, unit="ns")]
         else:
-            r_t = self.r[symbol].loc[current_time]
+            r_t = self.r[symbol].loc[pd.Timestamp(current_time, unit="ns")]
 
         # Generate a noisy observation of fundamental value at the current time.
         if sigma_n == 0:

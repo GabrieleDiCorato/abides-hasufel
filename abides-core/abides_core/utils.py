@@ -120,6 +120,10 @@ def str_to_ns(string: str | NanosecondTime) -> NanosecondTime:
     if re.match(r"^[\d.]+d$", string.lower()):
         string = string[:-1] + "D"
 
+    # Handle uppercase 'S' as seconds (deprecated in pandas 2.2+, use lowercase 's')
+    if re.match(r"^[\d.]+S$", string):
+        string = string[:-1] + "s"
+
     return int(pd.to_timedelta(string).value)
 
 

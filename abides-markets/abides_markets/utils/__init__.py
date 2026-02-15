@@ -40,12 +40,8 @@ def get_value_from_timestamp(s: pd.Series, ts: datetime.datetime):
 
     ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
     s = s.loc[~s.index.duplicated(keep="last")]
-    locs = s.index.get_loc(ts_str, method="nearest")
-    out = (
-        s[locs][0]
-        if (isinstance(s[locs], np.ndarray) or isinstance(s[locs], pd.Series))
-        else s[locs]
-    )
+    idx = s.index.get_indexer([ts_str], method="nearest")[0]
+    out = s.iloc[idx]
 
     return out
 
