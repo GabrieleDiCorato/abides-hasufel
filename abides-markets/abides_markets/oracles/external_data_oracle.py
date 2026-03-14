@@ -225,7 +225,7 @@ class ExternalDataOracle(Oracle):
         symbol: str,
         current_time: NanosecondTime,
         random_state: np.random.RandomState,
-        sigma_n: int = 1000,
+        sigma_n: int = 0,
     ) -> int:
         """Return a (potentially noisy) observation of the fundamental value.
 
