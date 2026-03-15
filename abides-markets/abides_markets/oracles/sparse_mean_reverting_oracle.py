@@ -80,14 +80,18 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
             # Compute the time and value of the first megashock.  Note that while the values are
             # mean-zero, they are intentionally bimodal (i.e. we always want to push the stock
             # some, but we will tend to cancel out via pushes in opposite directions).
-            ms_time_delta = s["random_state"].exponential(
-                scale=1.0 / s["megashock_lambda_a"]
-            )
-            mst = self.mkt_open + ms_time_delta
-            msv = s["random_state"].normal(
-                loc=s["megashock_mean"], scale=sqrt(s["megashock_var"])
-            )
-            msv = msv if s["random_state"].randint(2) == 0 else -msv
+            if s["megashock_lambda_a"] == 0:
+                mst = float("inf")
+                msv = 0.0
+            else:
+                ms_time_delta = s["random_state"].exponential(
+                    scale=1.0 / s["megashock_lambda_a"]
+                )
+                mst = self.mkt_open + ms_time_delta
+                msv = s["random_state"].normal(
+                    loc=s["megashock_mean"], scale=sqrt(s["megashock_var"])
+                )
+                msv = msv if s["random_state"].randint(2) == 0 else -msv
 
             self.megashocks[symbol] = [{"MegashockTime": mst, "MegashockValue": msv}]
 
@@ -135,10 +139,14 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
 
         # The OU process is able to skip any amount of time and sample the next desired value
         # from the appropriate distribution of possible values.
-        v = s["random_state"].normal(
-            loc=mu + (pv - mu) * (exp(-gamma * d)),
-            scale=sqrt(((theta**2) / (2 * gamma)) * (1 - exp(-2 * gamma * d))),
-        )
+        if gamma == 0:
+            loc = pv
+            scale = sqrt((theta**2) * d)
+        else:
+            loc = mu + (pv - mu) * (exp(-gamma * d))
+            scale = sqrt(((theta**2) / (2 * gamma)) * (1 - exp(-2 * gamma * d)))
+
+        v = s["random_state"].normal(loc=loc, scale=scale)
 
         # Apply the value adjustment that was passed in.
         v += v_adj
@@ -198,13 +206,17 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
             # Since we just surpassed the last megashock time, compute the next one, which we might or
             # might not immediately consume.  This works just like the first time (in __init__()).
 
-            mst = pt + int(
-                s["random_state"].exponential(scale=1.0 / s["megashock_lambda_a"])
-            )
-            msv = s["random_state"].normal(
-                loc=s["megashock_mean"], scale=sqrt(s["megashock_var"])
-            )
-            msv = msv if s["random_state"].randint(2) == 0 else -msv
+            if s["megashock_lambda_a"] == 0:
+                mst = float("inf")
+                msv = 0.0
+            else:
+                mst = pt + int(
+                    s["random_state"].exponential(scale=1.0 / s["megashock_lambda_a"])
+                )
+                msv = s["random_state"].normal(
+                    loc=s["megashock_mean"], scale=sqrt(s["megashock_var"])
+                )
+                msv = msv if s["random_state"].randint(2) == 0 else -msv
 
             self.megashocks[symbol].append(
                 {"MegashockTime": mst, "MegashockValue": msv}
