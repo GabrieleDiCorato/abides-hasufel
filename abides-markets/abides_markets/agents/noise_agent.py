@@ -68,10 +68,9 @@ class NoiseAgent(TradingAgent):
         super().kernel_stopping()
 
         # Fix the problem of logging an agent that has not waken up
-        try:
-            # noise trader surplus is marked to EOD
-            bid, bid_vol, ask, ask_vol = self.get_known_bid_ask(self.symbol)
-        except KeyError:
+        bid, bid_vol, ask, ask_vol = self.get_known_bid_ask(self.symbol)
+
+        if bid is None and ask is None and self.symbol not in self.last_trade:
             self.logEvent("FINAL_VALUATION", self.starting_cash, True)
         else:
             # Print end of day valuation.

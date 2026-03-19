@@ -204,7 +204,7 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
         mst = self.megashocks[symbol][-1]["MegashockTime"]
         msv = self.megashocks[symbol][-1]["MegashockValue"]
 
-        while mst < current_time:
+        while mst <= current_time:
             # A megashock is scheduled to occur before the new time to which we are advancing.  Handle it.
 
             # Advance time from the previous time to the time of the megashock using the OU process and

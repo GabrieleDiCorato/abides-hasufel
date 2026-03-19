@@ -306,16 +306,10 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 isinstance(message, MarketDataMsg)
                 and self.state["AWAITING_MARKET_DATA"] is True
             ):
-                bid = (
-                    self.known_bids[self.symbol][0][0]
-                    if self.known_bids[self.symbol]
-                    else None
-                )
-                ask = (
-                    self.known_asks[self.symbol][0][0]
-                    if self.known_asks[self.symbol]
-                    else None
-                )
+                bids = self.known_bids.get(self.symbol, [])
+                asks = self.known_asks.get(self.symbol, [])
+                bid = bids[0][0] if bids else None
+                ask = asks[0][0] if asks else None
                 if bid and ask:
                     mid = (ask + bid) // 2
                     self.last_mid = mid

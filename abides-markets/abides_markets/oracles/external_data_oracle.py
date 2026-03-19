@@ -165,6 +165,9 @@ class ExternalDataOracle(Oracle):
     def _init_batch(self, provider: BatchDataProvider) -> None:
         """Eagerly load the full series for every symbol."""
         self.r: Dict[str, pd.Series] = {}
+        self._linear_xs: Dict[str, np.ndarray] = {}
+        self._linear_ys: Dict[str, np.ndarray] = {}
+        self._linear_base: Dict[str, int] = {}
         for symbol in self.symbols_list:
             series = provider.get_fundamental_series(
                 symbol, self.mkt_open, self.mkt_close
@@ -178,15 +181,14 @@ class ExternalDataOracle(Oracle):
                 series.index = pd.to_datetime(series.index, unit="ns")
             series = series.sort_index()
 
-            # Pre-apply interpolation for LINEAR / NEAREST so lookups are O(1)
+            # For LINEAR, store numpy arrays for np.interp at query time
+            # (O(log n) per lookup instead of materializing a nanosecond index).
+            # Subtract base timestamp to avoid float64 precision loss at ~1.6e18.
             if self.interpolation == InterpolationStrategy.LINEAR:
-                full_idx = pd.date_range(series.index[0], series.index[-1], freq="ns")
-                series = (
-                    series.reindex(full_idx)
-                    .interpolate(method="linear")
-                    .round()
-                    .astype(int)
-                )
+                raw_xs = series.index.astype(np.int64).values
+                self._linear_base[symbol] = raw_xs[0]
+                self._linear_xs[symbol] = (raw_xs - raw_xs[0]).astype(float)
+                self._linear_ys[symbol] = series.values.astype(float)
 
             self.r[symbol] = series
 
@@ -213,8 +215,13 @@ class ExternalDataOracle(Oracle):
             elif self.interpolation == InterpolationStrategy.NEAREST:
                 idx = series.index.get_indexer([ts], method="nearest")[0]
                 value = series.iloc[idx]
+            elif self.interpolation == InterpolationStrategy.LINEAR:
+                value = int(round(np.interp(
+                    mkt_open - self._linear_base[symbol],
+                    self._linear_xs[symbol],
+                    self._linear_ys[symbol],
+                )))
             else:
-                # LINEAR: series is already fully interpolated
                 value = series.asof(ts)
             return int(value)
         else:
@@ -277,8 +284,13 @@ class ExternalDataOracle(Oracle):
         elif self.interpolation == InterpolationStrategy.NEAREST:
             idx = series.index.get_indexer([ts], method="nearest")[0]
             value = series.iloc[idx]
+        elif self.interpolation == InterpolationStrategy.LINEAR:
+            value = int(round(np.interp(
+                timestamp - self._linear_base[symbol],
+                self._linear_xs[symbol],
+                self._linear_ys[symbol],
+            )))
         else:
-            # LINEAR: already interpolated to full resolution
             value = series.asof(ts)
 
         if pd.isna(value):

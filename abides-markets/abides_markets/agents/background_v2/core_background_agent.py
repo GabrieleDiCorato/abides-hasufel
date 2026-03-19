@@ -124,7 +124,7 @@ class CoreBackgroundAgent(TradingAgent):
             self.has_subscribed = True
 
         if not can_trade:
-            return False
+            return
 
         # compute the following wake up
         if (self.mkt_open is not None) and (

@@ -4,6 +4,8 @@ Available to any agent or other module/utility.  Should not require references t
 any simulator object (kernel, agent, etc).
 """
 
+from __future__ import annotations
+
 import hashlib
 import inspect
 import os
