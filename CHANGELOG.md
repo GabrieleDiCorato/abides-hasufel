@@ -1,3 +1,34 @@
+2026-03 Release v1.2.0
+==================
+
+
+Bugs Fixed
+----------
+
+* Fixed latency matrix row aliasing — `[[v]*N]*N` creates N references to the same inner list; replaced with `[[v]*N for _ in range(N)]`
+* Fixed `MessageBatch` computation delay applied N times per batch instead of once
+* Fixed `get_l1_bid_data()` returning the wrong price level after skipping zero-quantity levels; added bounds check
+
+
+Performance Improvements
+------------------------
+
+* Order book insert, cancel, modify, and partial-cancel operations replaced O(N) linear scan with O(log N) binary search via `bisect`
+* Subscription publishing scoped to the affected symbol only — previously iterated all symbols on every order event
+
+
+Other Changes
+-------------
+
+* Removed 6 redundant `deepcopy()` calls from exchange agent order processing
+* Replaced `filter+lambda` with list comprehension in L2 book data methods
+* Changed `logEvent` default to `deepcopy_event=False`; added explicit `deepcopy_event=True` where holdings dict is logged
+* Replaced `queue.PriorityQueue` with `heapq` in Kernel message queue, eliminating mutex overhead in the single-threaded event loop
+* Fixed subscription cancel list mutation during iteration
+* Removed global `pd.set_option("display.max_rows", 500)` from exchange agent module scope
+* Documentation: cleaned up and simplified all docs to match current code state (removed outdated concurrency appendix, condensed remediation plan to changelog table)
+
+
 2026-01 Release v1.1.0
 ==================
 
