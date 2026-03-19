@@ -42,6 +42,31 @@ packages = ["abides-core/abides_core", "abides-markets/abides_markets", "abides-
 testpaths = ["abides-core/tests", "abides-markets/tests"]
 python_files = "test_*.py"
 
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+ignore = [
+    "N802",  # function name should be lowercase (conflicts with inherited wakeup/receiveMessage conventions)
+    "N803",  # argument name should be lowercase
+    "N806",  # variable in function should be lowercase
+    "UP007", # Use `X | Y` for union type annotations (project uses Optional consistently)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"abides-core/tests/*" = ["S101"]
+"abides-markets/tests/*" = ["S101"]
+
+[tool.coverage.run]
+source = ["abides_core", "abides_markets", "abides_gym"]
+omit = ["*/tests/*", "*/version_testing/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 0
+
 [dependency-groups]
 dev = [
     "black>=24.10.0",
