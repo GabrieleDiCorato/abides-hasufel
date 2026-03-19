@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from math import ceil, floor
 from typing import Dict, List, Optional, Tuple
@@ -266,11 +268,9 @@ class AdaptiveMarketMakerAgent(TradingAgent):
 
         if isinstance(message, BookImbalanceDataMsg):
             if message.stage == MarketDataEventMsg.Stage.START:
-                try:
+                if mid is not None:
                     self.place_orders(mid)
                     self.last_time_book_order = current_time
-                except Exception:
-                    pass
 
         if not self.subscribe:
             if (

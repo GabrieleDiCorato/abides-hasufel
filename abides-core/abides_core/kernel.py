@@ -478,11 +478,12 @@ class Kernel:
         for agent in self.agents:
             agent.kernel_terminating()
 
+        elapsed_seconds = event_queue_wall_clock_elapsed.total_seconds()
         logger.info(
             "Event Queue elapsed: {}, messages: {:,}, messages per second: {:0.1f}".format(
                 event_queue_wall_clock_elapsed,
                 self.ttl_messages,
-                self.ttl_messages / event_queue_wall_clock_elapsed.total_seconds(),
+                self.ttl_messages / elapsed_seconds if elapsed_seconds > 0 else 0,
             )
         )
 

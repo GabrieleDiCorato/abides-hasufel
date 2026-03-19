@@ -104,7 +104,7 @@ class MomentumAgent(TradingAgent):
     def place_orders(self, bid: int, ask: int) -> None:
         """Momentum Agent actions logic"""
         if bid and ask:
-            self.mid_list.append((bid + ask) / 2)
+            self.mid_list.append((bid + ask) // 2)
             if len(self.mid_list) > 20:
                 self.avg_20_list.append(
                     MomentumAgent.ma(self.mid_list, n=20)[-1].round(2)

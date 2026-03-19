@@ -103,9 +103,8 @@ class CoreBackgroundAgent(TradingAgent):
         super().kernel_starting(start_time)
 
     def wakeup(self, current_time: NanosecondTime) -> bool:
-        # TODO: parent class (TradingAgent) returns bool of "ready to trade"
         """Agent interarrival wake up times are determined by wakeup_interval_generator"""
-        super().wakeup(current_time)
+        can_trade = super().wakeup(current_time)
         if not self.has_subscribed:
             super().request_data_subscription(
                 L2SubReqMsg(
@@ -123,6 +122,10 @@ class CoreBackgroundAgent(TradingAgent):
             )
 
             self.has_subscribed = True
+
+        if not can_trade:
+            return False
+
         # compute the following wake up
         if (self.mkt_open is not None) and (
             current_time >= self.mkt_open

@@ -248,16 +248,12 @@ class ExchangeAgent(FinancialAgent):
         """
 
         super().kernel_terminating()
-        # print(self.order_books['ABM'].book_log2)
-        # If the oracle supports writing the fundamental value series for its
-        bid_volume, ask_volume = self.order_books["ABM"].get_transacted_volume(
-            self.current_time - self.mkt_open
-        )
-        self.total_exchanged_volume = bid_volume + ask_volume
 
         # symbols, write them to disk.
         for symbol in self.symbols:
             self.analyse_order_book(symbol)
+
+        self.total_exchanged_volume = 0
         for symbol in self.symbols:
             bid_volume, ask_volume = self.order_books[symbol].get_transacted_volume(
                 self.current_time - self.mkt_open
@@ -265,11 +261,12 @@ class ExchangeAgent(FinancialAgent):
             self.metric_trackers[symbol].total_exchanged_volume = (
                 bid_volume + ask_volume
             )
+            self.total_exchanged_volume += bid_volume + ask_volume
             self.metric_trackers[symbol].last_trade = self.order_books[
                 symbol
             ].last_trade
 
-        if self.log_orders is None or self.log_orders:
+        if not self.log_orders:
             return
 
         # If the oracle supports writing the fundamental value series for its

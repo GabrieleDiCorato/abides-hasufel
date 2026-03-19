@@ -105,19 +105,16 @@ class NoiseAgent(TradingAgent):
 
     def wakeup(self, current_time: NanosecondTime) -> None:
         # Parent class handles discovery of exchange times and market_open wakeup call.
-        super().wakeup(current_time)
+        if not super().wakeup(current_time):
+            return
 
         self.state = "INACTIVE"
 
-        if not self.mkt_open or not self.mkt_close:
-            # TradingAgent handles discovery of exchange times.
-            return
-        else:
-            if not self.trading:
-                self.trading = True
+        if not self.trading:
+            self.trading = True
 
-                # Time to start trading!
-                logger.debug("{} is ready to start trading now.", self.name)
+            # Time to start trading!
+            logger.debug("{} is ready to start trading now.", self.name)
 
         # Steady state wakeup behavior starts here.
 
