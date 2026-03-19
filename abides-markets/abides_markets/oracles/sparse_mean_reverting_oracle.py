@@ -71,7 +71,7 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
         # which the series was computed and the true fundamental value at that time.
         for symbol in self.symbols:
             s = self.symbols[symbol]
-            
+
             # Sub-allocate isolated per-symbol random states safely using the main random_state's entropy
             if "random_state" not in s:
                 s["random_state"] = np.random.RandomState(

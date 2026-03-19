@@ -49,7 +49,7 @@ class Agent:
         self.log_to_file: bool = log_to_file & log_events
 
         # Kernel is supplied via kernel_initializing method of kernel lifecycle.
-        self.kernel: "Kernel | None" = None
+        self.kernel: Kernel | None = None
 
         # What time does the agent think it is?  Should be updated each time
         # the agent wakes via wakeup or receive_message.  (For convenience

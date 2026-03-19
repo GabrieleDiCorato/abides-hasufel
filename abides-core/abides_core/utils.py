@@ -166,7 +166,7 @@ def parse_logs_df(end_state: dict) -> pd.DataFrame:
                 "EventType": m[1],
                 "Event": m[2],
             }
-            event = m.get("Event", None)
+            event = m.get("Event")
             if event is None:
                 event = {"EmptyEvent": True}
             elif not isinstance(event, dict):

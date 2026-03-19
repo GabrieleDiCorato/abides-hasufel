@@ -7,6 +7,7 @@
 
 import numpy as np
 from abides_core.utils import datetime_str_to_ns, get_wake_time, str_to_ns
+
 from abides_markets.agents import (
     AdaptiveMarketMakerAgent,
     ExchangeAgent,

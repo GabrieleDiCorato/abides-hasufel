@@ -6,8 +6,8 @@ import numpy as np
 from abides_core import Message, NanosecondTime
 from abides_core.generators import ConstantTimeGenerator, InterArrivalTimeGenerator
 from abides_core.utils import str_to_ns
+
 from abides_markets.agents.trading_agent import TradingAgent
-from abides_markets.models.order_size_model import OrderSizeModel
 from abides_markets.messages.marketdata import (
     L2DataMsg,
     L2SubReqMsg,
@@ -15,6 +15,7 @@ from abides_markets.messages.marketdata import (
     TransactedVolDataMsg,
     TransactedVolSubReqMsg,
 )
+from abides_markets.models.order_size_model import OrderSizeModel
 from abides_markets.orders import Order, Side
 
 

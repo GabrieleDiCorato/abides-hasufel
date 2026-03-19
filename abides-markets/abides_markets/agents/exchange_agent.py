@@ -755,20 +755,7 @@ class ExchangeAgent(FinancialAgent):
                 )
             )
 
-        elif isinstance(data_sub, self.L3DataSubscription):
-            bids = book.get_l3_bid_data(data_sub.depth)
-            asks = book.get_l3_ask_data(data_sub.depth)
-            messages.append(
-                L3DataMsg(
-                    symbol,
-                    book.last_trade,
-                    self.current_time,
-                    bids,
-                    asks,
-                )
-            )
-
-        elif isinstance(data_sub, self.L3DataSubscription):
+        elif isinstance(data_sub, self.L3DataSubscription) or isinstance(data_sub, self.L3DataSubscription):
             bids = book.get_l3_bid_data(data_sub.depth)
             asks = book.get_l3_ask_data(data_sub.depth)
             messages.append(

@@ -3,6 +3,7 @@ from typing import Optional
 
 import numpy as np
 from abides_core import Message, NanosecondTime
+
 from abides_markets.models.order_size_model import OrderSizeModel
 
 from ..messages.query import QuerySpreadResponseMsg

@@ -1,6 +1,6 @@
 import itertools
 from dataclasses import dataclass, field
-from typing import ClassVar, List
+from typing import List
 
 
 @dataclass
