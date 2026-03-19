@@ -47,7 +47,9 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
         self.mkt_open: NanosecondTime = mkt_open
         self.mkt_close: NanosecondTime = mkt_close
 
-        self.symbols: Dict[str, Dict[str, Any]] = symbols
+        self.symbols: Dict[str, Dict[str, Any]] = {
+            k: dict(v) for k, v in symbols.items()
+        }
         self.random_state: np.random.RandomState = random_state
 
         self.f_log: Dict[str, List[Dict[str, Any]]] = {}
@@ -67,8 +69,8 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
 
         # Note that each value in the self.r dictionary is a 2-tuple of the timestamp at
         # which the series was computed and the true fundamental value at that time.
-        for symbol in symbols:
-            s = symbols[symbol]
+        for symbol in self.symbols:
+            s = self.symbols[symbol]
             
             # Sub-allocate isolated per-symbol random states safely using the main random_state's entropy
             if "random_state" not in s:

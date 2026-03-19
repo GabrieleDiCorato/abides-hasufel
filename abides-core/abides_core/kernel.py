@@ -271,6 +271,8 @@ class Kernel:
         self.event_queue_wall_clock_start = datetime.now()
         self.ttl_messages = 0
 
+        self.has_run = True
+
     def runner(
         self, agent_actions: Optional[Tuple[Agent, List[Dict[str, Any]]]] = None
     ) -> Dict[str, Any]:

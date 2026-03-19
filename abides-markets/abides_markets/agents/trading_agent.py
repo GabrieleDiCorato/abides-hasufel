@@ -1074,10 +1074,10 @@ class TradingAgent(FinancialAgent):
             symbol: The symbol to query.
         """
 
-        bid = self.known_bids[symbol][0][0] if self.known_bids[symbol] else None
-        ask = self.known_asks[symbol][0][0] if self.known_asks[symbol] else None
-        bid_vol = self.known_bids[symbol][0][1] if self.known_bids[symbol] else 0
-        ask_vol = self.known_asks[symbol][0][1] if self.known_asks[symbol] else 0
+        bid = self.known_bids.get(symbol, [])[0][0] if self.known_bids.get(symbol) else None
+        ask = self.known_asks.get(symbol, [])[0][0] if self.known_asks.get(symbol) else None
+        bid_vol = self.known_bids.get(symbol, [])[0][1] if self.known_bids.get(symbol) else 0
+        ask_vol = self.known_asks.get(symbol, [])[0][1] if self.known_asks.get(symbol) else 0
         return bid, bid_vol, ask, ask_vol
 
     def get_known_liquidity(self, symbol: str, within: float = 0.00) -> Tuple[int, int]:
@@ -1097,12 +1097,12 @@ class TradingAgent(FinancialAgent):
             the bid liquidity, etc.)
         """
 
-        bid_liq = self.get_book_liquidity(self.known_bids[symbol], within)
-        ask_liq = self.get_book_liquidity(self.known_asks[symbol], within)
+        bid_liq = self.get_book_liquidity(self.known_bids.get(symbol, []), within)
+        ask_liq = self.get_book_liquidity(self.known_asks.get(symbol, []), within)
 
         logger.debug("Bid/ask liq: {}, {}".format(bid_liq, ask_liq))
-        logger.debug("Known bids: {}".format(self.known_bids[self.symbol]))
-        logger.debug("Known asks: {}".format(self.known_asks[self.symbol]))
+        logger.debug("Known bids: {}".format(self.known_bids.get(symbol, [])))
+        logger.debug("Known asks: {}".format(self.known_asks.get(symbol, [])))
 
         return bid_liq, ask_liq
 

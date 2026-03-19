@@ -393,12 +393,24 @@ class ExchangeAgent(FinancialAgent):
                     )
                 )
 
+                # Map message types to subscription types for correct matching
+                _msg_sub_map = {
+                    L1SubReqMsg: self.L1DataSubscription,
+                    L2SubReqMsg: self.L2DataSubscription,
+                    L3SubReqMsg: self.L3DataSubscription,
+                    TransactedVolSubReqMsg: self.TransactedVolDataSubscription,
+                    BookImbalanceSubReqMsg: self.BookImbalanceDataSubscription,
+                }
+                expected_sub_type = _msg_sub_map.get(type(message))
+
                 for data_sub in self.data_subscriptions[message.symbol]:
                     if (
                         data_sub.agent_id == sender_id
-                        and data_sub.freq == message.freq
-                        and data_sub.depth == message.depth
-                        and data_sub.__class__ == message.__class__
+                        and isinstance(data_sub, expected_sub_type)
+                        and getattr(data_sub, "freq", None)
+                        == getattr(message, "freq", None)
+                        and getattr(data_sub, "depth", None)
+                        == getattr(message, "depth", None)
                     ):
                         self.data_subscriptions[message.symbol].remove(data_sub)
                         break
@@ -526,18 +538,18 @@ class ExchangeAgent(FinancialAgent):
                     )
                 )
 
-            # We return indices [1:length] inclusive because the agent will want
-            # "orders leading up to the last L trades", and the items under
-            # index 0 are more recent than the last trade.
-            self.send_message(
-                sender_id,
-                QueryOrderStreamResponseMsg(
-                    symbol=symbol,
-                    length=length,
-                    orders=self.order_books[symbol].history[1 : length + 1],
-                    mkt_closed=current_time > self.mkt_close,
-                ),
-            )
+                # We return indices [1:length] inclusive because the agent will want
+                # "orders leading up to the last L trades", and the items under
+                # index 0 are more recent than the last trade.
+                self.send_message(
+                    sender_id,
+                    QueryOrderStreamResponseMsg(
+                        symbol=symbol,
+                        length=length,
+                        orders=self.order_books[symbol].history[1 : length + 1],
+                        mkt_closed=current_time > self.mkt_close,
+                    ),
+                )
 
         elif isinstance(message, QueryTransactedVolMsg):
             symbol = message.symbol
@@ -545,7 +557,7 @@ class ExchangeAgent(FinancialAgent):
 
             if symbol not in self.order_books:
                 warnings.warn(
-                    f"Order stream request discarded. Unknown symbol: {symbol}"
+                    f"Transacted volume request discarded. Unknown symbol: {symbol}"
                 )
             else:
                 logger.debug(
@@ -554,19 +566,19 @@ class ExchangeAgent(FinancialAgent):
                     )
                 )
 
-            bid_volume, ask_volume = self.order_books[symbol].get_transacted_volume(
-                lookback_period
-            )
+                bid_volume, ask_volume = self.order_books[
+                    symbol
+                ].get_transacted_volume(lookback_period)
 
-            self.send_message(
-                sender_id,
-                QueryTransactedVolResponseMsg(
-                    symbol=symbol,
-                    bid_volume=bid_volume,
-                    ask_volume=ask_volume,
-                    mkt_closed=current_time > self.mkt_close,
-                ),
-            )
+                self.send_message(
+                    sender_id,
+                    QueryTransactedVolResponseMsg(
+                        symbol=symbol,
+                        bid_volume=bid_volume,
+                        ask_volume=ask_volume,
+                        mkt_closed=current_time > self.mkt_close,
+                    ),
+                )
 
         elif isinstance(message, LimitOrderMsg):
             logger.debug("{} received LIMIT_ORDER: {}".format(self.name, message.order))
