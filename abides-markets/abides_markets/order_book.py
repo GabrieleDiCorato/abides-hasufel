@@ -699,15 +699,11 @@ class OrderBook:
             The list is given in order of price, with the centre of the book first.
         """
 
-        return list(
-            filter(
-                lambda x: x[1] > 0,
-                [
-                    (price_level.price, price_level.total_quantity)
-                    for price_level in self.bids[:depth]
-                ],
-            )
-        )
+        return [
+            (price_level.price, price_level.total_quantity)
+            for price_level in self.bids[:depth]
+            if price_level.total_quantity > 0
+        ]
 
     def get_l2_ask_data(self, depth: int = sys.maxsize) -> List[Tuple[int, int]]:
         """Returns the price and total quantity of all limit orders on the ask side.
@@ -722,15 +718,11 @@ class OrderBook:
             The list is given in order of price, with the centre of the book first.
         """
 
-        return list(
-            filter(
-                lambda x: x[1] > 0,
-                [
-                    (price_level.price, price_level.total_quantity)
-                    for price_level in self.asks[:depth]
-                ],
-            )
-        )
+        return [
+            (price_level.price, price_level.total_quantity)
+            for price_level in self.asks[:depth]
+            if price_level.total_quantity > 0
+        ]
 
     def get_l3_bid_data(self, depth: int = sys.maxsize) -> List[Tuple[int, List[int]]]:
         """Returns the price and quantity of all limit orders on the bid side.
