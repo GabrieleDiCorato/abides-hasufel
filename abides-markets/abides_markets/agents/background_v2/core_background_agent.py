@@ -7,6 +7,7 @@ from abides_core import Message, NanosecondTime
 from abides_core.generators import ConstantTimeGenerator, InterArrivalTimeGenerator
 from abides_core.utils import str_to_ns
 from abides_markets.agents.trading_agent import TradingAgent
+from abides_markets.models.order_size_model import OrderSizeModel
 from abides_markets.messages.marketdata import (
     L2DataMsg,
     L2SubReqMsg,
@@ -30,7 +31,7 @@ class CoreBackgroundAgent(TradingAgent):
         wakeup_interval_generator: InterArrivalTimeGenerator = ConstantTimeGenerator(
             step_duration=str_to_ns("1min")
         ),
-        order_size_generator=None,  # TODO: not sure about this one
+        order_size_generator: Optional[OrderSizeModel] = None,
         state_buffer_length: int = 2,
         market_data_buffer_length: int = 5,
         first_interval: Optional[NanosecondTime] = None,
@@ -56,9 +57,7 @@ class CoreBackgroundAgent(TradingAgent):
         self.wakeup_interval_generator: InterArrivalTimeGenerator = (
             wakeup_interval_generator
         )
-        self.order_size_generator = (
-            order_size_generator  # TODO: no diea here for typing
-        )
+        self.order_size_generator: Optional[OrderSizeModel] = order_size_generator
 
         if hasattr(self.wakeup_interval_generator, "random_generator"):
             self.wakeup_interval_generator.random_generator = self.random_state
@@ -66,7 +65,7 @@ class CoreBackgroundAgent(TradingAgent):
         self.state_buffer_length: int = state_buffer_length
         self.market_data_buffer_length: int = market_data_buffer_length
         self.first_interval: Optional[NanosecondTime] = first_interval
-        if self.order_size_generator is not None:  # TODO: check this one
+        if self.order_size_generator is not None:
             self.order_size_generator.random_generator = self.random_state
 
         self.lookback_period: NanosecondTime = self.wakeup_interval_generator.mean()
@@ -102,7 +101,7 @@ class CoreBackgroundAgent(TradingAgent):
     def kernel_starting(self, start_time: NanosecondTime) -> None:
         super().kernel_starting(start_time)
 
-    def wakeup(self, current_time: NanosecondTime) -> bool:
+    def wakeup(self, current_time: NanosecondTime) -> Optional[Any]:
         """Agent interarrival wake up times are determined by wakeup_interval_generator"""
         can_trade = super().wakeup(current_time)
         if not self.has_subscribed:
@@ -131,7 +130,6 @@ class CoreBackgroundAgent(TradingAgent):
             current_time >= self.mkt_open
         ):  # compute the state (returned to the Gym Env)
             raw_state = self.act_on_wakeup()
-            # TODO: wakeup function should return bool
             return raw_state
 
     ##return non None value so the kernel catches it and stops
@@ -212,8 +210,7 @@ class CoreBackgroundAgent(TradingAgent):
         }
         self.raw_state.append(new)
 
-    def get_raw_state(self) -> Dict:
-        # TODO: Incompatible return value type (got "deque[Any]", expected "Dict[Any, Any]")
+    def get_raw_state(self) -> Deque[Dict[str, Any]]:
         return self.raw_state
 
     def get_parsed_mkt_data(self, message: L2DataMsg) -> Dict[str, Any]:
