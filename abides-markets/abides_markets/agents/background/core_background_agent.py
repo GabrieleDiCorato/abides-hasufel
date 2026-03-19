@@ -1,3 +1,4 @@
+import sys
 from collections import deque
 from copy import deepcopy
 from typing import Any, Deque, Dict, List, Optional, Tuple
@@ -16,7 +17,7 @@ from abides_markets.messages.marketdata import (
     TransactedVolSubReqMsg,
 )
 from abides_markets.models.order_size_model import OrderSizeModel
-from abides_markets.orders import Order, Side
+from abides_markets.orders import LimitOrder, Order, Side
 
 
 class CoreBackgroundAgent(TradingAgent):
@@ -53,7 +54,7 @@ class CoreBackgroundAgent(TradingAgent):
         # Frequency of agent data subscription up in ns-1
         self.subscribe_freq: int = subscribe_freq
         self.subscribe: bool = subscribe
-        self.subscribe_num_levels: int = subscribe_num_levels
+        self.subscribe_num_levels: Optional[int] = subscribe_num_levels
         self.first_interval: Optional[NanosecondTime] = first_interval
         self.wakeup_interval_generator: InterArrivalTimeGenerator = (
             wakeup_interval_generator
@@ -65,11 +66,10 @@ class CoreBackgroundAgent(TradingAgent):
 
         self.state_buffer_length: int = state_buffer_length
         self.market_data_buffer_length: int = market_data_buffer_length
-        self.first_interval: Optional[NanosecondTime] = first_interval
-        if self.order_size_generator is not None:
+        if self.order_size_generator is not None and hasattr(self.order_size_generator, "random_generator"):
             self.order_size_generator.random_generator = self.random_state
 
-        self.lookback_period: NanosecondTime = self.wakeup_interval_generator.mean()
+        self.lookback_period: NanosecondTime = int(self.wakeup_interval_generator.mean())
 
         # internal variables
         self.has_subscribed: bool = False
@@ -89,7 +89,7 @@ class CoreBackgroundAgent(TradingAgent):
         self.parsed_mkt_data_buffer: Deque[Dict[str, Any]] = deque(
             maxlen=self.market_data_buffer_length
         )
-        self.parsed_volume_data = {}
+        self.parsed_volume_data: Dict[str, Any] = {}
         self.parsed_volume_data_buffer: Deque[Dict[str, Any]] = deque(
             maxlen=self.market_data_buffer_length
         )
@@ -102,7 +102,7 @@ class CoreBackgroundAgent(TradingAgent):
     def kernel_starting(self, start_time: NanosecondTime) -> None:
         super().kernel_starting(start_time)
 
-    def wakeup(self, current_time: NanosecondTime) -> Optional[Any]:
+    def wakeup(self, current_time: NanosecondTime) -> Optional[Any]:  # type: ignore[override]
         """Agent interarrival wake up times are determined by wakeup_interval_generator"""
         can_trade = super().wakeup(current_time)
         if not self.has_subscribed:
@@ -110,7 +110,7 @@ class CoreBackgroundAgent(TradingAgent):
                 L2SubReqMsg(
                     symbol=self.symbol,
                     freq=self.subscribe_freq,
-                    depth=self.subscribe_num_levels,
+                    depth=self.subscribe_num_levels if self.subscribe_num_levels is not None else sys.maxsize,
                 )
             )
             super().request_data_subscription(
@@ -124,7 +124,7 @@ class CoreBackgroundAgent(TradingAgent):
             self.has_subscribed = True
 
         if not can_trade:
-            return
+            return None
 
         # compute the following wake up
         if (self.mkt_open is not None) and (
@@ -132,11 +132,9 @@ class CoreBackgroundAgent(TradingAgent):
         ):  # compute the state (returned to the Gym Env)
             raw_state = self.act_on_wakeup()
             return raw_state
+        return None
 
-    ##return non None value so the kernel catches it and stops
-    # return raw_state
-
-    def act_on_wakeup(self):
+    def act_on_wakeup(self) -> Optional[Any]:
         # Needs type signature
         raise NotImplementedError
 
@@ -168,7 +166,7 @@ class CoreBackgroundAgent(TradingAgent):
             if self.first_interval is not None
             else self.wakeup_interval_generator.next()
         )
-        return time_first_wakeup
+        return int(time_first_wakeup)
 
     def apply_actions(self, actions: List[Dict[str, Any]]) -> None:
         # take action from kernel in general representation
@@ -305,7 +303,7 @@ class CoreBackgroundAgent(TradingAgent):
                 "cancelled_qty": 0,
             }
 
-    def order_accepted(self, order: Order) -> None:
+    def order_accepted(self, order: LimitOrder) -> None:
         super().order_accepted(order)
         # update order status dictionnary
         self.order_status[order.order_id] = {
@@ -316,7 +314,7 @@ class CoreBackgroundAgent(TradingAgent):
             "cancelled_qty": 0,
         }
 
-    def order_cancelled(self, order: Order) -> None:
+    def order_cancelled(self, order: LimitOrder) -> None:
         super().order_cancelled(order)
         order_id = order.order_id
         quantity = order.quantity

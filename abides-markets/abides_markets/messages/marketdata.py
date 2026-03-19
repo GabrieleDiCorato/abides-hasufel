@@ -144,7 +144,7 @@ class TransactedVolSubReqMsg(MarketDataFreqBasedSubReqMsg):
     # symbol: str
     # cancel: bool = False
     # freq: int = 1
-    lookback: str = "1min"
+    lookback: str | NanosecondTime = "1min"
 
 
 @dataclass
