@@ -1,3 +1,4 @@
+import bisect
 import logging
 import sys
 import warnings
@@ -69,6 +70,42 @@ class OrderBook:
 
         self.buy_transactions: List[Tuple[NanosecondTime, int]] = []
         self.sell_transactions: List[Tuple[NanosecondTime, int]] = []
+
+    # ------------------------------------------------------------------
+    # Helpers: O(log N) price-level lookup via bisect
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _sort_key(side: Side, price: int) -> int:
+        """Returns a sort key for bisect.
+
+        Bids are stored best-first (highest price at index 0) → negate price.
+        Asks are stored best-first (lowest price at index 0)  → use price as-is.
+        """
+        return -price if side.is_bid() else price
+
+    @staticmethod
+    def _book_keys(book: List[PriceLevel], side: Side) -> List[int]:
+        """Builds a list of sort-keys matching *book* for use with bisect."""
+        if side.is_bid():
+            return [-pl.price for pl in book]
+        return [pl.price for pl in book]
+
+    def _find_price_level(
+        self, book: List[PriceLevel], side: Side, price: int
+    ) -> Tuple[int, bool]:
+        """Binary-search for a price level in *book*.
+
+        Returns ``(index, exact_match)``.
+
+        * If ``exact_match`` is True, ``book[index].price == price``.
+        * Otherwise ``index`` is the insertion point that keeps *book* sorted.
+        """
+        key = self._sort_key(side, price)
+        keys = self._book_keys(book, side)
+        idx = bisect.bisect_left(keys, key)
+        if idx < len(book) and book[idx].price == price:
+            return idx, True
+        return idx, False
 
     def handle_limit_order(self, order: LimitOrder, quiet: bool = False) -> None:
         """Matches a limit order or adds it to the order book.
@@ -368,23 +405,11 @@ class OrderBook:
 
         book = self.bids if order.side.is_bid() else self.asks
 
-        if len(book) == 0:
-            # There were no orders on this side of the book.
-            book.append(PriceLevel([(order, metadata or {})]))
-        elif book[-1].order_has_worse_price(order):
-            # There were orders on this side, but this order is worse than all of them.
-            # (New lowest bid or highest ask.)
-            book.append(PriceLevel([(order, metadata or {})]))
+        idx, found = self._find_price_level(book, order.side, order.limit_price)
+        if found:
+            book[idx].add_order(order, metadata or {})
         else:
-            # There are orders on this side.  Insert this order in the correct position in the list.
-            # Note that o is a LIST of all orders (oldest at index 0) at this same price.
-            for i, price_level in enumerate(book):
-                if price_level.order_has_better_price(order):
-                    book.insert(i, PriceLevel([(order, metadata or {})]))
-                    break
-                elif price_level.order_has_equal_price(order):
-                    book[i].add_order(order, metadata or {})
-                    break
+            book.insert(idx, PriceLevel([(order, metadata or {})]))
 
         if not quiet:
             self.history.append(
@@ -434,58 +459,54 @@ class OrderBook:
         if not book:
             return False
 
-        # There are orders on this side.  Find the price level of the order to cancel,
-        # then find the exact order and cancel it.
-        for i, price_level in enumerate(book):
-            if not price_level.order_has_equal_price(order):
-                continue
+        # O(log N) lookup of the price level matching this order's price.
+        i, found = self._find_price_level(book, order.side, order.limit_price)
+        if not found:
+            return False
 
-            # cancelled_order, metadata = (lambda x: x if x!=None else (None,None))(price_level.remove_order(order.order_id))
-            cancelled_order_result = price_level.remove_order(order.order_id)
+        price_level = book[i]
+        cancelled_order_result = price_level.remove_order(order.order_id)
 
-            if cancelled_order_result is not None:
-                cancelled_order, metadata = cancelled_order_result
+        if cancelled_order_result is not None:
+            cancelled_order, metadata = cancelled_order_result
 
-                # If the cancelled price now has no orders, remove it completely.
-                if price_level.is_empty:
-                    del book[i]
+            # If the cancelled price now has no orders, remove it completely.
+            if price_level.is_empty:
+                del book[i]
 
-                logger.debug("CANCELLED: order {}", order)
-                logger.debug(
-                    "SENT: notifications of order cancellation to agent {} for order {}",
-                    cancelled_order.agent_id,
-                    cancelled_order.order_id,
+            logger.debug("CANCELLED: order {}", order)
+            logger.debug(
+                "SENT: notifications of order cancellation to agent {} for order {}",
+                cancelled_order.agent_id,
+                cancelled_order.order_id,
+            )
+
+            if cancelled_order.is_price_to_comply:
+                self.cancel_order(metadata["ptc_other_half"], quiet=True)
+
+            if not quiet:
+                self.history.append(
+                    dict(
+                        time=self.owner.current_time,
+                        type="CANCEL",
+                        order_id=cancelled_order.order_id,
+                        tag=tag,
+                        metadata=(
+                            cancellation_metadata if tag == "auctionFill" else None
+                        ),
+                    )
                 )
 
-                if cancelled_order.is_price_to_comply:
-                    self.cancel_order(metadata["ptc_other_half"], quiet=True)
+                self.owner.send_message(
+                    order.agent_id, OrderCancelledMsg(cancelled_order)
+                )
 
-                if not quiet:
-                    self.history.append(
-                        dict(
-                            time=self.owner.current_time,
-                            type="CANCEL",
-                            order_id=cancelled_order.order_id,
-                            tag=tag,
-                            metadata=(
-                                cancellation_metadata if tag == "auctionFill" else None
-                            ),
-                        )
-                    )
+            self.last_update_ts = self.owner.current_time
 
-                    self.owner.send_message(
-                        order.agent_id, OrderCancelledMsg(cancelled_order)
-                    )
+            if (self.owner.book_logging) and (not quiet):
+                self.append_book_log2()
 
-                # We found the order and cancelled it, so stop looking.
-                self.last_update_ts = self.owner.current_time
-
-                if (self.owner.book_logging) and (not quiet):
-
-                    ### append current OB state to book_log2
-                    self.append_book_log2()
-
-                return True
+            return True
 
         return False
 
@@ -502,34 +523,36 @@ class OrderBook:
 
         book = self.bids if order.side.is_bid() else self.asks
 
-        for price_level in book:
-            if not price_level.order_has_equal_price(order):
-                continue
+        idx, found = self._find_price_level(book, order.side, order.limit_price)
+        if not found:
+            return
 
-            if price_level.update_order_quantity(order.order_id, new_order.quantity):
-                self.history.append(
-                    dict(
-                        time=self.owner.current_time,
-                        type="MODIFY",
-                        order_id=order.order_id,
-                        new_side=order.side.value,
-                        new_quantity=new_order.quantity,
-                    )
+        price_level = book[idx]
+
+        if price_level.update_order_quantity(order.order_id, new_order.quantity):
+            self.history.append(
+                dict(
+                    time=self.owner.current_time,
+                    type="MODIFY",
+                    order_id=order.order_id,
+                    new_side=order.side.value,
+                    new_quantity=new_order.quantity,
                 )
+            )
 
-                logger.debug("MODIFIED: order {}", order)
-                logger.debug(
-                    "SENT: notifications of order modification to agent {} for order {}",
-                    new_order.agent_id,
-                    new_order.order_id,
-                )
-                self.owner.send_message(order.agent_id, OrderModifiedMsg(new_order))
+            logger.debug("MODIFIED: order {}", order)
+            logger.debug(
+                "SENT: notifications of order modification to agent {} for order {}",
+                new_order.agent_id,
+                new_order.order_id,
+            )
+            self.owner.send_message(order.agent_id, OrderModifiedMsg(new_order))
 
-                self.last_update_ts = self.owner.current_time
+            self.last_update_ts = self.owner.current_time
 
-                if self.owner.book_logging is True is not None:
-                    # append current OB state to book_log2
-                    self.append_book_log2()
+            if self.owner.book_logging is True is not None:
+                # append current OB state to book_log2
+                self.append_book_log2()
 
     def partial_cancel_order(
         self,
@@ -552,39 +575,40 @@ class OrderBook:
         new_order = deepcopy(order)
         new_order.quantity -= quantity
 
-        for price_level in book:
-            if not price_level.order_has_equal_price(order):
-                continue
+        idx, found = self._find_price_level(book, order.side, order.limit_price)
+        if not found:
+            return
 
-            if price_level.update_order_quantity(order.order_id, new_order.quantity):
-                self.history.append(
-                    dict(
-                        time=self.owner.current_time,
-                        type="CANCEL_PARTIAL",
-                        order_id=order.order_id,
-                        quantity=quantity,
-                        tag=tag,
-                        metadata=(
-                            cancellation_metadata if tag == "auctionFill" else None
-                        ),
-                    )
+        price_level = book[idx]
+
+        if price_level.update_order_quantity(order.order_id, new_order.quantity):
+            self.history.append(
+                dict(
+                    time=self.owner.current_time,
+                    type="CANCEL_PARTIAL",
+                    order_id=order.order_id,
+                    quantity=quantity,
+                    tag=tag,
+                    metadata=(
+                        cancellation_metadata if tag == "auctionFill" else None
+                    ),
                 )
+            )
 
-                logger.debug("CANCEL_PARTIAL: order {}", order)
-                logger.debug(
-                    "SENT: notifications of order partial cancellation to agent {} for order {}",
-                    new_order.agent_id,
-                    quantity,
-                )
-                self.owner.send_message(
-                    order.agent_id, OrderPartialCancelledMsg(new_order)
-                )
+            logger.debug("CANCEL_PARTIAL: order {}", order)
+            logger.debug(
+                "SENT: notifications of order partial cancellation to agent {} for order {}",
+                new_order.agent_id,
+                quantity,
+            )
+            self.owner.send_message(
+                order.agent_id, OrderPartialCancelledMsg(new_order)
+            )
 
-                self.last_update_ts = self.owner.current_time
+            self.last_update_ts = self.owner.current_time
 
-                if self.owner.book_logging:
-                    ### append current OB state to book_log2
-                    self.append_book_log2()
+            if self.owner.book_logging:
+                self.append_book_log2()
 
     def replace_order(
         self,
