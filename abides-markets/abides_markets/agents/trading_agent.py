@@ -125,8 +125,8 @@ class TradingAgent(FinancialAgent):
         # The agent remembers the last known bids and asks (with variable depth,
         # showing only aggregate volume at each price level) when it receives
         # a response to QUERY_SPREAD.
-        self.known_bids: Dict = {}
-        self.known_asks: Dict = {}
+        self.known_bids: Dict[str, List[Tuple[int, int]]] = {}
+        self.known_asks: Dict[str, List[Tuple[int, int]]] = {}
 
         # The agent remembers the order history communicated by the exchange
         # when such is requested by an agent (for example, a heuristic belief
@@ -134,10 +134,10 @@ class TradingAgent(FinancialAgent):
         self.stream_history: Dict[str, Any] = {}
 
         # The agent records the total transacted volume in the exchange for a given symbol and lookback period
-        self.transacted_volume: Dict = {}
+        self.transacted_volume: Dict[str, Tuple[int, int]] = {}
 
         # Each agent can choose to log the orders executed
-        self.executed_orders: List = []
+        self.executed_orders: List[Order] = []
 
         # For special logging at the first moment the simulator kernel begins
         # running (which is well after agent init), it is useful to keep a simple
