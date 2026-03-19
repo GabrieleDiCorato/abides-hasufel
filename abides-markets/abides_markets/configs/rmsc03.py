@@ -100,7 +100,9 @@ def build_config(
     oracle_random_state = np.random.RandomState(
         seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
     )
-    oracle = SparseMeanRevertingOracle(mkt_open, mkt_close, symbols, oracle_random_state)
+    oracle = SparseMeanRevertingOracle(
+        mkt_open, mkt_close, symbols, oracle_random_state
+    )
 
     # 1) Exchange Agent
 
@@ -125,7 +127,7 @@ def build_config(
             )
         ]
     )
-    agent_types.extend("ExchangeAgent")
+    agent_types.extend(["ExchangeAgent"])
     agent_count += 1
 
     # 2) Noise Agents
@@ -225,7 +227,7 @@ def build_config(
         ]
     )
     agent_count += num_mm_agents
-    agent_types.extend("POVMarketMakerAgent")
+    agent_types.extend(["POVMarketMakerAgent"])
 
     # 5) Momentum Agents
     num_momentum_agents = num_momentum_agents
@@ -249,7 +251,7 @@ def build_config(
         ]
     )
     agent_count += num_momentum_agents
-    agent_types.extend("MomentumAgent")
+    agent_types.extend(["MomentumAgent"])
 
     # 6) Execution Agent
 
@@ -286,7 +288,7 @@ def build_config(
 
     execution_agents = [pov_agent]
     agents.extend(execution_agents)
-    agent_types.extend("ExecutionAgent")
+    agent_types.extend(["ExecutionAgent"])
     agent_count += 1
 
     # extract kernel seed here to reproduce the state of random generator in old version

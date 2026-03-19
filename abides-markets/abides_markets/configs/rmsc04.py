@@ -127,14 +127,15 @@ def build_config(
             "megashock_lambda_a": megashock_lambda_a,
             "megashock_mean": megashock_mean,
             "megashock_var": megashock_var,
-
         }
     }
 
     oracle_random_state = np.random.RandomState(
         seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
     )
-    oracle = SparseMeanRevertingOracle(MKT_OPEN, NOISE_MKT_CLOSE, symbols, oracle_random_state)
+    oracle = SparseMeanRevertingOracle(
+        MKT_OPEN, NOISE_MKT_CLOSE, symbols, oracle_random_state
+    )
 
     # Agent configuration
     agent_count, agents, agent_types = 0, [], []
@@ -160,7 +161,7 @@ def build_config(
             )
         ]
     )
-    agent_types.extend("ExchangeAgent")
+    agent_types.extend(["ExchangeAgent"])
     agent_count += 1
 
     # Create noise agents with proper random state initialization
@@ -241,7 +242,7 @@ def build_config(
         ]
     )
     agent_count += NUM_MM
-    agent_types.extend("POVMarketMakerAgent")
+    agent_types.extend(["POVMarketMakerAgent"])
 
     agents.extend(
         [
@@ -265,7 +266,7 @@ def build_config(
         ]
     )
     agent_count += num_momentum_agents
-    agent_types.extend("MomentumAgent")
+    agent_types.extend(["MomentumAgent"])
 
     # extract kernel seed here to reproduce the state of random generator in old version
     random_state_kernel = np.random.RandomState(
