@@ -10,7 +10,7 @@ def test_constant_time_generator():
 
 
 def test_poisson_time_generator():
-    g = PoissonTimeGenerator(np.random.RandomState(), lambda_freq=10)
+    g = PoissonTimeGenerator(np.random.RandomState(seed=42), lambda_freq=10)
 
     assert g.mean() == 0.1
 
