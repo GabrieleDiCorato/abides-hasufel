@@ -34,7 +34,7 @@ See: `docs/ABIDES_CUSTOM_AGENT_IMPLEMENTATION_GUIDE.md`
 
 ## Declarative config system
 Use `SimulationBuilder` + `compile()` for new simulations.
-See: `docs/ABIDES_CONFIG_SYSTEM.md`
+See: `docs/ABIDES_CONFIG_SYSTEM.md` and `notebooks/demo_Config_System.ipynb`
 
 ## External data / oracle injection
 Use `ExternalDataOracle` with `BatchDataProvider` or `PointDataProvider`.

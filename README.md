@@ -132,7 +132,21 @@ Regular ABIDES simulations can be run either directly in python or through the c
 
 _For more examples, please refer to the notebooks in the `notebooks/` directory._
 
-### Using a Python Script:
+### Using the Declarative Config System (recommended):
+
+```python
+from abides_markets.config_system import SimulationBuilder, compile
+from abides_core import abides
+
+config = SimulationBuilder().from_template("rmsc04").seed(0).build()
+end_state = abides.run(compile(config))
+```
+
+See [`docs/ABIDES_CONFIG_SYSTEM.md`](docs/ABIDES_CONFIG_SYSTEM.md) for full
+reference and [`notebooks/demo_Config_System.ipynb`](notebooks/demo_Config_System.ipynb)
+for an interactive tutorial.
+
+### Using procedural build_config (legacy):
 
 ```python
 from abides_markets.configs import rmsc04
