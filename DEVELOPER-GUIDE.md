@@ -4,7 +4,7 @@
 
 ## Development Policies
 
-Internal development is done on Github at [https://github.com/jpmorganchase/abides-jpmc-private]().
+Development is done on GitHub at [https://github.com/GabrieleDiCorato/abides-hasufel](https://github.com/GabrieleDiCorato/abides-hasufel).
 
 ### Git Processes
 

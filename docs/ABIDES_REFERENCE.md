@@ -1,6 +1,6 @@
 # ABIDES Integration Reference
 
-Condensed reference for integrating with `abides-jpmc-public`.
+Condensed reference for integrating with `abides-hasufel`.
 Copy this into your project's `.github/copilot-instructions.md` or LLM context.
 
 ---

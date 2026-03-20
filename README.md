@@ -43,9 +43,12 @@ The project is currently broken down into 3 parts: ABIDES-Core, ABIDES-Markets a
 
 ## About this Fork
 
-This work extends ABIDES (Byrd & Balch, 2019), originally developed
-at Georgia Tech and later maintained by J.P. Morgan Chase. Due to
-the archived status of the [original repository](https://github.com/jpmorganchase/abides-jpmc-public), a [modernized fork](https://github.com/GabrieleDiCorato/abides-jpmc-public) was created with updated dependencies and UV dependency management. See CHANGELOG.md for details.
+This project, **abides-hasufel**, extends ABIDES (Byrd & Balch, 2019), originally developed
+at Georgia Tech and later maintained by J.P. Morgan Chase as
+[abides-jpmc-public](https://github.com/jpmorganchase/abides-jpmc-public) (now archived).
+This [fork](https://github.com/GabrieleDiCorato/abides-hasufel) modernizes the codebase with
+updated dependencies, UV dependency management, performance fixes, and bug corrections.
+See CHANGELOG.md for details.
 
 <!-- CITING -->
 ## Citing ABIDES
@@ -86,8 +89,8 @@ or by using the following BibTeX:
 1. Download the ABIDES source code, either directly from GitHub or with git:
 
     ```bash
-    git clone https://github.com/jpmorganchase/abides-jpmc-public
-    cd abides-jpmc-public
+    git clone https://github.com/GabrieleDiCorato/abides-hasufel
+    cd abides-hasufel
     ```
 
     **Note:** The latest stable version is contained within the `main` branch.
@@ -191,8 +194,6 @@ Contributions are what make the open source community such an amazing place to l
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
 
-TODO: add information about JPMC contribution agreement
-
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
@@ -209,8 +210,8 @@ Distributed under the BSD 3-Clause "New" or "Revised" License. See `LICENSE` for
 
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
-ABIDES was originally developed by David Byrd and Tucker Balch: https://github.com/abides-sim/abides
-ABIDES is currently developed and maintained by [Jared Vann](https://github.com/jaredvann) (aka @jaredvann), [Selim Amrouni](https://github.com/selimamrouni) (aka @selimamrouni), and [Aymeric Moulin](https://github.com/AymericCAMoulin) (@AymericCAMoulin).
-**Important Note: We do not do technical support, nor consulting** and don't answer personal questions per email.
+- ABIDES was originally developed by David Byrd and Tucker Balch at Georgia Tech: https://github.com/abides-sim/abides
+- The J.P. Morgan Chase team ([Jared Vann](https://github.com/jaredvann), [Selim Amrouni](https://github.com/selimamrouni), [Aymeric Moulin](https://github.com/AymericCAMoulin)) maintained the [abides-jpmc-public](https://github.com/jpmorganchase/abides-jpmc-public) fork.
+- This fork (abides-hasufel) is maintained by [Gabriele Di Corato](https://github.com/GabrieleDiCorato).
 
 <p align="right">(<a href="#top">back to top</a>)</p>

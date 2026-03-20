@@ -1,3 +1,16 @@
+2026-03 Release v1.3.0
+==================
+
+
+Project Rename
+--------------
+
+* Renamed project from `abides-jpmc-public` to `abides-hasufel`
+* Updated all documentation, metadata, and references to reflect the new project identity
+* Added derivative-work copyright for Gabriele Di Corato to LICENSE
+* Upstream attribution to Georgia Tech (original ABIDES) and J.P. Morgan Chase preserved
+
+
 2026-03 Release v1.2.0
 ==================
 

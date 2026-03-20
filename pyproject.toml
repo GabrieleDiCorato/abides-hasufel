@@ -1,5 +1,5 @@
 [project]
-name = "abides-jpmc-public"
+name = "abides-hasufel"
 version = "v1.3.0"
 description = "ABIDES: Agent-Based Interactive Discrete Event Simulation environment"
 readme = "README.md"
@@ -76,5 +76,5 @@ dev = [
     "nb-clean>=4.0.1",
     "pre-commit>=4.5.1",
     "ruff>=0.8.0",
-    "abides-jpmc-public[test,docs]",
+    "abides-hasufel[test,docs]",
 ]
