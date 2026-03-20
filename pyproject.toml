@@ -1,6 +1,6 @@
 [project]
-name = "abides-rohan"
-version = "v1.2.8"
+name = "abides-jpmc-public"
+version = "v1.3.0"
 description = "ABIDES: Agent-Based Interactive Discrete Event Simulation environment"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -76,5 +76,5 @@ dev = [
     "nb-clean>=4.0.1",
     "pre-commit>=4.5.1",
     "ruff>=0.8.0",
-    "abides-rohan[test,docs]",
+    "abides-jpmc-public[test,docs]",
 ]
