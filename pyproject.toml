@@ -29,7 +29,7 @@ docs = [
 ]
 
 [project.scripts]
-precommit = "pre_commit.main:main"
+abides = "abides_core.abides:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -130,7 +130,7 @@ or by using the following BibTeX:
 ## Usage (regular)
 Regular ABIDES simulations can be run either directly in python or through the command line
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+_For more examples, please refer to the notebooks in the `notebooks/` directory._
 
 ### Using a Python Script:
 

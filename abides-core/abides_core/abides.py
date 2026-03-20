@@ -1,6 +1,10 @@
 import datetime as dt
+import importlib
+import inspect
 import logging
-from typing import Any, Dict, Optional
+import os
+import sys
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -61,3 +65,104 @@ def run(
     logger.info(f"Time taken to run simulation: {sim_end_time - sim_start_time}")
 
     return end_state
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+
+def _load_build_config(config_file: str) -> Tuple[str, Callable]:
+    if not os.path.exists(config_file):
+        print(f"Config file '{config_file}' does not exist!")
+        sys.exit(1)
+
+    module_name = os.path.splitext(os.path.basename(config_file))[0]
+    spec = importlib.util.spec_from_file_location(module_name, config_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    if not hasattr(module, "build_config") or not callable(module.build_config):
+        print("'build_config' callable not found in config file.")
+        sys.exit(1)
+
+    return module_name, module.build_config
+
+
+def _parse_cli_args(args: List[str]) -> Optional[Dict[str, Union[str, bool]]]:
+    parsed: Dict[str, Union[str, bool]] = {}
+    key: Optional[str] = None
+    for arg in args:
+        if arg.startswith("--"):
+            key = arg[2:]
+            parsed[key] = True
+        elif key is not None:
+            parsed[key] = arg
+            key = None
+        else:
+            print(f"Error parsing argument: '{arg}'")
+            return None
+    return parsed
+
+
+def main() -> None:
+    """CLI entry point for ``abides`` console script."""
+    print()
+    print("╔═══════════════════════════════════════════════════════════╗")
+    print("║ ABIDES: Agent-Based Interactive Discrete Event Simulation ║")
+    print("╚═══════════════════════════════════════════════════════════╝")
+    print()
+
+    if len(sys.argv) < 2:
+        print("Config file not given!")
+        return
+
+    cli_args = _parse_cli_args(sys.argv[2:])
+    if cli_args is None:
+        return
+
+    config_name, config_builder = _load_build_config(sys.argv[1])
+
+    config_args = inspect.getfullargspec(config_builder).args
+    for arg in cli_args:
+        if arg not in config_args:
+            print(
+                f"Provided argument '{arg}' is not a parameter for the "
+                f"'{config_name}' build_config function!"
+            )
+
+    config = config_builder(**cli_args)
+
+    logging.basicConfig(
+        level=config["stdout_log_level"],
+        format="[%(process)d] %(levelname)s %(name)s %(message)s",
+    )
+
+    kernel = Kernel(
+        random_state=np.random.RandomState(seed=1),
+        log_dir="",
+        **subdict(
+            config,
+            [
+                "start_time",
+                "stop_time",
+                "agents",
+                "agent_latency_model",
+                "default_computation_delay",
+                "custom_properties",
+            ],
+        ),
+    )
+
+    sim_start_time = dt.datetime.now()
+    logger.info(f"Simulation Start Time: {sim_start_time}")
+
+    kernel.run()
+
+    sim_end_time = dt.datetime.now()
+    logger.info(f"Simulation End Time: {sim_end_time}")
+    logger.info(f"Time taken to run simulation: {sim_end_time - sim_start_time}")
+
+
+if __name__ == "__main__":
+    main()
