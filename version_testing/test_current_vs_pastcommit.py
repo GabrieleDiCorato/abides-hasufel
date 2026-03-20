@@ -84,7 +84,9 @@ def parse_args():
     parser.add_argument("baseline_sha", help="Git SHA of the baseline commit to compare against")
     parser.add_argument("--with-log", action="store_true", help="Compare order books (slower)")
     parser.add_argument(
-        "--configs", default="rmsc04,rmsc03", help="Comma-separated configs (default: rmsc04,rmsc03)"
+        "--configs",
+        default="rmsc04,rmsc03",
+        help="Comma-separated configs (default: rmsc04,rmsc03)",
     )
     parser.add_argument(
         "--end-times",

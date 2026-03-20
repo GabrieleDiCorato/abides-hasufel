@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import datetime as dt
 import importlib
 import inspect
 import logging
 import os
 import sys
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -15,11 +18,11 @@ logger = logging.getLogger("abides")
 
 
 def run(
-    config: Dict[str, Any],
+    config: dict[str, Any],
     log_dir: str = "",
     kernel_seed: int = 0,
-    kernel_random_state: Optional[np.random.RandomState] = None,
-) -> Dict[str, Any]:
+    kernel_random_state: np.random.RandomState | None = None,
+) -> dict[str, Any]:
     """
     Wrapper function that enables to run one simulation.
     It does the following steps:
@@ -72,7 +75,7 @@ def run(
 # ---------------------------------------------------------------------------
 
 
-def _load_build_config(config_file: str) -> Tuple[str, Callable]:
+def _load_build_config(config_file: str) -> tuple[str, Callable]:
     if not os.path.exists(config_file):
         print(f"Config file '{config_file}' does not exist!")
         sys.exit(1)
@@ -89,9 +92,9 @@ def _load_build_config(config_file: str) -> Tuple[str, Callable]:
     return module_name, module.build_config
 
 
-def _parse_cli_args(args: List[str]) -> Optional[Dict[str, Union[str, bool]]]:
-    parsed: Dict[str, Union[str, bool]] = {}
-    key: Optional[str] = None
+def _parse_cli_args(args: list[str]) -> dict[str, str | bool] | None:
+    parsed: dict[str, str | bool] = {}
+    key: str | None = None
     for arg in args:
         if arg.startswith("--"):
             key = arg[2:]
