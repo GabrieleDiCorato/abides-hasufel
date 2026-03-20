@@ -21,9 +21,14 @@ from abides_markets.config_system.agent_configs import (
 from abides_markets.config_system.registry import registry
 
 
+_BUILTIN_NAMES = frozenset(
+    {"noise", "value", "momentum", "adaptive_market_maker", "pov_execution"}
+)
+
+
 def _register_builtins() -> None:
     """Register all built-in agent types. Safe to call multiple times."""
-    if registry.registered_names():
+    if _BUILTIN_NAMES.issubset(registry.registered_names()):
         return  # already registered
 
     registry.register(

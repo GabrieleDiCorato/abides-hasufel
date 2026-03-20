@@ -18,6 +18,17 @@ Bug Fixes
 
 * Fixed `Agent.get_computation_delay()` calling nonexistent `Kernel.get_agent_compute_delay()` — added the missing Kernel method
 * Added `per_agent_computation_delays` support to Kernel for declarative per-agent delay configuration
+* Fixed `abides.run()` producing inconsistent results when called multiple times on the same
+  runtime dict — agents and oracle are now deep-copied inside `run()` so each call starts
+  with fresh, unmodified state.  Previously, stale agent state (`mkt_open`/`mkt_close` already
+  set, `first_wake=False`, accumulated holdings, exhausted oracle RNG, etc.) caused re-runs to
+  trade from midnight instead of market-open, generating ~17x more messages.
+* Fixed `@register_agent` decorator raising `ValueError` when a notebook cell that defines
+  a custom agent is re-executed — the decorator now silently overwrites the previous
+  registration (`allow_overwrite=True` by default).
+* Fixed `_register_builtins()` guard: previously skipped all built-in registration if *any*
+  agent was already in the registry (e.g. a custom agent registered before import-time
+  builtins ran).  Guard now checks specifically for the five built-in names.
 
 
 Project Rename

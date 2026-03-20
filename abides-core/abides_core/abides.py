@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import importlib
 import inspect
@@ -41,21 +42,31 @@ def run(
         format="[%(process)d] %(levelname)s %(name)s %(message)s",
     )
 
+    # Deep-copy mutable objects so the same config dict can be run multiple
+    # times (e.g. re-executing a notebook cell) without stale agent/oracle
+    # state from a previous run leaking into the next one.
+    run_config = subdict(
+        config,
+        [
+            "start_time",
+            "stop_time",
+            "agents",
+            "agent_latency_model",
+            "default_computation_delay",
+            "custom_properties",
+            "per_agent_computation_delays",
+        ],
+    )
+    run_config["agents"] = copy.deepcopy(run_config["agents"])
+    if "custom_properties" in run_config:
+        run_config["custom_properties"] = copy.deepcopy(
+            run_config["custom_properties"]
+        )
+
     kernel = Kernel(
         random_state=kernel_random_state or np.random.RandomState(seed=kernel_seed),
         log_dir=log_dir,
-        **subdict(
-            config,
-            [
-                "start_time",
-                "stop_time",
-                "agents",
-                "agent_latency_model",
-                "default_computation_delay",
-                "custom_properties",
-                "per_agent_computation_delays",
-            ],
-        ),
+        **run_config,
     )
 
     sim_start_time = dt.datetime.now()

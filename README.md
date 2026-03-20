@@ -139,7 +139,12 @@ from abides_markets.config_system import SimulationBuilder, compile
 from abides_core import abides
 
 config = SimulationBuilder().from_template("rmsc04").seed(0).build()
-end_state = abides.run(compile(config))
+runtime = compile(config)
+
+# abides.run() deep-copies agents and oracle on every call,
+# so the same runtime dict can be re-run and will always
+# produce identical, reproducible results.
+end_state = abides.run(runtime)
 ```
 
 See [`docs/ABIDES_CONFIG_SYSTEM.md`](docs/ABIDES_CONFIG_SYSTEM.md) for full

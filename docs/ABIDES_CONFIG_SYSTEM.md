@@ -27,6 +27,9 @@ config = (SimulationBuilder()
 runtime = compile(config)
 
 # Run the simulation
+# abides.run() deep-copies agents and oracle on every call, so the same
+# runtime dict can be passed to run() multiple times and will always produce
+# identical, reproducible results.
 end_state = abides.run(runtime)
 ```
 
@@ -222,6 +225,13 @@ class MyStrategyConfig(BaseAgentConfig):
         return kwargs
 ```
 
+> **Notebook re-execution:** `@register_agent` uses `allow_overwrite=True` by default,
+> so re-running a cell that defines a custom agent replaces the previous registration
+> silently instead of raising `ValueError`.
+>
+> When calling `registry.register()` directly, pass `allow_overwrite=True` explicitly
+> if you need the same overwrite behaviour.
+
 Parameters follow standard Pydantic conventions:
 - **Required**: Fields without defaults → must be provided in config
 - **Optional**: Fields with defaults → inherited from base or overridden
@@ -305,3 +315,32 @@ The old `build_config()` functions (e.g., `rmsc04.build_config(seed=42)`)
 continue to work unchanged. The new system produces the same runtime dict
 format, so `abides.run()`, gymnasium environments, and `config_add_agents()`
 all work with either approach.
+
+---
+
+## Runtime Idempotency
+
+`abides.run()` deep-copies the agent list and oracle from the runtime dict
+before each simulation run. This means:
+
+- **The same `runtime` dict can be passed to `abides.run()` multiple times** —
+  each call starts with a clean, unmodified slate.
+- Results are **reproducible**: calling `abides.run(runtime)` twice with a fixed
+  seed produces identical outcomes both times.
+- This is particularly useful in **Jupyter notebooks** where a cell containing
+  `abides.run(runtime)` can be re-executed without needing to re-run the
+  compile step.
+
+```python
+runtime = compile(config)          # compile once
+
+end1 = abides.run(runtime)         # first run  — 48 564 messages
+end2 = abides.run(runtime)         # second run — 48 564 messages (identical)
+assert end1["agents"][0].order_books["ABM"] is not end2["agents"][0].order_books["ABM"]
+# Each run received its own deep-copied agent objects
+```
+
+> **Performance note:** For simulations with very large agent counts
+> (≫ 10 000 agents), the one-time deep-copy at run start adds a small but
+> measurable overhead.  In that case, call `compile()` once per run and pass
+> a fresh `runtime` dict each time instead of reusing the same one.

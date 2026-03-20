@@ -45,6 +45,7 @@ class AgentRegistry:
         category: str = "background",
         description: str = "",
         agent_class: type | None = None,
+        allow_overwrite: bool = False,
     ) -> None:
         """Register an agent type.
 
@@ -56,8 +57,11 @@ class AgentRegistry:
             description: Human-readable description for AI discoverability.
             agent_class: The ABIDES agent class to instantiate. When provided,
                          ``BaseAgentConfig`` can auto-generate ``create_agents()``.
+            allow_overwrite: If *True*, silently replace an existing entry with
+                the same *name* instead of raising.  Useful for notebook
+                workflows where cells that define custom agents are re-executed.
         """
-        if name in self._entries:
+        if name in self._entries and not allow_overwrite:
             raise ValueError(f"Agent type '{name}' is already registered")
         self._entries[name] = AgentRegistryEntry(
             name=name,
@@ -112,8 +116,12 @@ def register_agent(
     category: str = "background",
     description: str = "",
     agent_class: type | None = None,
+    allow_overwrite: bool = True,
 ):
     """Decorator to register an agent config model in the global registry.
+
+    By default ``allow_overwrite=True`` so that re-executing a notebook
+    cell that defines a custom agent does not raise an error.
 
     Usage::
 
@@ -130,6 +138,7 @@ def register_agent(
             category=category,
             description=description,
             agent_class=agent_class,
+            allow_overwrite=allow_overwrite,
         )
         return cls
 
