@@ -25,18 +25,18 @@ from __future__ import annotations
 
 import multiprocessing
 import os
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
 import pandas as pd
+from abides_core.abides import run as abides_run
+from abides_core.utils import parse_logs_df
 
 from abides_markets.agents.exchange_agent import ExchangeAgent
 from abides_markets.agents.trading_agent import TradingAgent
 from abides_markets.config_system import compile as compile_config
 from abides_markets.config_system.models import SimulationConfig
-from abides_core.abides import run as abides_run
-from abides_core.utils import parse_logs_df
 
 from .extractors import ResultExtractor
 from .profiles import ResultProfile
@@ -50,8 +50,6 @@ from .result import (
     SimulationMetadata,
     SimulationResult,
 )
-from .schemas import RawLogsSchema
-
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -62,8 +60,8 @@ def run_simulation(
     config: SimulationConfig,
     *,
     profile: ResultProfile = ResultProfile.SUMMARY,
-    log_dir: Optional[str] = None,
-    extractors: Optional[list[ResultExtractor]] = None,
+    log_dir: str | None = None,
+    extractors: list[ResultExtractor] | None = None,
 ) -> SimulationResult:
     """Run a single simulation and return a typed, immutable result.
 
@@ -112,9 +110,9 @@ def run_batch(
     configs: list[SimulationConfig],
     *,
     profile: ResultProfile = ResultProfile.SUMMARY,
-    n_workers: Optional[int] = None,
-    extractors: Optional[list[ResultExtractor]] = None,
-    log_dir_prefix: Optional[str] = None,
+    n_workers: int | None = None,
+    extractors: list[ResultExtractor] | None = None,
+    log_dir_prefix: str | None = None,
 ) -> list[SimulationResult]:
     """Run multiple simulations in parallel and return results in input order.
 
@@ -218,7 +216,6 @@ def _extract_result(
         a for a in agents_list[1:] if isinstance(a, TradingAgent)
     ]
 
-    ticker = config.market.ticker
     symbols = list(exchange.order_books.keys())
 
     # -- Simulation metadata --------------------------------------------------
@@ -226,8 +223,7 @@ def _extract_result(
     sim_start_ns = int(runtime["start_time"])
     sim_end_ns = int(runtime["stop_time"])
     wall_clock_s = (
-        end_state.get("kernel_event_queue_elapsed_wallclock")
-        or pd.Timedelta(0)
+        end_state.get("kernel_event_queue_elapsed_wallclock") or pd.Timedelta(0)
     ).total_seconds()
 
     config_snapshot = _safe_config_snapshot(config)
@@ -250,8 +246,8 @@ def _extract_result(
         l1_close = _extract_l1_close(book_log2)
         liquidity = _extract_liquidity(exchange, symbol, order_book)
 
-        l1_series: Optional[L1Snapshots] = None
-        l2_series: Optional[L2Snapshots] = None
+        l1_series: L1Snapshots | None = None
+        l2_series: L2Snapshots | None = None
 
         if ResultProfile.L1_SERIES in profile:
             l1_series = _extract_l1_series(book_log2)
@@ -277,7 +273,7 @@ def _extract_result(
             agent_data.append(_extract_agent_data(agent, exchange_last_trades))
 
     # -- Agent logs -----------------------------------------------------------
-    logs_df: Optional[pd.DataFrame] = None
+    logs_df: pd.DataFrame | None = None
     if ResultProfile.AGENT_LOGS in profile:
         raw_df = parse_logs_df(end_state)
         # Ensure the four guaranteed base columns are correctly typed
@@ -321,14 +317,18 @@ def _extract_l1_close(book_log2: list[dict]) -> L1Close:
     bid_price = int(bids[0][0]) if len(bids) > 0 else None
     ask_price = int(asks[0][0]) if len(asks) > 0 else None
 
-    return L1Close(time_ns=time_ns, bid_price_cents=bid_price, ask_price_cents=ask_price)
+    return L1Close(
+        time_ns=time_ns, bid_price_cents=bid_price, ask_price_cents=ask_price
+    )
 
 
 def _extract_liquidity(
     exchange: ExchangeAgent, symbol: str, order_book: Any
 ) -> LiquidityMetrics:
     """Build LiquidityMetrics from MetricTracker and order book state."""
-    has_trackers = hasattr(exchange, "metric_trackers") and symbol in exchange.metric_trackers
+    has_trackers = (
+        hasattr(exchange, "metric_trackers") and symbol in exchange.metric_trackers
+    )
     if has_trackers:
         mt = exchange.metric_trackers[symbol]
         pct_no_bid = float(mt.pct_time_no_liquidity_bids)
@@ -351,7 +351,7 @@ def _extract_liquidity(
         total_exchanged_volume=total_vol,
         last_trade_cents=last_trade,
         vwap_cents=None,  # Requires price-per-trade data not available in public book state.
-                          # Compute via result.order_logs() from a FULL profile run.
+        # Compute via result.order_logs() from a FULL profile run.
     )
 
 

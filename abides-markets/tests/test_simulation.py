@@ -12,14 +12,11 @@ Structure
 from __future__ import annotations
 
 import json
-import shutil
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 import pytest
-
 from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import (
     AgentData,
@@ -32,7 +29,6 @@ from abides_markets.simulation import (
     L2Snapshots,
     LiquidityMetrics,
     MarketSummary,
-    OrderLogsSchema,
     RawLogsSchema,
     ResultExtractor,
     ResultProfile,
@@ -40,7 +36,6 @@ from abides_markets.simulation import (
     SimulationResult,
     run_simulation,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -90,7 +85,11 @@ class TestResultProfile:
         assert ResultProfile.AGENT_LOGS not in ResultProfile.SUMMARY
 
     def test_quant_contains_summary(self):
-        for flag in (ResultProfile.METADATA, ResultProfile.AGENT_PNL, ResultProfile.LIQUIDITY):
+        for flag in (
+            ResultProfile.METADATA,
+            ResultProfile.AGENT_PNL,
+            ResultProfile.LIQUIDITY,
+        ):
             assert flag in ResultProfile.QUANT
 
     def test_quant_contains_series_flags(self):
@@ -231,7 +230,9 @@ def _make_metadata():
 def _make_market_summary():
     return MarketSummary(
         symbol="ABM",
-        l1_close=L1Close(time_ns=4_999_999_999, bid_price_cents=9990, ask_price_cents=10010),
+        l1_close=L1Close(
+            time_ns=4_999_999_999, bid_price_cents=9990, ask_price_cents=10010
+        ),
         liquidity=LiquidityMetrics(
             pct_time_no_bid=1.0,
             pct_time_no_ask=0.5,
@@ -286,13 +287,17 @@ def _make_simulation_result(include_logs: bool = False) -> SimulationResult:
 
 class TestSimulationResultImmutability:
     def test_frozen_prevents_field_reassignment(self):
+        from pydantic import ValidationError
+
         result = _make_simulation_result()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             result.metadata = _make_metadata()  # type: ignore[misc]
 
     def test_frozen_nested_model(self):
+        from pydantic import ValidationError
+
         result = _make_simulation_result()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             result.metadata.seed = 99  # type: ignore[misc]
 
 
@@ -319,7 +324,11 @@ class TestL1SnapshotsReadOnly:
         )
         df = snaps.as_dataframe()
         assert list(df.columns) == [
-            "time_ns", "bid_price_cents", "bid_qty", "ask_price_cents", "ask_qty"
+            "time_ns",
+            "bid_price_cents",
+            "bid_qty",
+            "ask_price_cents",
+            "ask_qty",
         ]
         assert len(df) == 1
 
@@ -369,17 +378,19 @@ class TestSimulationResultSerialization:
     def test_to_dict_no_numpy(self):
         result = _make_simulation_result()
         d = result.to_dict()
+
         # Walk through the dict recursively and confirm no numpy/DataFrame objects
         def _check(obj):
-            assert not isinstance(obj, (np.ndarray, pd.DataFrame)), (
-                f"Found non-JSON-native type: {type(obj)}"
-            )
+            assert not isinstance(
+                obj, (np.ndarray, pd.DataFrame)
+            ), f"Found non-JSON-native type: {type(obj)}"
             if isinstance(obj, dict):
                 for v in obj.values():
                     _check(v)
             elif isinstance(obj, list):
                 for v in obj:
                     _check(v)
+
         _check(d)
 
     def test_to_json_is_valid_json(self):
@@ -407,8 +418,15 @@ class TestOrderLogs:
         result = _make_simulation_result(include_logs=True)
         df = result.order_logs()
         assert set(df["EventType"].unique()).issubset(
-            {"ORDER_SUBMITTED", "ORDER_ACCEPTED", "ORDER_EXECUTED",
-             "ORDER_CANCELLED", "PARTIAL_CANCELLED", "ORDER_MODIFIED", "ORDER_REPLACED"}
+            {
+                "ORDER_SUBMITTED",
+                "ORDER_ACCEPTED",
+                "ORDER_EXECUTED",
+                "ORDER_CANCELLED",
+                "PARTIAL_CANCELLED",
+                "ORDER_MODIFIED",
+                "ORDER_REPLACED",
+            }
         )
 
     def test_order_logs_raises_without_logs_profile(self):
@@ -435,6 +453,7 @@ class TestExtractors:
     def test_base_extractor_satisfies_protocol(self):
         class MyExt(BaseResultExtractor):
             key = "my_key"
+
             def extract(self, end_state):
                 return "value"
 
@@ -512,7 +531,9 @@ class TestRunSimulationQuant:
     @pytest.fixture(scope="class")
     def quant_result(self, short_config, tmp_path_factory):
         log_dir = str(tmp_path_factory.mktemp("sim_logs_quant"))
-        return run_simulation(short_config, profile=ResultProfile.QUANT, log_dir=log_dir)
+        return run_simulation(
+            short_config, profile=ResultProfile.QUANT, log_dir=log_dir
+        )
 
     def test_l1_series_populated(self, quant_result):
         assert quant_result.markets["ABM"].l1_series is not None

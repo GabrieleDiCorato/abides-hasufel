@@ -47,11 +47,11 @@ class ResultProfile(Flag):
     """Result of ``parse_logs_df()`` — one row per agent log entry."""
 
     # ------------------------------------------------------------------ tiers
-    SUMMARY: "ResultProfile" = METADATA | AGENT_PNL | LIQUIDITY
+    SUMMARY = METADATA | AGENT_PNL | LIQUIDITY
     """Default tier.  Kilobyte-scale output; good for REST, LLM, alerting."""
 
-    QUANT: "ResultProfile" = SUMMARY | L1_SERIES | L2_SERIES
+    QUANT = SUMMARY | L1_SERIES | L2_SERIES
     """Adds full time-series.  Use for backtesting and quantitative analysis."""
 
-    FULL: "ResultProfile" = QUANT | AGENT_LOGS
+    FULL = QUANT | AGENT_LOGS
     """All data including raw agent logs.  Primarily for debugging."""

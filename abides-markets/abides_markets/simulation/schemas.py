@@ -18,7 +18,6 @@ Design notes
 from __future__ import annotations
 
 import pandera.pandas as pa
-from pandera.pandas import DataFrameModel
 from pandera.typing.pandas import Series
 
 
@@ -31,15 +30,21 @@ class L1DataFrameSchema(pa.DataFrameModel):
     be empty (e.g. at market open or after a one-sided sweep).
     """
 
-    time_ns: Series[pa.Int64] = pa.Field(ge=0, description="Event timestamp (ns, Unix epoch).")
+    time_ns: Series[pa.Int64] = pa.Field(
+        ge=0, description="Event timestamp (ns, Unix epoch)."
+    )
     bid_price_cents: Series[pa.Int64] = pa.Field(
-        ge=0, nullable=True, description="Best bid price in integer cents; None if no bid."
+        ge=0,
+        nullable=True,
+        description="Best bid price in integer cents; None if no bid.",
     )
     bid_qty: Series[pa.Int64] = pa.Field(
         ge=0, nullable=True, description="Quantity resting at best bid; None if no bid."
     )
     ask_price_cents: Series[pa.Int64] = pa.Field(
-        ge=0, nullable=True, description="Best ask price in integer cents; None if no ask."
+        ge=0,
+        nullable=True,
+        description="Best ask price in integer cents; None if no ask.",
     )
     ask_qty: Series[pa.Int64] = pa.Field(
         ge=0, nullable=True, description="Quantity resting at best ask; None if no ask."
@@ -65,7 +70,9 @@ class L2DataFrameSchema(pa.DataFrameModel):
       is itself a market microstructure signal.
     """
 
-    time_ns: Series[pa.Int64] = pa.Field(ge=0, description="Event timestamp (ns, Unix epoch).")
+    time_ns: Series[pa.Int64] = pa.Field(
+        ge=0, description="Event timestamp (ns, Unix epoch)."
+    )
     side: Series[str] = pa.Field(
         isin=["bid", "ask"], description="Book side: 'bid' or 'ask'."
     )
@@ -73,10 +80,12 @@ class L2DataFrameSchema(pa.DataFrameModel):
         ge=0, description="Depth level, 0-indexed (0 = best price)."
     )
     price_cents: Series[pa.Int64] = pa.Field(
-        gt=0, description="Limit price in integer cents. Never zero (sparse representation)."
+        gt=0,
+        description="Limit price in integer cents. Never zero (sparse representation).",
     )
     qty: Series[pa.Int64] = pa.Field(
-        gt=0, description="Aggregate resting quantity. Never zero (sparse representation)."
+        gt=0,
+        description="Aggregate resting quantity. Never zero (sparse representation).",
     )
 
     class Config:
@@ -93,9 +102,15 @@ class RawLogsSchema(pa.DataFrameModel):
     ``strict="filter"``.
     """
 
-    EventTime: Series[pa.Int64] = pa.Field(ge=0, description="Event timestamp (ns, Unix epoch).")
-    EventType: Series[str] = pa.Field(description="Event label, e.g. 'ORDER_SUBMITTED'.")
-    agent_id: Series[pa.Int64] = pa.Field(description="ID of the agent that logged the event.")
+    EventTime: Series[pa.Int64] = pa.Field(
+        ge=0, description="Event timestamp (ns, Unix epoch)."
+    )
+    EventType: Series[str] = pa.Field(
+        description="Event label, e.g. 'ORDER_SUBMITTED'."
+    )
+    agent_id: Series[pa.Int64] = pa.Field(
+        description="ID of the agent that logged the event."
+    )
     agent_type: Series[str] = pa.Field(description="Type string of the agent.")
 
     class Config:

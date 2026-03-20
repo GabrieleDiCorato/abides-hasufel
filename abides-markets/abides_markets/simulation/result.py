@@ -24,7 +24,7 @@ SimulationResult
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -33,12 +33,18 @@ from pandera.typing.pandas import DataFrame
 from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
 
 from .profiles import ResultProfile
-from .schemas import L1DataFrameSchema, L2DataFrameSchema, OrderLogsSchema, RawLogsSchema, _ORDER_EVENT_TYPES
-
+from .schemas import (
+    _ORDER_EVENT_TYPES,
+    L1DataFrameSchema,
+    L2DataFrameSchema,
+    OrderLogsSchema,
+    RawLogsSchema,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _freeze_array(arr: np.ndarray) -> np.ndarray:
     """Return *arr* with ``writeable=False``.  No copy if already read-only."""
@@ -51,6 +57,7 @@ def _freeze_array(arr: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # SimulationMetadata
 # ---------------------------------------------------------------------------
+
 
 class SimulationMetadata(BaseModel):
     """Simulation-level identifiers and timing."""
@@ -80,6 +87,7 @@ class SimulationMetadata(BaseModel):
 # L1Close — single snapshot, always extracted (O(1))
 # ---------------------------------------------------------------------------
 
+
 class L1Close(BaseModel):
     """Best bid/ask at the last logged book event (proxy for market close)."""
 
@@ -88,16 +96,17 @@ class L1Close(BaseModel):
     time_ns: int
     """Timestamp of the snapshot (nanoseconds, Unix epoch)."""
 
-    bid_price_cents: Optional[int] = None
+    bid_price_cents: int | None = None
     """Best bid in integer cents; ``None`` if the book had no bid at close."""
 
-    ask_price_cents: Optional[int] = None
+    ask_price_cents: int | None = None
     """Best ask in integer cents; ``None`` if the book had no ask at close."""
 
 
 # ---------------------------------------------------------------------------
 # LiquidityMetrics — from ExchangeAgent.MetricTracker
 # ---------------------------------------------------------------------------
+
 
 class LiquidityMetrics(BaseModel):
     """Market-microstructure summary stats for one symbol."""
@@ -113,10 +122,10 @@ class LiquidityMetrics(BaseModel):
     total_exchanged_volume: int
     """Total shares traded across the session."""
 
-    last_trade_cents: Optional[int] = None
+    last_trade_cents: int | None = None
     """Price of the last executed trade in integer cents; ``None`` if no trades."""
 
-    vwap_cents: Optional[int] = None
+    vwap_cents: int | None = None
     """Volume-weighted average price in integer cents; ``None`` if no trades.
 
     Derived from ``OrderBook.buy_transactions`` and ``OrderBook.sell_transactions``.
@@ -126,6 +135,7 @@ class LiquidityMetrics(BaseModel):
 # ---------------------------------------------------------------------------
 # L1Snapshots — full time-series, optional (ResultProfile.L1_SERIES)
 # ---------------------------------------------------------------------------
+
 
 class L1Snapshots(BaseModel):
     """Full L1 bid/ask time-series stored as parallel read-only numpy arrays.
@@ -153,7 +163,7 @@ class L1Snapshots(BaseModel):
     """Shape (T,), dtype object (int or None).  Quantity at best ask."""
 
     @model_validator(mode="after")
-    def _freeze(self) -> "L1Snapshots":
+    def _freeze(self) -> L1Snapshots:
         object.__setattr__(self, "times_ns", _freeze_array(self.times_ns))
         # bid/ask arrays may contain None — stored as object dtype, can't freeze in-place
         for field in ("bid_prices", "bid_quantities", "ask_prices", "ask_quantities"):
@@ -164,7 +174,8 @@ class L1Snapshots(BaseModel):
 
     @pa.check_types
     def as_dataframe(self) -> DataFrame[L1DataFrameSchema]:
-        """Return a validated :class:`~pandas.DataFrame` with schema :class:`~abides_markets.simulation.schemas.L1DataFrameSchema`."""
+        """Return a validated :class:`~pandas.DataFrame` with schema
+        :class:`~abides_markets.simulation.schemas.L1DataFrameSchema`."""
         return pd.DataFrame(
             {
                 "time_ns": pd.array(self.times_ns, dtype="Int64"),
@@ -175,14 +186,20 @@ class L1Snapshots(BaseModel):
             }
         )
 
-    @field_serializer("times_ns", "bid_prices", "bid_quantities", "ask_prices", "ask_quantities")
+    @field_serializer(
+        "times_ns", "bid_prices", "bid_quantities", "ask_prices", "ask_quantities"
+    )
     def _serialize_array(self, arr: np.ndarray) -> list:
-        return [None if (v is None or (isinstance(v, float) and np.isnan(v))) else int(v) for v in arr.tolist()]
+        return [
+            None if (v is None or (isinstance(v, float) and np.isnan(v))) else int(v)
+            for v in arr.tolist()
+        ]
 
 
 # ---------------------------------------------------------------------------
 # L2Snapshots — sparse, optional (ResultProfile.L2_SERIES)
 # ---------------------------------------------------------------------------
+
 
 class L2Snapshots(BaseModel):
     """Full sparse L2 order-book snapshot series.
@@ -209,13 +226,14 @@ class L2Snapshots(BaseModel):
     """Length T.  Each element is a variable-length list of (price_cents, qty) tuples."""
 
     @model_validator(mode="after")
-    def _freeze(self) -> "L2Snapshots":
+    def _freeze(self) -> L2Snapshots:
         object.__setattr__(self, "times_ns", _freeze_array(self.times_ns))
         return self
 
     @pa.check_types
     def as_dataframe(self) -> DataFrame[L2DataFrameSchema]:
-        """Return a validated long/tidy :class:`~pandas.DataFrame` with schema :class:`~abides_markets.simulation.schemas.L2DataFrameSchema`.
+        """Return a validated long/tidy :class:`~pandas.DataFrame` with schema
+        :class:`~abides_markets.simulation.schemas.L2DataFrameSchema`.
 
         Each row represents one resting price level on one side at one timestamp.
         Only populated levels appear — zero-padded phantom entries are banned.
@@ -223,15 +241,43 @@ class L2Snapshots(BaseModel):
         rows: list[dict] = []
         for t, ts in enumerate(self.times_ns):
             for level, (price, qty) in enumerate(self.bids[t]):
-                rows.append({"time_ns": int(ts), "side": "bid", "level": level, "price_cents": price, "qty": qty})
+                rows.append(
+                    {
+                        "time_ns": int(ts),
+                        "side": "bid",
+                        "level": level,
+                        "price_cents": price,
+                        "qty": qty,
+                    }
+                )
             for level, (price, qty) in enumerate(self.asks[t]):
-                rows.append({"time_ns": int(ts), "side": "ask", "level": level, "price_cents": price, "qty": qty})
+                rows.append(
+                    {
+                        "time_ns": int(ts),
+                        "side": "ask",
+                        "level": level,
+                        "price_cents": price,
+                        "qty": qty,
+                    }
+                )
         if not rows:
-            return pd.DataFrame(columns=["time_ns", "side", "level", "price_cents", "qty"]).astype(
-                {"time_ns": "Int64", "level": "Int64", "price_cents": "Int64", "qty": "Int64"}
+            return pd.DataFrame(
+                columns=["time_ns", "side", "level", "price_cents", "qty"]
+            ).astype(
+                {
+                    "time_ns": "Int64",
+                    "level": "Int64",
+                    "price_cents": "Int64",
+                    "qty": "Int64",
+                }
             )
         df = pd.DataFrame(rows).astype(
-            {"time_ns": "Int64", "level": "Int64", "price_cents": "Int64", "qty": "Int64"}
+            {
+                "time_ns": "Int64",
+                "level": "Int64",
+                "price_cents": "Int64",
+                "qty": "Int64",
+            }
         )
         return df
 
@@ -243,6 +289,7 @@ class L2Snapshots(BaseModel):
 # ---------------------------------------------------------------------------
 # MarketSummary — per-symbol container
 # ---------------------------------------------------------------------------
+
 
 class MarketSummary(BaseModel):
     """All extracted data for a single symbol."""
@@ -258,16 +305,17 @@ class MarketSummary(BaseModel):
     liquidity: LiquidityMetrics
     """Session-level liquidity and volume metrics; always present."""
 
-    l1_series: Optional[L1Snapshots] = None
+    l1_series: L1Snapshots | None = None
     """Full L1 time-series; ``None`` unless ``ResultProfile.L1_SERIES`` was set."""
 
-    l2_series: Optional[L2Snapshots] = None
+    l2_series: L2Snapshots | None = None
     """Full sparse L2 series; ``None`` unless ``ResultProfile.L2_SERIES`` was set."""
 
 
 # ---------------------------------------------------------------------------
 # AgentData — per-agent PnL summary
 # ---------------------------------------------------------------------------
+
 
 class AgentData(BaseModel):
     """Final state and performance summary for one trading agent."""
@@ -297,6 +345,7 @@ class AgentData(BaseModel):
 # ---------------------------------------------------------------------------
 # SimulationResult — top-level value object
 # ---------------------------------------------------------------------------
+
 
 class SimulationResult(BaseModel):
     """Immutable, thread-safe, JSON-serialisable simulation result.
@@ -329,7 +378,7 @@ class SimulationResult(BaseModel):
     metadata: SimulationMetadata
     markets: dict[str, MarketSummary]
     agents: list[AgentData]
-    logs: Optional[DataFrame[RawLogsSchema]] = None
+    logs: DataFrame[RawLogsSchema] | None = None
     extensions: dict[str, Any] = {}
     profile: ResultProfile
 
@@ -340,7 +389,7 @@ class SimulationResult(BaseModel):
         return str(p)
 
     @field_serializer("logs")
-    def _serialize_logs(self, df: Optional[pd.DataFrame]) -> Optional[list]:
+    def _serialize_logs(self, df: pd.DataFrame | None) -> list | None:
         if df is None:
             return None
         # Coerce non-JSON-native types (NaN → None, numpy ints → int)
@@ -365,9 +414,19 @@ class SimulationResult(BaseModel):
         for symbol, mkt in self.markets.items():
             liq = mkt.liquidity
             close = mkt.l1_close
-            bid_str = f"${close.bid_price_cents / 100:.2f}" if close.bid_price_cents is not None else "—"
-            ask_str = f"${close.ask_price_cents / 100:.2f}" if close.ask_price_cents is not None else "—"
-            last_str = f"${liq.last_trade_cents / 100:.2f}" if liq.last_trade_cents else "—"
+            bid_str = (
+                f"${close.bid_price_cents / 100:.2f}"
+                if close.bid_price_cents is not None
+                else "—"
+            )
+            ask_str = (
+                f"${close.ask_price_cents / 100:.2f}"
+                if close.ask_price_cents is not None
+                else "—"
+            )
+            last_str = (
+                f"${liq.last_trade_cents / 100:.2f}" if liq.last_trade_cents else "—"
+            )
             vwap_str = f"${liq.vwap_cents / 100:.2f}" if liq.vwap_cents else "—"
             lines.append(
                 f"  {symbol}: last={last_str} vwap={vwap_str} "
@@ -390,9 +449,13 @@ class SimulationResult(BaseModel):
         profile_flags = [f.name for f in ResultProfile if f in self.profile and f.name]
         lines.append(f"  Profile: {', '.join(profile_flags)}")
         if ResultProfile.L1_SERIES not in self.profile:
-            lines.append("  (L1 time-series not extracted — re-run with ResultProfile.QUANT)")
+            lines.append(
+                "  (L1 time-series not extracted — re-run with ResultProfile.QUANT)"
+            )
         if ResultProfile.AGENT_LOGS not in self.profile:
-            lines.append("  (Agent logs not extracted — re-run with ResultProfile.FULL)")
+            lines.append(
+                "  (Agent logs not extracted — re-run with ResultProfile.FULL)"
+            )
 
         return "\n".join(lines)
 
