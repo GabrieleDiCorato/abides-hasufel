@@ -8,13 +8,13 @@ returns, so it works with ``abides.run()``, gymnasium envs, and
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from abides_core import NanosecondTime
 from abides_core.utils import str_to_ns
+
 from abides_markets.agents import ExchangeAgent
 from abides_markets.config_system.agent_configs import AgentCreationContext
 from abides_markets.config_system.models import (
@@ -27,7 +27,7 @@ from abides_markets.config_system.registry import registry
 from abides_markets.utils import generate_latency_model
 
 
-def compile(config: SimulationConfig) -> Dict[str, Any]:
+def compile(config: SimulationConfig) -> dict[str, Any]:
     """Compile a declarative SimulationConfig into a Kernel-compatible runtime dict.
 
     The output dict matches the format returned by ``rmsc04.build_config()``::
@@ -76,6 +76,7 @@ def compile(config: SimulationConfig) -> Dict[str, Any]:
     # ── Agents ────────────────────────────────────────────────────
     agents = []
     agent_count = 0
+    per_agent_computation_delays: dict[int, int] = {}
 
     # Exchange is always agent id=0
     exc = config.market.exchange
@@ -116,6 +117,12 @@ def compile(config: SimulationConfig) -> Dict[str, Any]:
             context=context,
         )
         agents.extend(new_agents)
+
+        # Record per-agent computation delay overrides
+        if agent_config.computation_delay is not None:
+            for agent_id in range(agent_count, agent_count + group.count):
+                per_agent_computation_delays[agent_id] = agent_config.computation_delay
+
         agent_count += group.count
 
     # ── Kernel seed ───────────────────────────────────────────────
@@ -137,7 +144,7 @@ def compile(config: SimulationConfig) -> Dict[str, Any]:
     kernel_start = date_ns
     kernel_stop = mkt_close + str_to_ns("1s")
 
-    return {
+    runtime: dict[str, Any] = {
         "seed": seed,
         "start_time": kernel_start,
         "stop_time": kernel_stop,
@@ -148,6 +155,11 @@ def compile(config: SimulationConfig) -> Dict[str, Any]:
         "random_state_kernel": random_state_kernel,
         "stdout_log_level": config.simulation.log_level,
     }
+
+    if per_agent_computation_delays:
+        runtime["per_agent_computation_delays"] = per_agent_computation_delays
+
+    return runtime
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +205,6 @@ def _build_oracle(config, mkt_open, mkt_close, oracle_rng):
         return MeanRevertingOracle(mkt_open, mkt_close, symbols, oracle_rng)
 
     elif isinstance(oc, ExternalDataOracleConfig):
-        from abides_markets.oracles import ExternalDataOracle
 
         raise NotImplementedError(
             "ExternalDataOracle loading from data_path is not yet implemented. "

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class TemplateInfo:
 
     name: str
     description: str
-    agent_types: List[str]
+    agent_types: list[str]
     is_overlay: bool = False
 
 
@@ -26,7 +26,7 @@ class TemplateInfo:
 # Template definitions (raw dicts matching SimulationConfig structure)
 # ---------------------------------------------------------------------------
 
-_TEMPLATES: Dict[str, Dict[str, Any]] = {
+_TEMPLATES: dict[str, dict[str, Any]] = {
     "rmsc04": {
         "market": {
             "ticker": "ABM",
@@ -119,7 +119,7 @@ _TEMPLATES: Dict[str, Dict[str, Any]] = {
 }
 
 # Overlay templates (add agent groups without replacing existing ones)
-_OVERLAY_TEMPLATES: Dict[str, Dict[str, Any]] = {
+_OVERLAY_TEMPLATES: dict[str, dict[str, Any]] = {
     "with_momentum": {
         "agents": {
             "momentum": {
@@ -148,7 +148,7 @@ _OVERLAY_TEMPLATES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-_TEMPLATE_METADATA: Dict[str, TemplateInfo] = {
+_TEMPLATE_METADATA: dict[str, TemplateInfo] = {
     "rmsc04": TemplateInfo(
         name="rmsc04",
         description=(
@@ -188,7 +188,7 @@ _TEMPLATE_METADATA: Dict[str, TemplateInfo] = {
 # ---------------------------------------------------------------------------
 
 
-def list_templates() -> List[Dict[str, Any]]:
+def list_templates() -> list[dict[str, Any]]:
     """Return metadata for all available templates (AI-friendly)."""
     return [
         {
@@ -201,7 +201,7 @@ def list_templates() -> List[Dict[str, Any]]:
     ]
 
 
-def get_template(name: str) -> Dict[str, Any]:
+def get_template(name: str) -> dict[str, Any]:
     """Return a deep copy of a template's partial config dict.
 
     Raises:
@@ -214,6 +214,6 @@ def get_template(name: str) -> Dict[str, Any]:
     return deepcopy(all_templates[name])
 
 
-def get_template_info(name: str) -> Optional[TemplateInfo]:
+def get_template_info(name: str) -> TemplateInfo | None:
     """Return metadata for a specific template, or None if not found."""
     return _TEMPLATE_METADATA.get(name)

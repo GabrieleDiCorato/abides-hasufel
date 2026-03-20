@@ -36,10 +36,13 @@ AI discoverability::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Union
+from typing import Any
 
 # Ensure built-in agent types are registered on import
 import abides_markets.config_system.builtin_registrations  # noqa: F401
+
+# Re-export agent config base for third-party agents
+from abides_markets.config_system.agent_configs import BaseAgentConfig
 from abides_markets.config_system.builder import SimulationBuilder
 from abides_markets.config_system.compiler import compile
 from abides_markets.config_system.models import (
@@ -53,7 +56,11 @@ from abides_markets.config_system.models import (
     SimulationMeta,
     SparseMeanRevertingOracleConfig,
 )
-from abides_markets.config_system.registry import AgentRegistry, register_agent, registry
+from abides_markets.config_system.registry import (
+    AgentRegistry,
+    register_agent,
+    registry,
+)
 from abides_markets.config_system.serialization import (
     config_from_dict,
     config_to_dict,
@@ -64,16 +71,12 @@ from abides_markets.config_system.templates import (
     list_templates,
 )
 
-# Re-export agent config base for third-party agents
-from abides_markets.config_system.agent_configs import BaseAgentConfig
-
-
 # ---------------------------------------------------------------------------
 # AI Discoverability API
 # ---------------------------------------------------------------------------
 
 
-def list_agent_types() -> List[Dict[str, Any]]:
+def list_agent_types() -> list[dict[str, Any]]:
     """Return metadata for all registered agent types.
 
     Each entry includes: ``name``, ``category``, ``description``,
@@ -85,7 +88,7 @@ def list_agent_types() -> List[Dict[str, Any]]:
     return registry.list_agents()
 
 
-def get_config_schema() -> Dict[str, Any]:
+def get_config_schema() -> dict[str, Any]:
     """Return the full JSON Schema for SimulationConfig.
 
     AI agents can use this to understand the complete config structure.
@@ -93,7 +96,7 @@ def get_config_schema() -> Dict[str, Any]:
     return SimulationConfig.model_json_schema()
 
 
-def validate_config(config_dict: Dict[str, Any]) -> Dict[str, Any]:
+def validate_config(config_dict: dict[str, Any]) -> dict[str, Any]:
     """Validate a config dict and return a result.
 
     Returns:

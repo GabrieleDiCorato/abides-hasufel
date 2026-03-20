@@ -16,16 +16,15 @@ Usage::
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Dict, Optional, Union
+from typing import Any, Union
 
 from abides_markets.config_system.models import (
-    AgentGroupConfig,
     SimulationConfig,
 )
 from abides_markets.config_system.templates import get_template
 
 
-def _deep_merge(base: Dict, overlay: Dict) -> Dict:
+def _deep_merge(base: dict, overlay: dict) -> dict:
     """Recursively merge overlay into base. overlay values take precedence."""
     result = deepcopy(base)
     for key, value in overlay.items():
@@ -44,7 +43,7 @@ class SimulationBuilder:
     """
 
     def __init__(self) -> None:
-        self._data: Dict[str, Any] = {}
+        self._data: dict[str, Any] = {}
 
     def from_template(self, name: str) -> SimulationBuilder:
         """Deep-merge a template into the current config.
@@ -84,9 +83,7 @@ class SimulationBuilder:
         exchange.update(kwargs)
         return self
 
-    def enable_agent(
-        self, name: str, count: int, **params: Any
-    ) -> SimulationBuilder:
+    def enable_agent(self, name: str, count: int, **params: Any) -> SimulationBuilder:
         """Enable an agent type with the given count and optional parameters.
 
         Merges with any existing params for this agent type.
@@ -100,6 +97,17 @@ class SimulationBuilder:
             "count": count,
             "params": existing_params,
         }
+        return self
+
+    def agent_computation_delay(self, name: str, delay: int) -> SimulationBuilder:
+        """Set the computation delay for a specific agent type.
+
+        This overrides the simulation-level default_computation_delay for
+        all agents of the named type.
+        """
+        agents = self._data.setdefault("agents", {})
+        group = agents.setdefault(name, {"enabled": True, "count": 0, "params": {}})
+        group["params"]["computation_delay"] = delay
         return self
 
     def disable_agent(self, name: str) -> SimulationBuilder:
@@ -150,6 +158,6 @@ class SimulationBuilder:
         """
         return SimulationConfig.model_validate(self._data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Return the raw config dict (before validation)."""
         return deepcopy(self._data)

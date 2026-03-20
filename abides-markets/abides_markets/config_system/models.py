@@ -12,7 +12,7 @@ a ``SimulationConfig`` into the runtime dict that ``Kernel`` expects.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field
 
@@ -25,15 +25,21 @@ class SparseMeanRevertingOracleConfig(BaseModel):
 
     type: Literal["sparse_mean_reverting"] = "sparse_mean_reverting"
     r_bar: int = Field(default=100_000, description="Mean fundamental value in cents.")
-    kappa: float = Field(default=1.67e-16, description="Mean-reversion speed of OU process.")
+    kappa: float = Field(
+        default=1.67e-16, description="Mean-reversion speed of OU process."
+    )
     sigma_s: float = Field(default=0, description="Shock variance.")
-    fund_vol: float = Field(default=5e-5, description="Volatility (std) of the fundamental.")
+    fund_vol: float = Field(
+        default=5e-5, description="Volatility (std) of the fundamental."
+    )
     megashock_lambda_a: float = Field(
         default=2.77778e-18,
         description="Megashock arrival rate (per nanosecond).",
     )
     megashock_mean: float = Field(default=1000, description="Megashock mean.")
-    megashock_var: float = Field(default=50_000, description="Megashock magnitude variance.")
+    megashock_var: float = Field(
+        default=50_000, description="Megashock magnitude variance."
+    )
 
 
 class MeanRevertingOracleConfig(BaseModel):
@@ -75,9 +81,15 @@ class ExchangeConfig(BaseModel):
         default=500,
         description="Number of past orders stored for transacted volume computation.",
     )
-    log_orders: bool = Field(default=False, description="Log all exchange order activity.")
-    pipeline_delay: int = Field(default=0, description="Order acceptance latency in ns.")
-    computation_delay: int = Field(default=0, description="Exchange computation delay in ns.")
+    log_orders: bool = Field(
+        default=False, description="Log all exchange order activity."
+    )
+    pipeline_delay: int = Field(
+        default=0, description="Order acceptance latency in ns."
+    )
+    computation_delay: int = Field(
+        default=0, description="Exchange computation delay in ns."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -109,11 +121,16 @@ class AgentGroupConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    enabled: bool = Field(default=True, description="Whether this agent group is active.")
+    enabled: bool = Field(
+        default=True, description="Whether this agent group is active."
+    )
     count: int = Field(ge=0, description="Number of agents of this type.")
-    params: Dict[str, Any] = Field(
+    params: dict[str, Any] = Field(
         default_factory=dict,
-        description="Agent-specific parameters (validated against registry schema at compile time).",
+        description=(
+            "Agent-specific parameters "
+            "(validated against registry schema at compile time)."
+        ),
     )
 
 
@@ -153,7 +170,9 @@ class SimulationMeta(BaseModel):
         description="RNG seed for reproducibility. Use 'random' for a fresh seed.",
     )
     log_level: str = Field(default="INFO", description="Stdout log level.")
-    log_orders: bool = Field(default=True, description="Enable order logging for all agents.")
+    log_orders: bool = Field(
+        default=True, description="Enable order logging for all agents."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +192,7 @@ class SimulationConfig(BaseModel):
         default_factory=MarketConfig,
         description="Market parameters.",
     )
-    agents: Dict[str, AgentGroupConfig] = Field(
+    agents: dict[str, AgentGroupConfig] = Field(
         default_factory=dict,
         description="Agent groups keyed by registered agent type name.",
     )

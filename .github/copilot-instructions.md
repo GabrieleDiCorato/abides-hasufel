@@ -32,11 +32,16 @@ Always: `if not super().wakeup(current_time): return`
 Implement `TradingStrategy` → wrap in `AbidesStrategyAdapter(TradingAgent)`.
 See: `docs/ABIDES_CUSTOM_AGENT_IMPLEMENTATION_GUIDE.md`
 
+## Declarative config system
+Use `SimulationBuilder` + `compile()` for new simulations.
+See: `docs/ABIDES_CONFIG_SYSTEM.md`
+
 ## External data / oracle injection
 Use `ExternalDataOracle` with `BatchDataProvider` or `PointDataProvider`.
 See: `abides-markets/abides_markets/oracles/`
 
 ## Full reference
+- `docs/ABIDES_CONFIG_SYSTEM.md` — declarative config system, builder, templates, per-agent delays
 - `docs/ABIDES_LLM_INTEGRATION_GOTCHAS.md` — all None/NaN traps, safe patterns
 - `docs/ABIDES_CUSTOM_AGENT_IMPLEMENTATION_GUIDE.md` — full adapter pattern
 - `docs/ABIDES_DATA_EXTRACTION.md` — parsing logs (`parse_logs_df`) and L1/L2 book history

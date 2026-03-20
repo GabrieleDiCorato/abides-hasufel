@@ -6,8 +6,8 @@ The registry provides introspection for AI agents and validation at compile time
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Type
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -15,7 +15,7 @@ class AgentRegistryEntry:
     """A registered agent type with its config model and metadata."""
 
     name: str
-    config_model: Type  # Pydantic BaseModel subclass (BaseAgentConfig)
+    config_model: type  # Pydantic BaseModel subclass (BaseAgentConfig)
     category: str  # "background", "strategy", "execution", "market_maker"
     description: str = ""
 
@@ -28,8 +28,8 @@ class AgentRegistry:
     and by AI discoverability APIs to list available agent types.
     """
 
-    _instance: Optional[AgentRegistry] = None
-    _entries: Dict[str, AgentRegistryEntry]
+    _instance: AgentRegistry | None = None
+    _entries: dict[str, AgentRegistryEntry]
 
     def __new__(cls) -> AgentRegistry:
         if cls._instance is None:
@@ -40,7 +40,7 @@ class AgentRegistry:
     def register(
         self,
         name: str,
-        config_model: Type,
+        config_model: type,
         category: str = "background",
         description: str = "",
     ) -> None:
@@ -66,12 +66,10 @@ class AgentRegistry:
         """Look up a registered agent type by name."""
         if name not in self._entries:
             available = ", ".join(sorted(self._entries.keys()))
-            raise KeyError(
-                f"Unknown agent type '{name}'. Available types: {available}"
-            )
+            raise KeyError(f"Unknown agent type '{name}'. Available types: {available}")
         return self._entries[name]
 
-    def list_agents(self) -> List[Dict[str, Any]]:
+    def list_agents(self) -> list[dict[str, Any]]:
         """Return metadata for all registered agent types (AI-friendly)."""
         result = []
         for entry in self._entries.values():
@@ -86,12 +84,12 @@ class AgentRegistry:
             )
         return result
 
-    def get_json_schema(self, name: str) -> Dict[str, Any]:
+    def get_json_schema(self, name: str) -> dict[str, Any]:
         """Return the JSON Schema for a registered agent type's config."""
         entry = self.get(name)
         return entry.config_model.model_json_schema()
 
-    def registered_names(self) -> List[str]:
+    def registered_names(self) -> list[str]:
         """Return sorted list of all registered agent type names."""
         return sorted(self._entries.keys())
 
@@ -119,7 +117,7 @@ def register_agent(
             ...
     """
 
-    def decorator(cls: Type) -> Type:
+    def decorator(cls: type) -> type:
         registry.register(name, cls, category=category, description=description)
         return cls
 

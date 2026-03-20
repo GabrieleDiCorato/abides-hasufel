@@ -2,6 +2,24 @@
 ==================
 
 
+Declarative Configuration System
+---------------------------------
+
+* Added pluggable, AI-friendly config system built on Pydantic models
+* `SimulationBuilder` fluent API with composable templates (rmsc04, liquid_market, thin_market)
+* Agent registry with `@register_agent` decorator for third-party agent types
+* YAML/JSON serialization via `save_config()` / `load_config()`
+* Per-agent-type computation delays (overrides the global default per agent group)
+* AI discoverability API: `list_agent_types()`, `get_config_schema()`, `validate_config()`
+* Compiler produces the same runtime dict format as `build_config()` — fully backward compatible
+
+Bug Fixes
+---------
+
+* Fixed `Agent.get_computation_delay()` calling nonexistent `Kernel.get_agent_compute_delay()` — added the missing Kernel method
+* Added `per_agent_computation_delays` support to Kernel for declarative per-agent delay configuration
+
+
 Project Rename
 --------------
 

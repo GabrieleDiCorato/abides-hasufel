@@ -8,13 +8,12 @@ that instantiates actual ABIDES agent objects.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Union
 
 import numpy as np
-from pydantic import BaseModel, Field
-
 from abides_core import NanosecondTime
 from abides_core.utils import get_wake_time, str_to_ns
+from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
@@ -43,9 +42,16 @@ class BaseAgentConfig(BaseModel):
         default=10_000_000,
         description="Initial cash in cents ($100k = 10_000_000).",
     )
-    log_orders: Optional[bool] = Field(
+    log_orders: bool | None = Field(
         default=None,
         description="Override per-agent order logging. None = use simulation-level setting.",
+    )
+    computation_delay: int | None = Field(
+        default=None,
+        description=(
+            "Per-agent-type computation delay in nanoseconds. "
+            "None = use the simulation-level default_computation_delay."
+        ),
     )
 
 
@@ -70,7 +76,7 @@ class NoiseAgentConfig(BaseAgentConfig):
         id_start: int,
         master_rng: np.random.RandomState,
         context: AgentCreationContext,
-    ) -> List:
+    ) -> list:
         from abides_markets.agents import NoiseAgent
         from abides_markets.models import OrderSizeModel
 
@@ -94,7 +100,9 @@ class NoiseAgentConfig(BaseAgentConfig):
                     type="NoiseAgent",
                     symbol=context.ticker,
                     starting_cash=self.starting_cash,
-                    wakeup_time=get_wake_time(noise_mkt_open, noise_mkt_close, agent_rng),
+                    wakeup_time=get_wake_time(
+                        noise_mkt_open, noise_mkt_close, agent_rng
+                    ),
                     log_orders=log,
                     order_size_model=order_size_model,
                     random_state=agent_rng,
@@ -121,7 +129,7 @@ class ValueAgentConfig(BaseAgentConfig):
         default=5.7e-12,
         description="Arrival rate (per nanosecond) for Poisson wakeups.",
     )
-    sigma_n: Optional[int] = Field(
+    sigma_n: int | None = Field(
         default=None,
         description="Observation noise variance. Defaults to r_bar / 100.",
     )
@@ -132,7 +140,7 @@ class ValueAgentConfig(BaseAgentConfig):
         id_start: int,
         master_rng: np.random.RandomState,
         context: AgentCreationContext,
-    ) -> List:
+    ) -> list:
         from abides_markets.agents import ValueAgent
         from abides_markets.models import OrderSizeModel
 
@@ -185,7 +193,7 @@ class MomentumAgentConfig(BaseAgentConfig):
         id_start: int,
         master_rng: np.random.RandomState,
         context: AgentCreationContext,
-    ) -> List:
+    ) -> list:
         from abides_markets.agents import MomentumAgent
         from abides_markets.models import OrderSizeModel
 
@@ -222,7 +230,9 @@ class AdaptiveMarketMakerConfig(BaseAgentConfig):
     """Configuration for AdaptiveMarketMakerAgent — inventory-skewed ladder market maker."""
 
     pov: float = Field(default=0.025, description="Percentage of volume per level.")
-    min_order_size: int = Field(default=1, description="Minimum order size at any level.")
+    min_order_size: int = Field(
+        default=1, description="Minimum order size at any level."
+    )
     window_size: Union[int, str] = Field(
         default="adaptive",
         description="Spread window in ticks or 'adaptive'.",
@@ -232,13 +242,15 @@ class AdaptiveMarketMakerConfig(BaseAgentConfig):
         default="60s",
         description="Wake-up frequency as duration string.",
     )
-    poisson_arrival: bool = Field(default=True, description="Poisson-distributed wakeups.")
+    poisson_arrival: bool = Field(
+        default=True, description="Poisson-distributed wakeups."
+    )
     cancel_limit_delay: int = Field(
         default=50,
         description="Delay in nanoseconds before cancel takes effect.",
     )
     skew_beta: float = Field(default=0, description="Inventory skew parameter.")
-    price_skew_param: Optional[int] = Field(default=4, description="Price skew parameter.")
+    price_skew_param: int | None = Field(default=4, description="Price skew parameter.")
     level_spacing: float = Field(
         default=5,
         description="Spacing between price levels as fraction of spread.",
@@ -247,7 +259,9 @@ class AdaptiveMarketMakerConfig(BaseAgentConfig):
         default=0.75,
         description="EWMA parameter for spread estimation.",
     )
-    backstop_quantity: int = Field(default=0, description="Orders at the outermost level.")
+    backstop_quantity: int = Field(
+        default=0, description="Orders at the outermost level."
+    )
 
     def create_agents(
         self,
@@ -255,7 +269,7 @@ class AdaptiveMarketMakerConfig(BaseAgentConfig):
         id_start: int,
         master_rng: np.random.RandomState,
         context: AgentCreationContext,
-    ) -> List:
+    ) -> list:
         from abides_markets.agents import AdaptiveMarketMakerAgent
 
         log = self.log_orders if self.log_orders is not None else context.log_orders
@@ -311,7 +325,9 @@ class POVExecutionAgentConfig(BaseAgentConfig):
         description="Order direction: 'BID' (buy) or 'ASK' (sell).",
     )
     quantity: int = Field(default=1_200_000, description="Total target quantity.")
-    trade: bool = Field(default=True, description="If False, only logs without trading.")
+    trade: bool = Field(
+        default=True, description="If False, only logs without trading."
+    )
 
     def create_agents(
         self,
@@ -319,7 +335,7 @@ class POVExecutionAgentConfig(BaseAgentConfig):
         id_start: int,
         master_rng: np.random.RandomState,
         context: AgentCreationContext,
-    ) -> List:
+    ) -> list:
         from abides_markets.agents import POVExecutionAgent
         from abides_markets.orders import Side
 

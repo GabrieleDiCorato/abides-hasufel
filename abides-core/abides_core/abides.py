@@ -53,6 +53,7 @@ def run(
                 "agent_latency_model",
                 "default_computation_delay",
                 "custom_properties",
+                "per_agent_computation_delays",
             ],
         ),
     )

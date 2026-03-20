@@ -55,6 +55,7 @@ class Kernel:
         log_dir: Optional[str] = None,
         custom_properties: Optional[Dict[str, Any]] = None,
         random_state: Optional[np.random.RandomState] = None,
+        per_agent_computation_delays: Optional[Dict[int, int]] = None,
     ) -> None:
         custom_properties = custom_properties or {}
 
@@ -157,6 +158,12 @@ class Kernel:
             self.agents
         )
 
+        # Apply any per-agent computation delay overrides from the config.
+        if per_agent_computation_delays:
+            for agent_id, delay in per_agent_computation_delays.items():
+                if 0 <= agent_id < len(self.agents):
+                    self.agent_computation_delays[agent_id] = delay
+
         # If an agent_latency_model is defined, it will be used instead of
         # the older, non-model-based attributes.
         self.agent_latency_model = agent_latency_model
@@ -179,7 +186,9 @@ class Kernel:
         # distribution with the peak at zero.  By default there is no noise
         # (100% chance to add zero ns extra delay).  Format is a list with
         # list index = ns extra delay, value = probability of this delay.
-        self.latency_noise: List[float] = latency_noise if latency_noise is not None else [1.0]
+        self.latency_noise: List[float] = (
+            latency_noise if latency_noise is not None else [1.0]
+        )
 
         # The kernel maintains an accumulating additional delay parameter
         # for the current agent.  This is applied to each message sent
@@ -656,7 +665,9 @@ class Kernel:
                 )
             )
 
-        heapq.heappush(self.messages, (requested_time, (sender_id, sender_id, WakeupMsg())))
+        heapq.heappush(
+            self.messages, (requested_time, (sender_id, sender_id, WakeupMsg()))
+        )
 
     def set_agent_compute_delay(self, sender_id: int, requested_delay: int) -> None:
         """
@@ -691,6 +702,14 @@ class Kernel:
             )
 
         self.agent_computation_delays[sender_id] = requested_delay
+
+    def get_agent_compute_delay(self, sender_id: int) -> int:
+        """Return the current computation delay for the given agent.
+
+        Arguments:
+            sender_id: The ID of the agent to query.
+        """
+        return self.agent_computation_delays[sender_id]
 
     def delay_agent(self, sender_id: int, additional_delay: int) -> None:
         """

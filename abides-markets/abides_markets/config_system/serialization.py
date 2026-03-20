@@ -8,17 +8,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 from abides_markets.config_system.models import SimulationConfig
 
 
-def config_to_dict(config: SimulationConfig) -> Dict[str, Any]:
+def config_to_dict(config: SimulationConfig) -> dict[str, Any]:
     """Convert a SimulationConfig to a JSON-serializable dict."""
     return config.model_dump(mode="json")
 
 
-def config_from_dict(d: Dict[str, Any]) -> SimulationConfig:
+def config_from_dict(d: dict[str, Any]) -> SimulationConfig:
     """Create a SimulationConfig from a parsed dict (validates on construction)."""
     return SimulationConfig.model_validate(d)
 
