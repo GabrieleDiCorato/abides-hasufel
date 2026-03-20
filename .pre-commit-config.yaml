@@ -4,7 +4,7 @@
 repos:
   # Code formatting with Black
   - repo: https://github.com/psf/black
-    rev: 24.1.1
+    rev: 26.3.1
     hooks:
       - id: black
         language_version: python3.12
@@ -18,7 +18,7 @@ repos:
 
   # Linting with ruff (modern, fast alternative to flake8)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.15
+    rev: v0.15.7
     hooks:
       - id: ruff
         args: [--fix]
@@ -26,7 +26,7 @@ repos:
 
   # Type checking with mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.19.1
     hooks:
       - id: mypy
         args: [--config-file=mypy.ini]
@@ -45,9 +45,9 @@ repos:
         pass_filenames: false
         always_run: true
 
-  # Prevent commits to main/master branch
+  # Standard pre-commit checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
