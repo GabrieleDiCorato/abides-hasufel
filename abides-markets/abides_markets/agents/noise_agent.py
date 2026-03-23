@@ -62,8 +62,6 @@ class NoiseAgent(TradingAgent):
 
         super().kernel_starting(start_time)
 
-        self.oracle = self.kernel.oracle
-
     def kernel_stopping(self) -> None:
         # Always call parent method to be safe.
         super().kernel_stopping()

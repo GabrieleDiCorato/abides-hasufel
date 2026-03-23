@@ -1,10 +1,14 @@
 import abc
+from typing import Any, Dict, List
 
 import numpy as np
 from abides_core import NanosecondTime
 
 
 class Oracle(abc.ABC):
+    f_log: Dict[str, List[Dict[str, Any]]] = {}
+    """Fundamental value log.  Subclasses that track history override in __init__."""
+
     @abc.abstractmethod
     def get_daily_open_price(
         self, symbol: str, mkt_open: NanosecondTime, cents: bool = True

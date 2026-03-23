@@ -271,7 +271,7 @@ class ExchangeAgent(FinancialAgent):
 
         # If the oracle supports writing the fundamental value series for its
         # symbols, write them to disk.
-        if hasattr(self.oracle, "f_log"):
+        if self.oracle.f_log:
             for symbol in self.oracle.f_log:
                 dfFund = pd.DataFrame(self.oracle.f_log[symbol])
                 if not dfFund.empty:
