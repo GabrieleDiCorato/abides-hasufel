@@ -253,14 +253,14 @@ class ValueAgent(TradingAgent):
                 )  # submit a market order to buy, a limit order inside the spread or deeper in the book
         else:
             # initialize randomly
-            buy = self.random_state.randint(0, 1 + 1)
+            buy = bool(self.random_state.randint(0, 2))
             p = r_T
 
         # Place the order
         if self.order_size_model is not None:
             self.size = self.order_size_model.sample(random_state=self.random_state)
 
-        side = Side.BID if buy == 1 else Side.ASK
+        side = Side.BID if buy else Side.ASK
 
         if self.size > 0:
             self.place_limit_order(self.symbol, self.size, side, p)

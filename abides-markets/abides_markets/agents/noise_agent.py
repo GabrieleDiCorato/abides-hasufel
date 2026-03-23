@@ -139,7 +139,7 @@ class NoiseAgent(TradingAgent):
 
     def placeOrder(self) -> None:
         # place order in random direction at a mid
-        buy_indicator = self.random_state.randint(0, 1 + 1)
+        buy = bool(self.random_state.randint(0, 2))
 
         bid, bid_vol, ask, ask_vol = self.get_known_bid_ask(self.symbol)
 
@@ -147,9 +147,9 @@ class NoiseAgent(TradingAgent):
             self.size = self.order_size_model.sample(random_state=self.random_state)
 
         if self.size > 0:
-            if buy_indicator == 1 and ask:
+            if buy and ask:
                 self.place_limit_order(self.symbol, self.size, Side.BID, ask)
-            elif not buy_indicator and bid:
+            elif not buy and bid:
                 self.place_limit_order(self.symbol, self.size, Side.ASK, bid)
 
     def receive_message(
