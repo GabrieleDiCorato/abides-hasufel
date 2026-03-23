@@ -193,6 +193,8 @@ class ExchangeAgent(FinancialAgent):
             self.metric_trackers: Dict[str, ExchangeAgent.MetricTracker] = {
                 symbol: self.MetricTracker() for symbol in symbols
             }
+        else:
+            self.metric_trackers: Dict[str, ExchangeAgent.MetricTracker] = {}
 
         # The subscription dict is a dictionary with the key = agent ID,
         # value = dict (key = symbol, value = list [levels (no of levels to recieve updates for),
@@ -755,7 +757,7 @@ class ExchangeAgent(FinancialAgent):
                 )
             )
 
-        elif isinstance(data_sub, self.L3DataSubscription) or isinstance(data_sub, self.L3DataSubscription):
+        elif isinstance(data_sub, self.L3DataSubscription):
             bids = book.get_l3_bid_data(data_sub.depth)
             asks = book.get_l3_ask_data(data_sub.depth)
             messages.append(
