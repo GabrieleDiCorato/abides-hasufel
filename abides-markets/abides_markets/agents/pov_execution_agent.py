@@ -121,8 +121,8 @@ class POVExecutionAgent(TradingAgent):
         self.execution_complete: bool = False
 
         # Market data
-        self.last_bid: Optional[float] = None
-        self.last_ask: Optional[float] = None
+        self.last_bid: Optional[int] = None
+        self.last_ask: Optional[int] = None
         self.last_transacted_volume: int = 0
 
         # Logging and statistics
