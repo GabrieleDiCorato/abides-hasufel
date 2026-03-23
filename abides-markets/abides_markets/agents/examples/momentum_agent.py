@@ -109,11 +109,11 @@ class MomentumAgent(TradingAgent):
             self.mid_list.append((bid + ask) // 2)
             if len(self.mid_list) > 20:
                 self.avg_20_list.append(
-                    MomentumAgent.ma(self.mid_list, n=20)[-1].round(2)
+                    int(round(MomentumAgent.ma(self.mid_list, n=20)[-1]))
                 )
             if len(self.mid_list) > 50:
                 self.avg_50_list.append(
-                    MomentumAgent.ma(self.mid_list, n=50)[-1].round(2)
+                    int(round(MomentumAgent.ma(self.mid_list, n=50)[-1]))
                 )
             if len(self.avg_20_list) > 0 and len(self.avg_50_list) > 0:
                 if self.order_size_model is not None:
