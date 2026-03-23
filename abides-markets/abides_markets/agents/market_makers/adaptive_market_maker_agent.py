@@ -236,7 +236,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             self.delay(self.cancel_limit_delay)
             self.get_current_spread(self.symbol, depth=self.subscribe_num_levels)
             self.get_transacted_volume(self.symbol, lookback_period=self.wake_up_freq)
-            self.initialise_state()
+            self.state = self.initialise_state()
 
     def receive_message(
         self, current_time: NanosecondTime, sender_id: int, message: Message
