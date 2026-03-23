@@ -1,3 +1,38 @@
+2026-03 Release v2.0.0
+==================
+
+Agent Bug Fixes
+---------------
+
+* Fixed AdaptiveMarketMakerAgent subscribe-mode crash: `self.state["MARKET_DATA"]`
+  referenced a key that never existed — corrected to `self.state["AWAITING_MARKET_DATA"]`
+* Fixed ValueAgent `log_orders` type annotation: was `float`, corrected to `bool`
+* Fixed MomentumAgent `KeyError` on empty order book: replaced bare dict access
+  `self.known_bids[self.symbol]` with safe `.get(self.symbol, [])`
+
+Oracle Fixes
+------------
+
+* Added `f_log` class attribute to Oracle ABC — subclasses that don't track
+  fundamental history now return `{}` by default instead of raising `AttributeError`
+* Replaced fragile `hasattr(self.oracle, "f_log")` check in ExchangeAgent with
+  truthiness check `if self.oracle.f_log:` — works correctly with the new default
+* Removed dead `self.oracle = self.kernel.oracle` line in NoiseAgent (unreachable code)
+
+MeanRevertingOracle Safety
+--------------------------
+
+* Added `DeprecationWarning` — users are directed to `SparseMeanRevertingOracle`
+* Added `ValueError` guard rejecting time ranges > 1 000 000 steps to prevent
+  accidental multi-GB memory allocation
+
+Tests
+-----
+
+* Added `test_agent_fixes.py` — 8 regression tests covering all agent and oracle fixes
+* Added 3 safety tests to `test_mean_reverting_oracle.py` for deprecation warning
+  and step-count guard
+
 2026-03 Release v1.3.0
 ==================
 
