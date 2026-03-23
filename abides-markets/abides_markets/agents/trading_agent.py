@@ -81,11 +81,6 @@ class TradingAgent(FinancialAgent):
         # Log order activity?
         self.log_orders: bool = log_orders
 
-        # Log all activity to file?
-        if log_orders is None:
-            self.log_orders = False
-            self.log_to_file = False
-
         # Store starting_cash in case we want to refer to it for performance stats.
         # It should NOT be modified.  Use the 'CASH' key in self.holdings.
         # 'CASH' is always in cents!  Note that agents are limited by their starting
@@ -1069,7 +1064,7 @@ class TradingAgent(FinancialAgent):
 
     def get_known_bid_ask(
         self, symbol: str
-    ) -> tuple[float | None, int, float | None, int]:
+    ) -> tuple[int | None, int, int | None, int]:
         """
         Extract the current known bid and asks.
 
@@ -1157,11 +1152,13 @@ class TradingAgent(FinancialAgent):
             if use_midpoint:
                 bid, ask, midpoint = self.get_known_bid_ask_midpoint(symbol)
                 if bid is None or ask is None or midpoint is None:
-                    value = self.last_trade[symbol] * shares
+                    last = self.last_trade.get(symbol)
+                    value = last * shares if last is not None else 0
                 else:
                     value = midpoint * shares
             else:
-                value = self.last_trade[symbol] * shares
+                last = self.last_trade.get(symbol)
+                value = last * shares if last is not None else 0
 
             cash += value
 
@@ -1196,8 +1193,10 @@ class TradingAgent(FinancialAgent):
             symbol: The symbol to query.
         """
 
-        bid = self.known_bids[symbol][0][0] if self.known_bids[symbol] else None
-        ask = self.known_asks[symbol][0][0] if self.known_asks[symbol] else None
+        known_bids = self.known_bids.get(symbol, [])
+        known_asks = self.known_asks.get(symbol, [])
+        bid = known_bids[0][0] if known_bids else None
+        ask = known_asks[0][0] if known_asks else None
 
         midpoint = (
             int(round((bid + ask) / 2)) if bid is not None and ask is not None else None
