@@ -59,7 +59,7 @@
 
 | Concern | Severity | Detail |
 |---------|:--------:|--------|
-| Unbounded `mid_list` growth | Medium | Line 55: `self.mid_list: list[float] = []` grows forever via `append` at line 110. In a 6.5-hour trading day at 1 s frequency = 23 400 entries. `ma()` recomputes `np.cumsum` over the full array each time — O(n) growing cost. Should use a `deque(maxlen=N)`. |
+| Unbounded `mid_list` growth | Medium | Line 55: `self.mid_list: list[float] = []` grows forever via `append` at line 110. In a 6.5-hour trading day at 1s frequency = 23,400 entries. `ma()` recomputes `np.cumsum` over the full array each time — O(n) growing cost. Should use a `deque(maxlen=N)`. |
 | Hard-coded MA windows (20, 50) | Design | Lines 113, 117: not configurable. A production momentum agent needs tunable fast/slow windows. |
 | No position management | Design | Keeps buying/selling without any position limit or reversal logic. Can accumulate unbounded inventory. |
 
@@ -82,7 +82,7 @@
 | Market orders only | Design | Line 359: uses exclusively market orders for fills. A production POV agent should also support limit orders with active crossing for better price improvement. |
 | No urgency parameter | Design | Real POV algos have urgency controls (e.g., ramp rate near close). |
 
-### 2.7 TradingAgent Base (1 250 LOC)
+### 2.7 TradingAgent Base (1,250 LOC)
 
 | Concern | Severity | Detail |
 |---------|:--------:|--------|
@@ -111,7 +111,7 @@ The current agent roster is **minimal for academic simulation** but **incomplete
 
 ### 3.2 Performance Bottlenecks
 
-1. **`deepcopy` proliferation**: `TradingAgent.place_limit_order` → `deepcopy(order)` (line 549) and `ExchangeAgent` → `deepcopy(message.order)` (line 566) mean every order is deep-copied **twice** (once by sender, once by exchange). With 1 000 agents × 100 orders/day = 200 000 unnecessary deep copies.
+1. **`deepcopy` proliferation**: `TradingAgent.place_limit_order` → `deepcopy(order)` (line 549) and `ExchangeAgent` → `deepcopy(message.order)` (line 566) mean every order is deep-copied **twice** (once by sender, once by exchange). With 1,000 agents × 100 orders/day = 200,000 unnecessary deep copies.
 
 2. **Cancel-and-repost pattern**: Both `AdaptiveMarketMakerAgent` and `ValueAgent` cancel all orders then re-place, despite `TradingAgent` already providing `modify_order()` and `replace_order()`. Using those would halve message count. At scale the cancel-repost traffic dominates kernel event-queue processing time.
 
@@ -121,7 +121,7 @@ The current agent roster is **minimal for academic simulation** but **incomplete
 
 1. **No position limits anywhere**: Not a single agent enforces a max position. The `ignore_risk=True` default means even the at-risk-capital check in `TradingAgent` is bypassed by default. Setting `ignore_risk=False` triggers a cash-based limit, but no agent enforces an explicit share-count position cap.
 
-2. **No agent-level circuit breaker**: If a strategy enters a pathological loop (e.g., MomentumAgent accumulating 100 000 shares), nothing stops it.
+2. **No agent-level circuit breaker**: If a strategy enters a pathological loop (e.g., MomentumAgent accumulating 100,000 shares), nothing stops it.
 
 ---
 
@@ -139,7 +139,7 @@ See CHANGELOG.md for the full list. Additionally, POV fill-price tracking was ad
 |-----|------|--------|
 | Use `modify_order`/`replace_order` instead of cancel-repost | `value_agent.py`, `adaptive_market_maker_agent.py` | `TradingAgent` already exposes these methods — agents should use them to halve exchange message volume. |
 | Replace `type(self) is X` guards with `isinstance` | `noise_agent.py:130`, `value_agent.py:141` | Current guards prevent subclass reuse. |
-| Replace unbounded `mid_list` with `deque(maxlen=N)` | `momentum_agent.py:55` | Eliminates O(n) growing cost per wakeup. |
+| Replace unbounded `mid_list` with `deque(maxlen=N)` | `momentum_agent.py:55` | Use `maxlen` equal to the slow MA window (currently 50). Eliminates O(n) growing cost per wakeup. |
 | Make `depth_spread` configurable | `value_agent.py:66` | Currently hard-coded to 2. |
 | Make MA windows configurable | `momentum_agent.py` | Currently hard-coded to 20/50. |
 | Fix `subscribe_freq` type annotation | `adaptive_market_maker_agent.py:63` | `float` → `int` (nanoseconds). |
@@ -242,7 +242,7 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
 |---------|:--------:|--------|
 | Still compilable | Medium | `MeanRevertingOracleConfig` is accepted by the compiler, so users can accidentally reach the step-count guard via declarative config. Consider removing the config model entirely to eliminate the foot-gun. |
 
-*v2.0.0 added a `DeprecationWarning` and a `ValueError` guard rejecting > 1 000 000 steps, effectively neutering the OOM risk.*
+*v2.0.0 added a `DeprecationWarning` and a `ValueError` guard rejecting > 1,000,000 steps, effectively neutering the OOM risk.*
 
 #### 5.5.2 SparseMeanRevertingOracle (Default)
 
