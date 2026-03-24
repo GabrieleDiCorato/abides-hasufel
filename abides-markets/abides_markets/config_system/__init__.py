@@ -91,7 +91,7 @@ def get_config_schema() -> dict[str, Any]:
 
     AI agents can use this to understand the complete config structure.
     """
-    return SimulationConfig.model_json_schema()  # type: ignore[no-any-return]
+    return SimulationConfig.model_json_schema()
 
 
 def validate_config(config_dict: dict[str, Any]) -> dict[str, Any]:
