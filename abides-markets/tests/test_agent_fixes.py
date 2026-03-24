@@ -316,9 +316,10 @@ class TestPOVAgentTypes:
             end_time=MKT_CLOSE,
             random_state=np.random.RandomState(42),
         )
-        # Type hints should be int, verified via __annotations__
-        assert "last_bid" in type(agent).__init__.__annotations__
-        assert "last_ask" in type(agent).__init__.__annotations__
+        # Type hints should be int: verify via source code annotation
+        source = inspect.getsource(POVExecutionAgent.__init__)
+        assert "last_bid: int | None" in source
+        assert "last_ask: int | None" in source
         # last_bid and last_ask are initialized as None — just verify they exist and are correct type
         assert agent.last_bid is None
         assert agent.last_ask is None

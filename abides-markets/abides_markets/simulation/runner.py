@@ -270,7 +270,7 @@ def _extract_result(
             sym: ob.last_trade for sym, ob in exchange.order_books.items()
         }
         for agent in trading_agents:
-            agent_data.append(_extract_agent_data(agent, exchange_last_trades))  # type: ignore[arg-type]
+            agent_data.append(_extract_agent_data(agent, exchange_last_trades))
 
     # -- Agent logs -----------------------------------------------------------
     logs_df: pd.DataFrame | None = None
@@ -379,15 +379,15 @@ def _extract_l1_series(book_log2: list[dict]) -> L1Snapshots:
             bid_prices.append(int(bids[0][0]))
             bid_quantities.append(int(bids[0][1]))
         else:
-            bid_prices.append(None)  # type: ignore[arg-type]
-            bid_quantities.append(None)  # type: ignore[arg-type]
+            bid_prices.append(None)
+            bid_quantities.append(None)
 
         if len(asks) > 0:
             ask_prices.append(int(asks[0][0]))
             ask_quantities.append(int(asks[0][1]))
         else:
-            ask_prices.append(None)  # type: ignore[arg-type]
-            ask_quantities.append(None)  # type: ignore[arg-type]
+            ask_prices.append(None)
+            ask_quantities.append(None)
 
     return L1Snapshots(
         times_ns=np.array(times, dtype=np.int64),
