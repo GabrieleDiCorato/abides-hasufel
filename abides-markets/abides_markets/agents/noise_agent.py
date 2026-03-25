@@ -127,7 +127,7 @@ class NoiseAgent(TradingAgent):
             self.state = "AWAITING_SPREAD"
             return
 
-        if type(self) is NoiseAgent:
+        if isinstance(self, NoiseAgent):
             self.get_current_spread(self.symbol)
             self.state = "AWAITING_SPREAD"
         else:

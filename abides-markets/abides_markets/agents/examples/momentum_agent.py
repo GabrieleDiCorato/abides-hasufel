@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 
 from abides_core import Message, NanosecondTime
@@ -13,9 +15,9 @@ _DEFAULT_WAKE_UP_FREQ: int = str_to_ns("60s")
 
 class MomentumAgent(TradingAgent):
     """
-    Simple Trading Agent that compares the 20 past mid-price observations with the 50 past observations and places a
-    buy limit order if the 20 mid-price average >= 50 mid-price average or a
-    sell limit order if the 20 mid-price average < 50 mid-price average
+    Simple Trading Agent that compares the short-window past mid-price observations with the long-window past
+    observations and places a buy limit order if the short MA >= long MA or a
+    sell limit order if the short MA < long MA.
     """
 
     def __init__(
@@ -33,7 +35,17 @@ class MomentumAgent(TradingAgent):
         order_size_model=None,
         subscribe=False,
         log_orders=False,
+        short_window: int = 20,
+        long_window: int = 50,
     ) -> None:
+        if short_window < 1 or long_window < 1:
+            raise ValueError(
+                f"short_window ({short_window}) and long_window ({long_window}) must be >= 1."
+            )
+        if short_window > long_window:
+            raise ValueError(
+                f"short_window ({short_window}) must be <= long_window ({long_window})."
+            )
 
         super().__init__(id, name, type, random_state, starting_cash, log_orders)
         self.symbol = symbol
@@ -52,9 +64,11 @@ class MomentumAgent(TradingAgent):
 
         self.subscribe = subscribe  # Flag to determine whether to subscribe to data or use polling mechanism
         self.subscription_requested = False
-        self.mid_list: list[float] = []
-        self.avg_20_list: list[float] = []
-        self.avg_50_list: list[float] = []
+        self.short_window: int = short_window
+        self.long_window: int = long_window
+        self.mid_list: deque[float] = deque(maxlen=long_window)
+        self.avg_short_list: list[float] = []
+        self.avg_long_list: list[float] = []
         self.log_orders = log_orders
         self.state = "AWAITING_WAKEUP"
 
@@ -106,24 +120,24 @@ class MomentumAgent(TradingAgent):
 
     def place_orders(self, bid: int, ask: int) -> None:
         """Momentum Agent actions logic"""
-        if bid and ask:
+        if bid is not None and ask is not None:
             self.mid_list.append((bid + ask) // 2)
-            if len(self.mid_list) > 20:
-                self.avg_20_list.append(
-                    int(round(MomentumAgent.ma(self.mid_list, n=20)[-1]))
+            if len(self.mid_list) >= self.short_window:
+                self.avg_short_list.append(
+                    int(round(MomentumAgent.ma(self.mid_list, n=self.short_window)[-1]))
                 )
-            if len(self.mid_list) > 50:
-                self.avg_50_list.append(
-                    int(round(MomentumAgent.ma(self.mid_list, n=50)[-1]))
+            if len(self.mid_list) >= self.long_window:
+                self.avg_long_list.append(
+                    int(round(MomentumAgent.ma(self.mid_list, n=self.long_window)[-1]))
                 )
-            if len(self.avg_20_list) > 0 and len(self.avg_50_list) > 0:
+            if len(self.avg_short_list) > 0 and len(self.avg_long_list) > 0:
                 if self.order_size_model is not None:
                     self.size = self.order_size_model.sample(
                         random_state=self.random_state
                     )
 
                 if self.size > 0:
-                    if self.avg_20_list[-1] >= self.avg_50_list[-1]:
+                    if self.avg_short_list[-1] >= self.avg_long_list[-1]:
                         self.place_limit_order(
                             self.symbol,
                             quantity=self.size,

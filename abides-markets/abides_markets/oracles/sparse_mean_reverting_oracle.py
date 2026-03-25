@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+from collections import deque
 from math import exp, sqrt
 from typing import Any
 
@@ -42,7 +43,18 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
         mkt_close: NanosecondTime,
         symbols: dict[str, dict[str, Any]],
         random_state: np.random.RandomState,
+        f_log_maxlen: int = 100_000,
     ) -> None:
+        """
+        Arguments:
+            mkt_open: Market open time in nanoseconds.
+            mkt_close: Market close time in nanoseconds.
+            symbols: Dict of symbol configs with keys r_bar, kappa, sigma_s, etc.
+            random_state: Seeded RandomState for reproducibility.
+            f_log_maxlen: Maximum number of fundamental value log entries retained
+                per symbol.  Oldest entries are discarded when the limit is reached.
+                Prevents unbounded memory growth in long simulations.
+        """
         # Symbols must be a dictionary of dictionaries with outer keys as symbol names and
         # inner keys: r_bar, kappa, sigma_s.
         self.mkt_open: NanosecondTime = mkt_open
@@ -53,7 +65,7 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
         }
         self.random_state: np.random.RandomState = random_state
 
-        self.f_log: dict[str, list[dict[str, Any]]] = {}
+        self.f_log: dict[str, deque[dict[str, Any]]] = {}
 
         # The dictionary r holds the most recent fundamental values for each symbol.
         self.r: dict[str, pd.Series] = {}
@@ -83,9 +95,10 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
                 f"SparseMeanRevertingOracle computing initial fundamental value for {symbol}"
             )
             self.r[symbol] = (mkt_open, s["r_bar"])
-            self.f_log[symbol] = [
-                {"FundamentalTime": mkt_open, "FundamentalValue": s["r_bar"]}
-            ]
+            self.f_log[symbol] = deque(
+                [{"FundamentalTime": mkt_open, "FundamentalValue": s["r_bar"]}],
+                maxlen=f_log_maxlen,
+            )
 
             # Compute the time and value of the first megashock.  Note that while the values are
             # mean-zero, they are intentionally bimodal (i.e. we always want to push the stock
