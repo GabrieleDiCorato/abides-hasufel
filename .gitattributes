@@ -1,0 +1,5 @@
+# GitHub Linguist overrides
+# Treat notebooks as documentation so they are excluded from language statistics.
+# Without this, large notebook outputs (base64 images etc.) skew the stats heavily
+# toward "Jupyter Notebook" even though the core codebase is Python.
+notebooks/*.ipynb linguist-documentation

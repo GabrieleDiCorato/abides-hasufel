@@ -45,6 +45,16 @@ repos:
         pass_filenames: false
         always_run: true
 
+  # Strip notebook outputs before committing (keeps .ipynb files small)
+  - repo: local
+    hooks:
+      - id: nb-clean
+        name: nb-clean
+        entry: uv run nb-clean clean
+        language: system
+        files: \.ipynb$
+        pass_filenames: true
+
   # Standard pre-commit checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
