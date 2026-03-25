@@ -226,6 +226,10 @@ class ValueAgentConfig(BaseAgentConfig):
         default=None,
         description="Observation noise variance. Defaults to r_bar / 100.",
     )
+    depth_spread: int = Field(
+        default=2,
+        description="Depth spread multiplier for passive order price adjustment.",
+    )
 
     def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):
         from abides_markets.models import OrderSizeModel
@@ -253,6 +257,14 @@ class MomentumAgentConfig(BaseAgentConfig):
     poisson_arrival: bool = Field(
         default=True,
         description="If True, wakeup intervals are Poisson-distributed.",
+    )
+    short_window: int = Field(
+        default=20,
+        description="Number of bars for the fast (short) moving average.",
+    )
+    long_window: int = Field(
+        default=50,
+        description="Number of bars for the slow (long) moving average.",
     )
 
     def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):

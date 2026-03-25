@@ -2,7 +2,6 @@ import logging
 import warnings
 from abc import ABC
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -136,6 +135,22 @@ class ExchangeAgent(FinancialAgent):
         # State:
         imbalance: float | None = None
         side: Side | None = None
+
+    # ---- dispatch table: message type → handler method name ----
+    _MESSAGE_HANDLERS: dict[type, str] = {
+        MarketHoursRequestMsg: "_handle_market_hours_request",
+        MarketClosePriceRequestMsg: "_handle_market_close_price_request",
+        QueryLastTradeMsg: "_handle_query_last_trade",
+        QuerySpreadMsg: "_handle_query_spread",
+        QueryOrderStreamMsg: "_handle_query_order_stream",
+        QueryTransactedVolMsg: "_handle_query_transacted_vol",
+        LimitOrderMsg: "_handle_limit_order",
+        MarketOrderMsg: "_handle_market_order",
+        CancelOrderMsg: "_handle_cancel_order",
+        PartialCancelOrderMsg: "_handle_partial_cancel_order",
+        ModifyOrderMsg: "_handle_modify_order",
+        ReplaceOrderMsg: "_handle_replace_order",
+    }
 
     def __init__(
         self,
@@ -428,228 +443,217 @@ class ExchangeAgent(FinancialAgent):
 
                 self.data_subscriptions[message.symbol].append(sub)
 
-        if isinstance(message, MarketHoursRequestMsg):
+        # O(1) dispatch for the main message-handling chain.
+        handler = self._MESSAGE_HANDLERS.get(type(message))
+        if handler is not None:
+            getattr(self, handler)(sender_id, current_time, message)
+
+    def _handle_market_hours_request(
+        self, sender_id: int, current_time: NanosecondTime, message: MarketHoursRequestMsg
+    ) -> None:
+        logger.debug(
+            f"{self.name} received market hours request from agent {sender_id}"
+        )
+        self.set_computation_delay(0)
+        self.send_message(sender_id, MarketHoursMsg(self.mkt_open, self.mkt_close))
+
+    def _handle_market_close_price_request(
+        self, sender_id: int, current_time: NanosecondTime, message: MarketClosePriceRequestMsg
+    ) -> None:
+        self.market_close_price_subscriptions.append(sender_id)
+
+    def _handle_query_last_trade(
+        self, sender_id: int, current_time: NanosecondTime, message: QueryLastTradeMsg
+    ) -> None:
+        symbol = message.symbol
+        if symbol not in self.order_books:
+            warnings.warn(f"Last trade request discarded. Unknown symbol: {symbol}")
+        else:
             logger.debug(
-                f"{self.name} received market hours request from agent {sender_id}"
+                f"{self.name} received QUERY_LAST_TRADE ({symbol}) request from agent {sender_id}"
+            )
+            self.send_message(
+                sender_id,
+                QueryLastTradeResponseMsg(
+                    symbol=symbol,
+                    last_trade=self.order_books[symbol].last_trade,
+                    mkt_closed=current_time > self.mkt_close,
+                ),
             )
 
-            # The exchange is permitted to respond to requests for simple
-            # immutable data (like "what are your hours?") instantly. This does
-            # NOT include anything that queries mutable data, like equity quotes
-            # or trades.
-            self.set_computation_delay(0)
-
-            self.send_message(sender_id, MarketHoursMsg(self.mkt_open, self.mkt_close))
-
-        elif isinstance(message, MarketClosePriceRequestMsg):
-            self.market_close_price_subscriptions.append(sender_id)
-
-        elif isinstance(message, QueryLastTradeMsg):
-            symbol = message.symbol
-
-            if symbol not in self.order_books:
-                warnings.warn(f"Last trade request discarded. Unknown symbol: {symbol}")
-            else:
-                logger.debug(
-                    f"{self.name} received QUERY_LAST_TRADE ({symbol}) request from agent {sender_id}"
-                )
-
-                # Return the single last executed trade price (currently not
-                # volume) for the requested symbol. This will return the average
-                # share price if multiple executions resulted from a single order.
-                self.send_message(
-                    sender_id,
-                    QueryLastTradeResponseMsg(
-                        symbol=symbol,
-                        last_trade=self.order_books[symbol].last_trade,
-                        mkt_closed=current_time > self.mkt_close,
-                    ),
-                )
-
-        elif isinstance(message, QuerySpreadMsg):
-            symbol = message.symbol
-            depth = message.depth
-
-            if symbol not in self.order_books:
-                warnings.warn(
-                    f"Bid-ask spread request discarded. Unknown symbol: {symbol}"
-                )
-            else:
-                logger.debug(
-                    f"{self.name} received QUERY_SPREAD ({symbol}:{depth}) request from agent {sender_id}"
-                )
-
-                # Return the requested depth on both sides of the order book for
-                # the requested symbol. Returns price levels and aggregated
-                # volume at each level (not individual orders).
-                self.send_message(
-                    sender_id,
-                    QuerySpreadResponseMsg(
-                        symbol=symbol,
-                        depth=depth,
-                        bids=self.order_books[symbol].get_l2_bid_data(depth),
-                        asks=self.order_books[symbol].get_l2_ask_data(depth),
-                        last_trade=self.order_books[symbol].last_trade,
-                        mkt_closed=current_time > self.mkt_close,
-                    ),
-                )
-
-                # It is possible to also send the pretty-printed order book to
-                # the agent for logging, but forcing pretty-printing of a large
-                # order book is very slow, so we should only do it with good
-                # reason.  We don't currently have a configurable option for it.
-                # "book": self.order_books[symbol].pretty_print(silent=True) }))
-
-        elif isinstance(message, QueryOrderStreamMsg):
-            symbol = message.symbol
-            length = message.length
-
-            if symbol not in self.order_books:
-                warnings.warn(
-                    f"Order stream request discarded. Unknown symbol: {symbol}"
-                )
-            else:
-                logger.debug(
-                    f"{self.name} received QUERY_ORDER_STREAM ({symbol}:{length}) request from agent {sender_id}"
-                )
-
-                # We return indices [1:length] inclusive because the agent will want
-                # "orders leading up to the last L trades", and the items under
-                # index 0 are more recent than the last trade.
-                self.send_message(
-                    sender_id,
-                    QueryOrderStreamResponseMsg(
-                        symbol=symbol,
-                        length=length,
-                        orders=self.order_books[symbol].history[1 : length + 1],
-                        mkt_closed=current_time > self.mkt_close,
-                    ),
-                )
-
-        elif isinstance(message, QueryTransactedVolMsg):
-            symbol = message.symbol
-            lookback_period = message.lookback_period
-
-            if symbol not in self.order_books:
-                warnings.warn(
-                    f"Transacted volume request discarded. Unknown symbol: {symbol}"
-                )
-            else:
-                logger.debug(
-                    f"{self.name} received QUERY_TRANSACTED_VOLUME ({symbol}:{lookback_period}) request from agent {sender_id}"
-                )
-
-                bid_volume, ask_volume = self.order_books[symbol].get_transacted_volume(
-                    lookback_period
-                )
-
-                self.send_message(
-                    sender_id,
-                    QueryTransactedVolResponseMsg(
-                        symbol=symbol,
-                        bid_volume=bid_volume,
-                        ask_volume=ask_volume,
-                        mkt_closed=current_time > self.mkt_close,
-                    ),
-                )
-
-        elif isinstance(message, LimitOrderMsg):
-            logger.debug(f"{self.name} received LIMIT_ORDER: {message.order}")
-
-            if message.order.symbol not in self.order_books:
-                warnings.warn(
-                    f"Limit Order discarded. Unknown symbol: {message.order.symbol}"
-                )
-            else:
-                # Hand the order to the order book for processing.
-                self.order_books[message.order.symbol].handle_limit_order(
-                    deepcopy(message.order)
-                )
-                self.publish_order_book_data(message.order.symbol)
-
-        elif isinstance(message, MarketOrderMsg):
-            logger.debug(f"{self.name} received MARKET_ORDER: {message.order}")
-
-            if message.order.symbol not in self.order_books:
-                warnings.warn(
-                    f"Market Order discarded. Unknown symbol: {message.order.symbol}"
-                )
-            else:
-                # Hand the market order to the order book for processing.
-                self.order_books[message.order.symbol].handle_market_order(
-                    message.order
-                )
-                self.publish_order_book_data(message.order.symbol)
-
-        elif isinstance(message, CancelOrderMsg):
-            tag = message.tag
-            metadata = message.metadata
-
-            logger.debug(f"{self.name} received CANCEL_ORDER: {message.order}")
-
-            if message.order.symbol not in self.order_books:
-                warnings.warn(
-                    f"Cancellation request discarded. Unknown symbol: {message.order.symbol}"
-                )
-            else:
-                # Hand the order to the order book for processing.
-                self.order_books[message.order.symbol].cancel_order(
-                    message.order, tag, metadata
-                )
-                self.publish_order_book_data(message.order.symbol)
-
-        elif isinstance(message, PartialCancelOrderMsg):
-            tag = message.tag
-            metadata = message.metadata
-
+    def _handle_query_spread(
+        self, sender_id: int, current_time: NanosecondTime, message: QuerySpreadMsg
+    ) -> None:
+        symbol = message.symbol
+        depth = message.depth
+        if symbol not in self.order_books:
+            warnings.warn(
+                f"Bid-ask spread request discarded. Unknown symbol: {symbol}"
+            )
+        else:
             logger.debug(
-                f"{self.name} received PARTIAL_CANCEL_ORDER: {message.order}, new order: {message.quantity}"
+                f"{self.name} received QUERY_SPREAD ({symbol}:{depth}) request from agent {sender_id}"
+            )
+            self.send_message(
+                sender_id,
+                QuerySpreadResponseMsg(
+                    symbol=symbol,
+                    depth=depth,
+                    bids=self.order_books[symbol].get_l2_bid_data(depth),
+                    asks=self.order_books[symbol].get_l2_ask_data(depth),
+                    last_trade=self.order_books[symbol].last_trade,
+                    mkt_closed=current_time > self.mkt_close,
+                ),
             )
 
-            if message.order.symbol not in self.order_books:
-                warnings.warn(
-                    f"Modification request discarded. Unknown symbol: {message.order.symbol}"
-                )
-            else:
-                self.order_books[message.order.symbol].partial_cancel_order(
-                    message.order, message.quantity, tag, metadata
-                )
-                self.publish_order_book_data(message.order.symbol)
-
-        elif isinstance(message, ModifyOrderMsg):
-            old_order = message.old_order
-            new_order = message.new_order
-
+    def _handle_query_order_stream(
+        self, sender_id: int, current_time: NanosecondTime, message: QueryOrderStreamMsg
+    ) -> None:
+        symbol = message.symbol
+        length = message.length
+        if symbol not in self.order_books:
+            warnings.warn(
+                f"Order stream request discarded. Unknown symbol: {symbol}"
+            )
+        else:
             logger.debug(
-                f"{self.name} received MODIFY_ORDER: {old_order}, new order: {new_order}"
+                f"{self.name} received QUERY_ORDER_STREAM ({symbol}:{length}) request from agent {sender_id}"
+            )
+            self.send_message(
+                sender_id,
+                QueryOrderStreamResponseMsg(
+                    symbol=symbol,
+                    length=length,
+                    orders=self.order_books[symbol].history[1 : length + 1],
+                    mkt_closed=current_time > self.mkt_close,
+                ),
             )
 
-            if old_order.symbol not in self.order_books:
-                warnings.warn(
-                    f"Modification request discarded. Unknown symbol: {old_order.symbol}"
-                )
-            else:
-                self.order_books[old_order.symbol].modify_order(old_order, new_order)
-                self.publish_order_book_data(old_order.symbol)
-
-        elif isinstance(message, ReplaceOrderMsg):
-            agent_id = message.agent_id
-            order = message.old_order
-            new_order = message.new_order
-
+    def _handle_query_transacted_vol(
+        self, sender_id: int, current_time: NanosecondTime, message: QueryTransactedVolMsg
+    ) -> None:
+        symbol = message.symbol
+        lookback_period = message.lookback_period
+        if symbol not in self.order_books:
+            warnings.warn(
+                f"Transacted volume request discarded. Unknown symbol: {symbol}"
+            )
+        else:
             logger.debug(
-                f"{self.name} received REPLACE_ORDER: {order}, new order: {new_order}"
+                f"{self.name} received QUERY_TRANSACTED_VOLUME ({symbol}:{lookback_period}) request from agent {sender_id}"
+            )
+            bid_volume, ask_volume = self.order_books[symbol].get_transacted_volume(
+                lookback_period
+            )
+            self.send_message(
+                sender_id,
+                QueryTransactedVolResponseMsg(
+                    symbol=symbol,
+                    bid_volume=bid_volume,
+                    ask_volume=ask_volume,
+                    mkt_closed=current_time > self.mkt_close,
+                ),
             )
 
-            if order.symbol not in self.order_books:
-                warnings.warn(
-                    f"Replacement request discarded. Unknown symbol: {order.symbol}"
-                )
-            else:
-                self.order_books[order.symbol].replace_order(
-                    agent_id, order, deepcopy(new_order)
-                )
-                self.publish_order_book_data(order.symbol)
+    def _handle_limit_order(
+        self, sender_id: int, current_time: NanosecondTime, message: LimitOrderMsg
+    ) -> None:
+        logger.debug(f"{self.name} received LIMIT_ORDER: {message.order}")
+        if message.order.symbol not in self.order_books:
+            warnings.warn(
+                f"Limit Order discarded. Unknown symbol: {message.order.symbol}"
+            )
+        else:
+            # The TradingAgent already stores its own deepcopy; the message's
+            # order reference is not retained elsewhere, so a second deepcopy
+            # is unnecessary.
+            self.order_books[message.order.symbol].handle_limit_order(
+                message.order
+            )
+            self.publish_order_book_data(message.order.symbol)
+
+    def _handle_market_order(
+        self, sender_id: int, current_time: NanosecondTime, message: MarketOrderMsg
+    ) -> None:
+        logger.debug(f"{self.name} received MARKET_ORDER: {message.order}")
+        if message.order.symbol not in self.order_books:
+            warnings.warn(
+                f"Market Order discarded. Unknown symbol: {message.order.symbol}"
+            )
+        else:
+            self.order_books[message.order.symbol].handle_market_order(
+                message.order
+            )
+            self.publish_order_book_data(message.order.symbol)
+
+    def _handle_cancel_order(
+        self, sender_id: int, current_time: NanosecondTime, message: CancelOrderMsg
+    ) -> None:
+        tag = message.tag
+        metadata = message.metadata
+        logger.debug(f"{self.name} received CANCEL_ORDER: {message.order}")
+        if message.order.symbol not in self.order_books:
+            warnings.warn(
+                f"Cancellation request discarded. Unknown symbol: {message.order.symbol}"
+            )
+        else:
+            self.order_books[message.order.symbol].cancel_order(
+                message.order, tag, metadata
+            )
+            self.publish_order_book_data(message.order.symbol)
+
+    def _handle_partial_cancel_order(
+        self, sender_id: int, current_time: NanosecondTime, message: PartialCancelOrderMsg
+    ) -> None:
+        tag = message.tag
+        metadata = message.metadata
+        logger.debug(
+            f"{self.name} received PARTIAL_CANCEL_ORDER: {message.order}, new order: {message.quantity}"
+        )
+        if message.order.symbol not in self.order_books:
+            warnings.warn(
+                f"Modification request discarded. Unknown symbol: {message.order.symbol}"
+            )
+        else:
+            self.order_books[message.order.symbol].partial_cancel_order(
+                message.order, message.quantity, tag, metadata
+            )
+            self.publish_order_book_data(message.order.symbol)
+
+    def _handle_modify_order(
+        self, sender_id: int, current_time: NanosecondTime, message: ModifyOrderMsg
+    ) -> None:
+        old_order = message.old_order
+        new_order = message.new_order
+        logger.debug(
+            f"{self.name} received MODIFY_ORDER: {old_order}, new order: {new_order}"
+        )
+        if old_order.symbol not in self.order_books:
+            warnings.warn(
+                f"Modification request discarded. Unknown symbol: {old_order.symbol}"
+            )
+        else:
+            self.order_books[old_order.symbol].modify_order(old_order, new_order)
+            self.publish_order_book_data(old_order.symbol)
+
+    def _handle_replace_order(
+        self, sender_id: int, current_time: NanosecondTime, message: ReplaceOrderMsg
+    ) -> None:
+        agent_id = message.agent_id
+        order = message.old_order
+        new_order = message.new_order
+        logger.debug(
+            f"{self.name} received REPLACE_ORDER: {order}, new order: {new_order}"
+        )
+        if order.symbol not in self.order_books:
+            warnings.warn(
+                f"Replacement request discarded. Unknown symbol: {order.symbol}"
+            )
+        else:
+            self.order_books[order.symbol].replace_order(
+                agent_id, order, new_order
+            )
+            self.publish_order_book_data(order.symbol)
 
     def publish_order_book_data(self, symbol: str) -> None:
         """

@@ -260,6 +260,82 @@ class TradingAgent(FinancialAgent):
 
         self.send_message(recipient_id=self.exchange_id, message=subscription_message)
 
+    # ---- dispatch table: message type → handler method name ----
+    _MESSAGE_HANDLERS: dict[type, str] = {
+        MarketHoursMsg: "_handle_market_hours_msg",
+        MarketClosePriceMsg: "_handle_market_close_price_msg",
+        MarketClosedMsg: "_handle_market_closed_msg",
+        OrderExecutedMsg: "_handle_order_executed_msg",
+        OrderAcceptedMsg: "_handle_order_accepted_msg",
+        OrderCancelledMsg: "_handle_order_cancelled_msg",
+        OrderPartialCancelledMsg: "_handle_order_partial_cancelled_msg",
+        OrderModifiedMsg: "_handle_order_modified_msg",
+        OrderReplacedMsg: "_handle_order_replaced_msg",
+        QueryLastTradeResponseMsg: "_handle_query_last_trade_response_msg",
+        QuerySpreadResponseMsg: "_handle_query_spread_response_msg",
+        QueryOrderStreamResponseMsg: "_handle_query_order_stream_response_msg",
+        QueryTransactedVolResponseMsg: "_handle_query_transacted_vol_response_msg",
+        MarketDataMsg: "_handle_market_data_dispatch_msg",
+    }
+
+    def _handle_market_hours_msg(self, message: MarketHoursMsg) -> None:
+        self.mkt_open = message.mkt_open
+        self.mkt_close = message.mkt_close
+        logger.debug(f"Recorded market open: {fmt_ts(self.mkt_open)}")
+        logger.debug(f"Recorded market close: {fmt_ts(self.mkt_close)}")
+
+    def _handle_market_close_price_msg(self, message: MarketClosePriceMsg) -> None:
+        for symbol, close_price in message.close_prices.items():
+            self.last_trade[symbol] = close_price
+
+    def _handle_market_closed_msg(self, message: MarketClosedMsg) -> None:
+        self.market_closed()
+
+    def _handle_order_executed_msg(self, message: OrderExecutedMsg) -> None:
+        self.order_executed(message.order)
+
+    def _handle_order_accepted_msg(self, message: OrderAcceptedMsg) -> None:
+        self.order_accepted(message.order)
+
+    def _handle_order_cancelled_msg(self, message: OrderCancelledMsg) -> None:
+        self.order_cancelled(message.order)
+
+    def _handle_order_partial_cancelled_msg(self, message: OrderPartialCancelledMsg) -> None:
+        self.order_partial_cancelled(message.new_order)
+
+    def _handle_order_modified_msg(self, message: OrderModifiedMsg) -> None:
+        self.order_modified(message.new_order)
+
+    def _handle_order_replaced_msg(self, message: OrderReplacedMsg) -> None:
+        self.order_replaced(message.old_order, message.new_order)
+
+    def _handle_query_last_trade_response_msg(self, message: QueryLastTradeResponseMsg) -> None:
+        if message.mkt_closed:
+            self.mkt_closed = True
+        self.query_last_trade(message.symbol, message.last_trade)
+
+    def _handle_query_spread_response_msg(self, message: QuerySpreadResponseMsg) -> None:
+        if message.mkt_closed:
+            self.mkt_closed = True
+        self.query_spread(
+            message.symbol, message.last_trade, message.bids, message.asks, ""
+        )
+
+    def _handle_query_order_stream_response_msg(self, message: QueryOrderStreamResponseMsg) -> None:
+        if message.mkt_closed:
+            self.mkt_closed = True
+        self.query_order_stream(message.symbol, message.orders)
+
+    def _handle_query_transacted_vol_response_msg(self, message: QueryTransactedVolResponseMsg) -> None:
+        if message.mkt_closed:
+            self.mkt_closed = True
+        self.query_transacted_volume(
+            message.symbol, message.bid_volume, message.ask_volume
+        )
+
+    def _handle_market_data_dispatch_msg(self, message: MarketDataMsg) -> None:
+        self.handle_market_data(message)
+
     def receive_message(
         self, current_time: NanosecondTime, sender_id: int, message: Message
     ) -> None:
@@ -277,87 +353,10 @@ class TradingAgent(FinancialAgent):
         # Do we know the market hours?
         had_mkt_hours = self.mkt_open is not None and self.mkt_close is not None
 
-        # Record market open or close times.
-        if isinstance(message, MarketHoursMsg):
-            self.mkt_open = message.mkt_open
-            self.mkt_close = message.mkt_close
-
-            logger.debug(f"Recorded market open: {fmt_ts(self.mkt_open)}")
-            logger.debug(f"Recorded market close: {fmt_ts(self.mkt_close)}")
-
-        elif isinstance(message, MarketClosePriceMsg):
-            # Update our local last trade prices with the accurate last trade prices from
-            # the exchange so we can accurately calculate our mark-to-market values.
-            for symbol, close_price in message.close_prices.items():
-                self.last_trade[symbol] = close_price
-
-        elif isinstance(message, MarketClosedMsg):
-            # We've tried to ask the exchange for something after it closed.  Remember this
-            # so we stop asking for things that can't happen.
-            self.market_closed()
-
-        elif isinstance(message, OrderExecutedMsg):
-            # Call the order_executed method, which subclasses should extend.  This parent
-            # class could implement default "portfolio tracking" or "returns tracking"
-            # behavior.
-            self.order_executed(message.order)
-
-        elif isinstance(message, OrderAcceptedMsg):
-            # Call the order_accepted method, which subclasses should extend.
-            self.order_accepted(message.order)
-
-        elif isinstance(message, OrderCancelledMsg):
-            # Call the order_cancelled method, which subclasses should extend.
-            self.order_cancelled(message.order)
-
-        elif isinstance(message, OrderPartialCancelledMsg):
-            # Call the order_cancelled method, which subclasses should extend.
-            self.order_partial_cancelled(message.new_order)
-
-        elif isinstance(message, OrderModifiedMsg):
-            # Call the order_cancelled method, which subclasses should extend.
-            self.order_modified(message.new_order)
-
-        elif isinstance(message, OrderReplacedMsg):
-            # Call the order_cancelled method, which subclasses should extend.
-            self.order_replaced(message.old_order, message.new_order)
-
-        elif isinstance(message, QueryLastTradeResponseMsg):
-            # Call the query_last_trade method, which subclasses may extend.
-            # Also note if the market is closed.
-            if message.mkt_closed:
-                self.mkt_closed = True
-
-            self.query_last_trade(message.symbol, message.last_trade)
-
-        elif isinstance(message, QuerySpreadResponseMsg):
-            # Call the query_spread method, which subclasses may extend.
-            # Also note if the market is closed.
-            if message.mkt_closed:
-                self.mkt_closed = True
-
-            self.query_spread(
-                message.symbol, message.last_trade, message.bids, message.asks, ""
-            )
-
-        elif isinstance(message, QueryOrderStreamResponseMsg):
-            # Call the query_order_stream method, which subclasses may extend.
-            # Also note if the market is closed.
-            if message.mkt_closed:
-                self.mkt_closed = True
-
-            self.query_order_stream(message.symbol, message.orders)
-
-        elif isinstance(message, QueryTransactedVolResponseMsg):
-            if message.mkt_closed:
-                self.mkt_closed = True
-
-            self.query_transacted_volume(
-                message.symbol, message.bid_volume, message.ask_volume
-            )
-
-        elif isinstance(message, MarketDataMsg):
-            self.handle_market_data(message)
+        # O(1) dispatch instead of linear isinstance chain.
+        handler_name = self._MESSAGE_HANDLERS.get(type(message))
+        if handler_name is not None:
+            getattr(self, handler_name)(message)
 
         # Now do we know the market hours?
         have_mkt_hours = self.mkt_open is not None and self.mkt_close is not None

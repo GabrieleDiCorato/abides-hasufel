@@ -60,7 +60,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         wake_up_freq: NanosecondTime = 1_000_000_000,  # 1 second
         poisson_arrival: bool = True,
         subscribe: bool = False,
-        subscribe_freq: float = 10e9,
+        subscribe_freq: int = 10_000_000_000,
         subscribe_num_levels: int = 1,
         cancel_limit_delay: int = 50,
         skew_beta=0,
@@ -103,8 +103,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         self.subscribe: bool = (
             subscribe  # Flag to determine whether to subscribe to data or use polling mechanism
         )
-        self.subscribe_freq: float = (
-            subscribe_freq  # Frequency in nanoseconds^-1 at which to receive market updates
+        self.subscribe_freq: int = (
+            subscribe_freq  # Frequency in nanoseconds at which to receive market updates
         )
         # in subscribe mode
         self.min_imbalance = min_imbalance
