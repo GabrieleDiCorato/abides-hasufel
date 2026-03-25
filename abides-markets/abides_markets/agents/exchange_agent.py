@@ -569,9 +569,11 @@ class ExchangeAgent(FinancialAgent):
                 f"Limit Order discarded. Unknown symbol: {message.order.symbol}"
             )
         else:
-            # The TradingAgent already stores its own deepcopy; the message's
-            # order reference is not retained elsewhere, so a second deepcopy
-            # is unnecessary.
+            # INVARIANT: TradingAgent.place_limit_order() stores a deepcopy in
+            # self.orders before sending the message.  The message's order
+            # reference is not retained elsewhere after receive_message returns,
+            # so a second deepcopy here is unnecessary.  If TradingAgent's
+            # place_limit_order ever stops deepcopying, this must be revisited.
             self.order_books[message.order.symbol].handle_limit_order(message.order)
             self.publish_order_book_data(message.order.symbol)
 
@@ -654,6 +656,9 @@ class ExchangeAgent(FinancialAgent):
                 f"Replacement request discarded. Unknown symbol: {order.symbol}"
             )
         else:
+            # INVARIANT: same reasoning as _handle_limit_order — TradingAgent
+            # stores its own deepcopy via self.orders before sending.  The
+            # message's new_order reference is consumed here and not retained.
             self.order_books[order.symbol].replace_order(agent_id, order, new_order)
             self.publish_order_book_data(order.symbol)
 

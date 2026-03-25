@@ -45,6 +45,16 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
         random_state: np.random.RandomState,
         f_log_maxlen: int = 100_000,
     ) -> None:
+        """
+        Arguments:
+            mkt_open: Market open time in nanoseconds.
+            mkt_close: Market close time in nanoseconds.
+            symbols: Dict of symbol configs with keys r_bar, kappa, sigma_s, etc.
+            random_state: Seeded RandomState for reproducibility.
+            f_log_maxlen: Maximum number of fundamental value log entries retained
+                per symbol.  Oldest entries are discarded when the limit is reached.
+                Prevents unbounded memory growth in long simulations.
+        """
         # Symbols must be a dictionary of dictionaries with outer keys as symbol names and
         # inner keys: r_bar, kappa, sigma_s.
         self.mkt_open: NanosecondTime = mkt_open
