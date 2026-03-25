@@ -40,7 +40,12 @@ from ..messages.order import (
     PartialCancelOrderMsg,
     ReplaceOrderMsg,
 )
-from ..messages.orderbook import OrderAcceptedMsg, OrderCancelledMsg, OrderExecutedMsg
+from ..messages.orderbook import (
+    OrderAcceptedMsg,
+    OrderBookMsg,
+    OrderCancelledMsg,
+    OrderExecutedMsg,
+)
 from ..messages.query import (
     QueryLastTradeMsg,
     QueryLastTradeResponseMsg,
@@ -377,8 +382,9 @@ class ExchangeAgent(FinancialAgent):
                         deepcopy_event=False,
                     )
                 else:
+                    # Remaining OrderMsg subclasses (LimitOrderMsg, MarketOrderMsg,
+                    # CancelOrderMsg, PartialCancelOrderMsg) all carry `.order`.
                     self.logEvent(
-                        # TODO All other message types have an 'order' attribute.
                         message.type(),
                         message.order.to_dict(),
                         deepcopy_event=False,  # type: ignore
@@ -874,19 +880,19 @@ class ExchangeAgent(FinancialAgent):
             message:
         """
 
-        # The ExchangeAgent automatically applies appropriate parallel processing pipeline delay
-        # to those message types which require it.
-        # TODO: probably organize the order types into categories once there are more, so we can
-        # take action by category (e.g. ORDER-related messages) instead of enumerating all message
-        # types to be affected.
-        if isinstance(message, (OrderAcceptedMsg, OrderCancelledMsg, OrderExecutedMsg)):
-            # Messages that require order book modification (not simple queries) incur the additional
-            # parallel processing delay as configured.
+        # OrderBookMsg subclasses (Accepted, Executed, Cancelled, Replaced,
+        # Modified, PartialCancelled) represent order-book mutations and incur
+        # the additional parallel-processing pipeline delay.  All other
+        # messages (queries, market-data, market-hours, etc.) use only the
+        # agent's default computation delay.
+        if isinstance(message, OrderBookMsg):
             super().send_message(recipient_id, message, delay=self.pipeline_delay)
             if self.log_orders:
-                self.logEvent(message.type(), message.order.to_dict())
+                # OrderReplacedMsg carries .old_order/.new_order; the rest
+                # carry either .order or .new_order — log the relevant order.
+                order = getattr(message, "order", None) or message.new_order  # type: ignore[union-attr]
+                self.logEvent(message.type(), order.to_dict())
         else:
-            # Other message types incur only the currently-configured computation delay for this agent.
             super().send_message(recipient_id, message)
 
     def analyse_order_book(self, symbol: str):

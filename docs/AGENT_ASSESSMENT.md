@@ -27,9 +27,6 @@
 
 **Role**: Central order book, matching engine, subscription publisher.
 
-| Concern | Severity | Detail |
-|---------|:--------:|--------|
-| TODO comments | Low | Acknowledged tech debt in the message hierarchy (line 363) and order type categorization. |
 
 ### 2.2 NoiseAgent
 
