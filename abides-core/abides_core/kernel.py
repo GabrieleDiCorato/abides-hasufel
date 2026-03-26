@@ -1,6 +1,7 @@
 import heapq
 import logging
 import os
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
@@ -75,8 +76,8 @@ class Kernel:
         # print some elapsed time and messages per second statistics.
         self.kernel_wall_clock_start: datetime = datetime.now()
 
-        self.mean_result_by_agent_type: dict[str, Any] = {}
-        self.agent_count_by_type: dict[str, int] = {}
+        self.mean_result_by_agent_type: defaultdict[str, int] = defaultdict(int)
+        self.agent_count_by_type: defaultdict[str, int] = defaultdict(int)
 
         # The Kernel maintains a summary log to which agents can write
         # information that should be centralized for very fast access
