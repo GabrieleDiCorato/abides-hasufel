@@ -72,20 +72,14 @@ class NoiseAgent(TradingAgent):
             self.logEvent("FINAL_VALUATION", self.starting_cash, True)
         else:
             # Print end of day valuation.
-            H = int(round(self.get_holdings(self.symbol), -2) / 100)
+            H = self.get_holdings(self.symbol)
+            rT = (bid + ask) // 2 if bid and ask else self.last_trade[self.symbol]
 
-            rT = int(bid + ask) / 2 if bid and ask else self.last_trade[self.symbol]
+            # Mark-to-market P&L in integer cents: position value + cash change.
+            surplus_cents = rT * H + self.holdings["CASH"] - self.starting_cash
+            surplus_frac = surplus_cents / self.starting_cash
 
-            # final (real) fundamental value times shares held.
-            surplus = rT * H
-
-            logger.debug("Surplus after holdings: {}", surplus)
-
-            # Add ending cash value and subtract starting cash value.
-            surplus += self.holdings["CASH"] - self.starting_cash
-            surplus = float(surplus) / self.starting_cash
-
-            self.logEvent("FINAL_VALUATION", surplus, True)
+            self.logEvent("FINAL_VALUATION", surplus_frac, True)
 
             logger.debug(
                 "{} final report.  Holdings: {}, end cash: {}, start cash: {}, final fundamental: {}, surplus: {}",
@@ -94,7 +88,7 @@ class NoiseAgent(TradingAgent):
                 self.holdings["CASH"],
                 self.starting_cash,
                 rT,
-                surplus,
+                surplus_frac,
             )
 
     def wakeup(self, current_time: NanosecondTime) -> None:
