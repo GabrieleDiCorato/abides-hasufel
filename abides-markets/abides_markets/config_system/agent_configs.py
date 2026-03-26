@@ -68,6 +68,20 @@ class BaseAgentConfig(BaseModel):
             "None = use the simulation-level default_computation_delay."
         ),
     )
+    position_limit: int | None = Field(
+        default=None,
+        description=(
+            "Per-symbol position limit (in shares). "
+            "None = no limit.  Symmetric: allows [-N, +N]."
+        ),
+    )
+    position_limit_clamp: bool = Field(
+        default=False,
+        description=(
+            "When True, orders that would breach the position limit are "
+            "reduced (clamped) instead of fully rejected."
+        ),
+    )
 
     # Fields excluded from automatic constructor mapping
     _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset({"computation_delay"})

@@ -72,6 +72,8 @@ class TradingAgent(FinancialAgent):
         random_state: np.random.RandomState | None = None,
         starting_cash: int = 100000,
         log_orders: bool = False,
+        position_limit: int | None = None,
+        position_limit_clamp: bool = False,
     ) -> None:
         # Base class init.
         super().__init__(id, name, type, random_state)
@@ -82,6 +84,12 @@ class TradingAgent(FinancialAgent):
 
         # Log order activity?
         self.log_orders: bool = log_orders
+
+        # Per-symbol position cap (None = disabled).  When set, orders that
+        # would push abs(net_position) beyond this limit are blocked or
+        # clamped depending on position_limit_clamp.
+        self.position_limit: int | None = position_limit
+        self.position_limit_clamp: bool = position_limit_clamp
 
         # Store starting_cash in case we want to refer to it for performance stats.
         # It should NOT be modified.  Use the 'CASH' key in self.holdings.
@@ -438,6 +446,98 @@ class TradingAgent(FinancialAgent):
             self.exchange_id, QueryTransactedVolMsg(symbol, lookback_period)
         )
 
+    # ------------------------------------------------------------------
+    # Position limit enforcement
+    # ------------------------------------------------------------------
+
+    def _pending_order_delta(
+        self, symbol: str, exclude_order_id: int | None = None
+    ) -> int:
+        """Net share delta from all open (unexecuted) orders for *symbol*.
+
+        BID orders are positive (potential buys), ASK orders are negative
+        (potential sells).  This is conservative: it assumes every open
+        order will fill completely.
+
+        If *exclude_order_id* is given, that order is skipped (used by
+        ``replace_order`` to avoid double-counting the order being replaced).
+        """
+        delta = 0
+        for o in self.orders.values():
+            if getattr(o, "symbol", None) != symbol:
+                continue
+            if exclude_order_id is not None and o.order_id == exclude_order_id:
+                continue
+            if o.side.is_bid():
+                delta += o.quantity
+            else:
+                delta -= o.quantity
+        return delta
+
+    def _check_position_limit(
+        self, symbol: str, quantity: int, side: Side,
+        exclude_order_id: int | None = None,
+    ) -> int:
+        """Return the allowed order quantity given the current position limit.
+
+        If ``self.position_limit`` is ``None`` the check is disabled and
+        *quantity* is returned unchanged.
+
+        The projected position is::
+
+            current_holdings + pending_order_delta + new_order_delta
+
+        If ``abs(projected)`` would exceed ``self.position_limit``:
+
+        * **clamp mode** (``position_limit_clamp=True``): reduce *quantity*
+          so the projected position lands exactly at the limit.  Returns 0
+          if no room remains.
+        * **block mode** (default): return 0 (order rejected).
+
+        Arguments:
+            symbol: The instrument symbol.
+            quantity: Requested order quantity (positive).
+            side: ``Side.BID`` (buy) or ``Side.ASK`` (sell).
+
+        Returns:
+            Allowed quantity (0 means the order should be dropped).
+        """
+        if self.position_limit is None:
+            return quantity
+
+        current = self.get_holdings(symbol)
+        pending = self._pending_order_delta(symbol, exclude_order_id)
+        base = current + pending
+
+        new_delta = quantity if side.is_bid() else -quantity
+        projected = base + new_delta
+
+        if abs(projected) <= self.position_limit:
+            return quantity  # within limit
+
+        if not self.position_limit_clamp:
+            logger.debug(
+                f"TradingAgent position-limit blocked order: "
+                f"symbol={symbol} side={side} qty={quantity} "
+                f"current={current} pending={pending} limit={self.position_limit}"
+            )
+            return 0
+
+        # Clamp: find the maximum qty that keeps abs(projected) <= limit.
+        if side.is_bid():
+            room = self.position_limit - base  # positive headroom
+        else:
+            room = self.position_limit + base  # positive headroom toward short limit
+
+        allowed = max(0, room)
+        if allowed == 0:
+            logger.debug(
+                f"TradingAgent position-limit clamped order to 0: "
+                f"symbol={symbol} side={side} qty={quantity} "
+                f"current={current} pending={pending} limit={self.position_limit}"
+            )
+        return allowed
+
     def create_limit_order(
         self,
         symbol: str,
@@ -469,6 +569,12 @@ class TradingAgent(FinancialAgent):
                 the order.
             tag:
         """
+
+        # Enforce per-symbol position limit before allocating an order id.
+        if self.position_limit is not None and quantity > 0:
+            quantity = self._check_position_limit(symbol, quantity, side)
+            if quantity <= 0:
+                return None
 
         order = LimitOrder(
             agent_id=self.id,
@@ -591,6 +697,12 @@ class TradingAgent(FinancialAgent):
             tag:
         """
 
+        # Enforce per-symbol position limit before allocating an order id.
+        if self.position_limit is not None and quantity > 0:
+            quantity = self._check_position_limit(symbol, quantity, side)
+            if quantity <= 0:
+                return
+
         order = MarketOrder(
             self.id, self.current_time, symbol, quantity, side, order_id, tag
         )
@@ -636,6 +748,18 @@ class TradingAgent(FinancialAgent):
         messages = []
 
         for order in orders:
+            # Enforce per-symbol position limit.  Previous orders in this
+            # batch that were already added to self.orders are automatically
+            # counted by _check_position_limit as pending exposure.
+            if self.position_limit is not None and order.quantity > 0:
+                allowed = self._check_position_limit(
+                    order.symbol, order.quantity, order.side
+                )
+                if allowed <= 0:
+                    continue
+                if allowed < order.quantity:
+                    order.quantity = allowed
+
             if isinstance(order, LimitOrder):
                 messages.append(LimitOrderMsg(order))
             elif isinstance(order, MarketOrder):
@@ -748,6 +872,18 @@ class TradingAgent(FinancialAgent):
             order: The existing limit order.
             new_order: The new limit order to replace the existing order with.
         """
+
+        # Enforce per-symbol position limit.  Exclude the old order so its
+        # pending exposure is not double-counted against the replacement.
+        if self.position_limit is not None and new_order.quantity > 0:
+            allowed = self._check_position_limit(
+                new_order.symbol, new_order.quantity, new_order.side,
+                exclude_order_id=order.order_id,
+            )
+            if allowed <= 0:
+                return
+            if allowed < new_order.quantity:
+                new_order.quantity = allowed
 
         # Pre-register the new order so that OrderExecutedMsg (which the
         # exchange sends *before* OrderReplacedMsg when the replacement
