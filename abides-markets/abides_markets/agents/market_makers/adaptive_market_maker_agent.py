@@ -457,13 +457,19 @@ class AdaptiveMarketMakerAgent(TradingAgent):
 
         # Partition existing open LimitOrders by side, sorted by price.
         existing_bids = sorted(
-            (o for o in self.orders.values()
-             if isinstance(o, LimitOrder) and o.side.is_bid()),
+            (
+                o
+                for o in self.orders.values()
+                if isinstance(o, LimitOrder) and o.side.is_bid()
+            ),
             key=lambda o: o.limit_price,
         )
         existing_asks = sorted(
-            (o for o in self.orders.values()
-             if isinstance(o, LimitOrder) and not o.side.is_bid()),
+            (
+                o
+                for o in self.orders.values()
+                if isinstance(o, LimitOrder) and not o.side.is_bid()
+            ),
             key=lambda o: o.limit_price,
         )
 
@@ -473,12 +479,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         new_orders: list[LimitOrder] = []
 
         # Diff existing vs desired per side.
-        self._diff_and_replace(
-            existing_bids, desired_bids, Side.BID, new_orders
-        )
-        self._diff_and_replace(
-            existing_asks, desired_asks, Side.ASK, new_orders
-        )
+        self._diff_and_replace(existing_bids, desired_bids, Side.BID, new_orders)
+        self._diff_and_replace(existing_asks, desired_asks, Side.ASK, new_orders)
 
         if new_orders:
             self.place_multiple_orders(new_orders)
@@ -505,9 +507,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             want_price, want_size = desired[i]
             if old.limit_price == want_price and old.quantity == want_size:
                 continue  # identical — no message needed
-            new = self.create_limit_order(
-                self.symbol, want_size, side, want_price
-            )
+            new = self.create_limit_order(self.symbol, want_size, side, want_price)
             self.replace_order(old, new)
 
         # Cancel surplus existing orders.
@@ -518,9 +518,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         for i in range(n_common, len(desired)):
             want_price, want_size = desired[i]
             new_orders.append(
-                self.create_limit_order(
-                    self.symbol, want_size, side, want_price
-                )
+                self.create_limit_order(self.symbol, want_size, side, want_price)
             )
 
     def get_wake_frequency(self) -> NanosecondTime:

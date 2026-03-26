@@ -65,9 +65,7 @@ from abides_markets.config_system.serialization import (
     load_config,
     save_config,
 )
-from abides_markets.config_system.templates import (
-    list_templates,
-)
+from abides_markets.config_system.templates import list_templates
 
 # ---------------------------------------------------------------------------
 # AI Discoverability API

@@ -475,7 +475,10 @@ class TradingAgent(FinancialAgent):
         return delta
 
     def _check_position_limit(
-        self, symbol: str, quantity: int, side: Side,
+        self,
+        symbol: str,
+        quantity: int,
+        side: Side,
         exclude_order_id: int | None = None,
     ) -> int:
         """Return the allowed order quantity given the current position limit.
@@ -524,10 +527,9 @@ class TradingAgent(FinancialAgent):
             return 0
 
         # Clamp: find the maximum qty that keeps abs(projected) <= limit.
-        if side.is_bid():
-            room = self.position_limit - base  # positive headroom
-        else:
-            room = self.position_limit + base  # positive headroom toward short limit
+        room = (
+            self.position_limit - base if side.is_bid() else self.position_limit + base
+        )
 
         allowed = max(0, room)
         if allowed == 0:
@@ -877,7 +879,9 @@ class TradingAgent(FinancialAgent):
         # pending exposure is not double-counted against the replacement.
         if self.position_limit is not None and new_order.quantity > 0:
             allowed = self._check_position_limit(
-                new_order.symbol, new_order.quantity, new_order.side,
+                new_order.symbol,
+                new_order.quantity,
+                new_order.side,
                 exclude_order_id=order.order_id,
             )
             if allowed <= 0:

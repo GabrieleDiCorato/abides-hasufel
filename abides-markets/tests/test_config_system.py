@@ -442,9 +442,7 @@ class TestCustomRegistration:
         """A third-party agent should be registrable and compilable."""
         from pydantic import Field
 
-        from abides_markets.config_system.agent_configs import (
-            BaseAgentConfig,
-        )
+        from abides_markets.config_system.agent_configs import BaseAgentConfig
 
         # Define a simple custom agent config
         class DummyAgentConfig(BaseAgentConfig):

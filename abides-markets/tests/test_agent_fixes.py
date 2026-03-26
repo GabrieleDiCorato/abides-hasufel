@@ -279,7 +279,7 @@ class TestMomentumAgentIntegerMAs:
             long_window=10,
         )
         # Stub out place_limit_order to avoid needing kernel/exchange wiring.
-        agent.place_limit_order = lambda *a, **kw: None  # type: ignore[assignment]
+        agent.place_limit_order = lambda *a, **kw: None
 
         # Feed enough midpoints through place_orders to trigger both MAs.
         # deque(maxlen=10) fills up, and >= checks fire at 5 and 10 entries.
@@ -427,7 +427,7 @@ class TestMomentumAgentWindowValidation:
             long_window=10,
         )
         # Should be a no-op — no crash, no mid_list growth.
-        agent.place_orders(None, 100_000)  # type: ignore[arg-type]
+        agent.place_orders(None, 100_000)
         assert len(agent.mid_list) == 0
 
     def test_place_orders_handles_none_ask(self):
@@ -440,7 +440,7 @@ class TestMomentumAgentWindowValidation:
             short_window=5,
             long_window=10,
         )
-        agent.place_orders(100_000, None)  # type: ignore[arg-type]
+        agent.place_orders(100_000, None)
         assert len(agent.mid_list) == 0
 
 
@@ -483,9 +483,6 @@ class TestValueAgentReplaceOrder:
 
         placed = []
         replaced = []
-
-        original_place = agent.place_limit_order
-        original_replace = agent.replace_order
 
         def mock_place(*args, **kwargs):
             placed.append(args)
@@ -675,12 +672,20 @@ class TestAdaptiveMarketMakerReplaceOrder:
         agent.exchange_id = 99
 
         old1 = LimitOrder(
-            agent_id=0, time_placed=MKT_OPEN, symbol="TEST",
-            quantity=20, side=Side.BID, limit_price=99_000,
+            agent_id=0,
+            time_placed=MKT_OPEN,
+            symbol="TEST",
+            quantity=20,
+            side=Side.BID,
+            limit_price=99_000,
         )
         old2 = LimitOrder(
-            agent_id=0, time_placed=MKT_OPEN, symbol="TEST",
-            quantity=20, side=Side.BID, limit_price=98_900,
+            agent_id=0,
+            time_placed=MKT_OPEN,
+            symbol="TEST",
+            quantity=20,
+            side=Side.BID,
+            limit_price=98_900,
         )
 
         cancelled = []

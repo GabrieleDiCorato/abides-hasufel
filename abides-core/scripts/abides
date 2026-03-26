@@ -6,7 +6,7 @@ import inspect
 import logging
 import os
 import sys
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
 
 import coloredlogs
 import numpy as np
@@ -18,30 +18,30 @@ from abides_core.utils import subdict
 logger = logging.getLogger("abides")
 
 
-def load_build_config_function(config_file: str) -> Tuple[str, Callable]:
+def load_build_config_function(config_file: str) -> tuple[str, Callable]:
     if not os.path.exists(config_file):
         print(colored(f"Config file '{config_file}' does not exist!\n", "red"))
         sys.exit()
 
     module_name = config_file[:-3].split("/")[-1]
 
-    spec = importlib.util.spec_from_file_location(module_name, config_file)
-    module = importlib.util.module_from_spec(spec)
+    spec = importlib.util.spec_from_file_location(module_name, config_file)  # type: ignore[attr-defined]
+    module = importlib.util.module_from_spec(spec)  # type: ignore[attr-defined]
     spec.loader.exec_module(module)
 
     if not hasattr(module, "build_config"):
         print(colored("'build_config' method not found in config file.\n", "red"))
         sys.exit()
 
-    if not hasattr(module.build_config, "__call__"):
+    if not callable(module.build_config):
         print(colored("'build_config' is not a callable function.\n", "red"))
         sys.exit()
 
     return (module_name, module.build_config)
 
 
-def parse_args(args: List[str]) -> Optional[Dict[str, Union[str, bool]]]:
-    parsed_values = {}
+def parse_args(args: list[str]) -> dict[str, str | bool] | None:
+    parsed_values: dict[str, str | bool] = {}
     key = None
     for arg in args:
         if arg.startswith("--"):
@@ -52,7 +52,7 @@ def parse_args(args: List[str]) -> Optional[Dict[str, Union[str, bool]]]:
             key = None
         else:
             print(colored(f"Error parsing argument: '{arg}'\n", "red"))
-            return
+            return None
 
     return parsed_values
 

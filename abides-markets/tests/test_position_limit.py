@@ -18,7 +18,7 @@ import pytest
 
 from abides_core.utils import datetime_str_to_ns, str_to_ns
 from abides_markets.agents.trading_agent import TradingAgent
-from abides_markets.orders import LimitOrder, MarketOrder, Side
+from abides_markets.orders import LimitOrder, Side
 
 DATE = datetime_str_to_ns("20210205")
 MKT_OPEN = DATE + str_to_ns("09:30:00")
@@ -42,9 +42,9 @@ def _make_agent(
     agent.current_time = MKT_OPEN
     agent.mkt_open = MKT_OPEN
     agent.mkt_close = MKT_CLOSE
-    agent.send_message = lambda *a, **kw: None
-    agent.send_message_batch = lambda *a, **kw: None
-    agent.logEvent = lambda *a, **kw: None
+    agent.send_message = lambda *a, **kw: None  # type: ignore[method-assign]
+    agent.send_message_batch = lambda *a, **kw: None  # type: ignore[method-assign]
+    agent.logEvent = lambda *a, **kw: None  # type: ignore[method-assign]
     return agent
 
 
@@ -172,9 +172,12 @@ class TestCheckPositionLimit:
         # Buying 90 more → 170 > 100 → blocked.
         assert agent._check_position_limit(SYMBOL, 90, Side.BID) == 0
         # With exclusion: net = 0+0 = 0. Buying 90 → 90 ≤ 100 → allowed.
-        assert agent._check_position_limit(
-            SYMBOL, 90, Side.BID, exclude_order_id=old.order_id
-        ) == 90
+        assert (
+            agent._check_position_limit(
+                SYMBOL, 90, Side.BID, exclude_order_id=old.order_id
+            )
+            == 90
+        )
 
     def test_zero_room_clamp_returns_zero(self):
         agent = _make_agent(position_limit=100, position_limit_clamp=True)

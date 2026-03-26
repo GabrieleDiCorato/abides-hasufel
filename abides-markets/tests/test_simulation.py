@@ -292,14 +292,14 @@ class TestSimulationResultImmutability:
 
         result = _make_simulation_result()
         with pytest.raises(ValidationError):
-            result.metadata = _make_metadata()  # type: ignore[misc]
+            result.metadata = _make_metadata()
 
     def test_frozen_nested_model(self):
         from pydantic import ValidationError
 
         result = _make_simulation_result()
         with pytest.raises(ValidationError):
-            result.metadata.seed = 99  # type: ignore[misc]
+            result.metadata.seed = 99
 
 
 class TestL1SnapshotsReadOnly:

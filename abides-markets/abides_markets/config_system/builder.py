@@ -18,9 +18,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Union
 
-from abides_markets.config_system.models import (
-    SimulationConfig,
-)
+from abides_markets.config_system.models import SimulationConfig
 from abides_markets.config_system.templates import get_template
 
 

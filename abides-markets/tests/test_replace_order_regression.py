@@ -14,7 +14,6 @@ import warnings
 from copy import deepcopy
 
 import numpy as np
-import pytest
 
 from abides_core.utils import datetime_str_to_ns, str_to_ns
 from abides_markets.agents.market_makers.adaptive_market_maker_agent import (
@@ -35,7 +34,7 @@ from abides_markets.orders import LimitOrder, Side
 
 # Re-use the FakeExchangeAgent / setup_book_with_orders helpers from the
 # existing orderbook test package.
-from .orderbook import SYMBOL, TIME, FakeExchangeAgent, setup_book_with_orders
+from .orderbook import SYMBOL, TIME, setup_book_with_orders
 
 # ---------------------------------------------------------------------------
 # Shared constants
@@ -66,8 +65,12 @@ class TestOrderBookReplaceAskSide:
         old_ask = orders[1]  # 10 @ 300
 
         new_ask = LimitOrder(
-            agent_id=1, time_placed=TIME, symbol=SYMBOL,
-            quantity=25, side=Side.ASK, limit_price=500,
+            agent_id=1,
+            time_placed=TIME,
+            symbol=SYMBOL,
+            quantity=25,
+            side=Side.ASK,
+            limit_price=500,
         )
         book.replace_order(1, old_ask, new_ask)
 
@@ -98,8 +101,12 @@ class TestOrderBookReplaceCrossingSpread:
         old_bid = orders[0]  # 20 @ 100
 
         new_bid = LimitOrder(
-            agent_id=1, time_placed=TIME, symbol=SYMBOL,
-            quantity=5, side=Side.BID, limit_price=300,
+            agent_id=1,
+            time_placed=TIME,
+            symbol=SYMBOL,
+            quantity=5,
+            side=Side.BID,
+            limit_price=300,
         )
         book.replace_order(1, old_bid, new_bid)
 
@@ -109,11 +116,13 @@ class TestOrderBookReplaceCrossingSpread:
 
         # At minimum there must be at least one execution before the replacement.
         replaced_idx = next(
-            i for i, (_, m) in enumerate(agent.messages)
+            i
+            for i, (_, m) in enumerate(agent.messages)
             if isinstance(m, OrderReplacedMsg)
         )
         executed_indices = [
-            i for i, (_, m) in enumerate(agent.messages)
+            i
+            for i, (_, m) in enumerate(agent.messages)
             if isinstance(m, OrderExecutedMsg)
         ]
         assert len(executed_indices) > 0, "Crossing should produce executions"
@@ -132,12 +141,20 @@ class TestOrderBookReplaceNonExistentOrder:
         )
         # Create an order that was never inserted.
         ghost = LimitOrder(
-            agent_id=1, time_placed=TIME, symbol=SYMBOL,
-            quantity=5, side=Side.BID, limit_price=200,
+            agent_id=1,
+            time_placed=TIME,
+            symbol=SYMBOL,
+            quantity=5,
+            side=Side.BID,
+            limit_price=200,
         )
         new = LimitOrder(
-            agent_id=1, time_placed=TIME, symbol=SYMBOL,
-            quantity=5, side=Side.BID, limit_price=250,
+            agent_id=1,
+            time_placed=TIME,
+            symbol=SYMBOL,
+            quantity=5,
+            side=Side.BID,
+            limit_price=250,
         )
 
         book.replace_order(1, ghost, new)
@@ -160,8 +177,12 @@ class TestOrderBookReplaceSamePriceAndSize:
         )
         old_bid = orders[0]  # 10 @ 100
         new_bid = LimitOrder(
-            agent_id=1, time_placed=TIME, symbol=SYMBOL,
-            quantity=10, side=Side.BID, limit_price=100,
+            agent_id=1,
+            time_placed=TIME,
+            symbol=SYMBOL,
+            quantity=10,
+            side=Side.BID,
+            limit_price=100,
         )
         book.replace_order(1, old_bid, new_bid)
 
@@ -191,8 +212,8 @@ class TestTradingAgentReplacePreRegistration:
         agent.mkt_open = MKT_OPEN
         agent.mkt_close = MKT_CLOSE
         # Stub send_message to avoid kernel dependency.
-        agent.send_message = lambda *a, **kw: None
-        agent.logEvent = lambda *a, **kw: None
+        agent.send_message = lambda *a, **kw: None  # type: ignore[method-assign]
+        agent.logEvent = lambda *a, **kw: None  # type: ignore[method-assign]
         return agent
 
     def test_both_orders_present_after_replace(self):
@@ -204,7 +225,9 @@ class TestTradingAgentReplacePreRegistration:
         agent.replace_order(old, new)
 
         # Both old and new should be present in self.orders.
-        assert old.order_id in agent.orders, "Old order must remain until order_replaced"
+        assert (
+            old.order_id in agent.orders
+        ), "Old order must remain until order_replaced"
         assert new.order_id in agent.orders, "New order must be pre-registered"
 
     def test_order_replaced_cleans_old(self):
@@ -218,7 +241,9 @@ class TestTradingAgentReplacePreRegistration:
         # Simulate exchange confirming replacement.
         agent.order_replaced(old, new)
 
-        assert old.order_id not in agent.orders, "Old order must be removed after confirmation"
+        assert (
+            old.order_id not in agent.orders
+        ), "Old order must be removed after confirmation"
         assert new.order_id in agent.orders, "New order must remain"
         # Exchange may update fields; order_replaced refreshes the entry.
         assert agent.orders[new.order_id] is new
@@ -353,7 +378,6 @@ class TestExchangeAgentSendMessage:
 
     def test_logging_direct_order_for_executed(self):
         """OrderExecutedMsg has .order — getattr should find it directly."""
-        from abides_markets.orders import Order
 
         o = LimitOrder(0, MKT_OPEN, "TEST", 10, Side.BID, 99_000)
         msg = OrderExecutedMsg(o)
@@ -645,7 +669,6 @@ class TestOrderBookReplaceHistory:
         book.replace_order(1, ghost, new)
 
         replace_entries = [
-            h for h in book.history[initial_history_len:]
-            if h["type"] == "REPLACE"
+            h for h in book.history[initial_history_len:] if h["type"] == "REPLACE"
         ]
         assert len(replace_entries) == 0, "Failed replace must not add history"

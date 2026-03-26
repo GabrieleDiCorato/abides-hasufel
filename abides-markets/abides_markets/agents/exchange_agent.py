@@ -40,12 +40,7 @@ from ..messages.order import (
     PartialCancelOrderMsg,
     ReplaceOrderMsg,
 )
-from ..messages.orderbook import (
-    OrderAcceptedMsg,
-    OrderBookMsg,
-    OrderCancelledMsg,
-    OrderExecutedMsg,
-)
+from ..messages.orderbook import OrderBookMsg
 from ..messages.query import (
     QueryLastTradeMsg,
     QueryLastTradeResponseMsg,
