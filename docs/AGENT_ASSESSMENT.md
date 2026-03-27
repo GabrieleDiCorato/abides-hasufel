@@ -217,23 +217,6 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
 
 2. **No oracle event subscription API**: The megashock system in `SparseMeanRevertingOracle` generates realistic price discontinuities, but they are **invisible to agents**. No agent can detect "a shock just happened." An event subscription API is the key architectural enabler for informed-trader strategies, news-reactive agents, and adversarial stress testing (flash crash simulation, adverse selection spikes).
 
-3. ~~**ExternalDataOracle not compilable**~~: *Resolved in v2.2.0.* `ExternalDataOracleConfig` is now a marker type by design — the framework should not perform file I/O or construct data-backed oracles. Users build `ExternalDataOracle` with their chosen `BatchDataProvider` or `PointDataProvider` and inject it via `SimulationBuilder.oracle_instance()`. The compiler raises a clear `ValueError` if the marker is encountered without injection.
-
-4. ~~**Oracle is implicitly mandatory**~~: *Resolved in v2.2.0.* `MarketConfig.oracle` is now a required field with no default. Users must explicitly choose an oracle or set `oracle: null` for LOB-only simulations.
-
-5. ~~**ValueAgent parameter duplication with silent misalignment**~~: *Resolved in v2.2.0.* `r_bar`, `kappa`, `sigma_s` now auto-inherit from oracle config via `AgentCreationContext` when not explicitly set. `sigma_s` is a configurable field in `ValueAgentConfig`. Explicit user values always win. The historic defaults table is preserved below for reference:
-
-   | Param | Oracle (SparseMR) default | ValueAgentConfig default | ValueAgent.__init__ default | Configurable in config? |
-   |-------|--------------------------|-------------------------|---------------------------|:---:|
-   | r_bar | 100,000 | 100,000 | 100,000 | Yes |
-   | kappa | 1.67e-16 | 1.67e-15 (10×) | 0.05 (!!!) | Yes |
-   | sigma_s | 0 | — | 100,000 (!!!) | **NO** |
-   | sigma_n | N/A | r_bar/100 | 10,000 | Yes |
-
-6. ~~**Dead code in AgentCreationContext**~~: *Resolved in v2.2.0.* `AgentCreationContext.oracle_r_bar` is now used by `ValueAgentConfig._prepare_constructor_kwargs()` for auto-inheritance. Extended with `oracle_kappa` and `oracle_sigma_s`.
-
-7. ~~**ExternalDataOracleConfig pretends file I/O**~~: *Resolved in v2.2.0.* `ExternalDataOracleConfig` is now a pure marker type with no `data_path` field. External data injection is handled by the user building an `ExternalDataOracle` instance and injecting it via `SimulationBuilder.oracle_instance()`.
-
 ---
 
 ## 6. Oracle Recommendations
@@ -287,17 +270,16 @@ All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost perfo
 |-----------|:------:|--------|
 | **Agent Variety** | ⚠️ Weak | Only 5 concrete trading agents. A dashboard user expects to drag-and-drop from a palette of 15–20 agent archetypes (noise, value, momentum, mean-reversion, TWAP, VWAP, POV, MM, stop-loss, iceberg, informed trader, pairs arb, etc.). The current roster covers academic microstructure but not institutional simulation. |
 | **Configurability** | ✅ Good | The `SimulationBuilder` + `@register_agent` system is well-designed for a dashboard front-end. Pydantic models provide schema introspection (`get_config_schema()`), enabling auto-generated forms. YAML/JSON serialization supports save/load. |
-| **Data Injection** | ⚠️ Partial | `ExternalDataOracle` with `BatchDataProvider`/`PointDataProvider` is architecturally solid, but: (1) `ExternalDataOracleConfig` compilation is `NotImplementedError` — cannot configure via the dashboard's config layer, (2) no built-in `CsvProvider` or `ParquetProvider` — dashboard must ship its own loader. |
+| **Data Injection** | ⚠️ Partial | `ExternalDataOracle` with `BatchDataProvider`/`PointDataProvider` is architecturally solid. `ExternalDataOracleConfig` is a marker type — the dashboard must build the oracle and inject it via `SimulationBuilder.oracle_instance()`. No built-in `CsvProvider` or `ParquetProvider` — dashboard must ship its own loader. |
 | **Metrics & Observability** | ⚠️ Partial | `ExchangeAgent.MetricTracker` captures spread, volume, and book depth. `parse_logs_df` extracts event logs. But: (1) no per-agent P&L tracking except end-of-day `mark_to_market`, (2) no mid-simulation metric queries (snapshot-only at end), (3) `AdaptiveMarketMakerAgent` has no inventory or P&L metrics. For a dashboard, users expect real-time-style metric streams. |
 | **Realism** | ⚠️ Moderate | `NoiseAgent` is single-shot (unrealistic). `MomentumAgent` has no position limits (accumulates unbounded inventory). No stop-loss triggered volume. No iceberg orders. The resulting microstructure is recognizably market-like but lacks several stylized facts (e.g., volatility clustering from stop cascades, hidden liquidity). |
 | **Reproducibility** | ✅ Good | Hierarchical `RandomState` seeding ensures identical results across runs with same config. `SimulationConfig` is immutable and reusable. |
 
 **Key gaps for dashboard launch:**
 1. Ship TWAP + VWAP + StopLoss + MeanReversion agents (minimum viable palette — all LOB-only, no oracle access needed)
-2. Implement `ExternalDataOracleConfig` compilation (unblock CSV/DB data injection via config)
-3. Add continuous-trading mode to `NoiseAgent` (multi-wake with configurable frequency)
-4. Add per-agent P&L / execution quality metrics accessible from `SimulationResult`
-5. Ship `InformedTraderAgent` + oracle event subscription API (unlocks adverse selection scenarios; the only new agent that requires oracle access)
+2. Add continuous-trading mode to `NoiseAgent` (multi-wake with configurable frequency)
+3. Add per-agent P&L / execution quality metrics accessible from `SimulationResult`
+4. Ship `InformedTraderAgent` + oracle event subscription API (unlocks adverse selection scenarios; the only new agent that requires oracle access)
 
 ### 7.3 Fitness for Use Case 2 — Agentic Adversarial Stress Testing
 
@@ -326,7 +308,7 @@ All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost perfo
 | Core simulation engine | **Production** | Kernel, message passing, order book, matching — well-tested and performant after v1.2.0 optimizations. |
 | Configuration system | **Production** | `SimulationBuilder`, registry, compiler, YAML/JSON — comprehensive and AI-friendly. |
 | Agent roster | **Alpha** | 5 concrete agents is insufficient for either use case. Minimum viable product needs 10–12 agent types. |
-| Oracle system | **Beta** | `SparseMeanRevertingOracle` is solid; informed/uninformed agent split correctly models real-market information asymmetry. `ExternalDataOracle` is architecturally good but not wired into the config system. Missing: event subscription API for discrete information shocks (key enabler for `InformedTraderAgent`). |
+| Oracle system | **Beta** | `SparseMeanRevertingOracle` is solid; informed/uninformed agent split correctly models real-market information asymmetry. `ExternalDataOracle` is injection-only by design (`SimulationBuilder.oracle_instance()`). ValueAgent auto-inherits oracle params. Missing: event subscription API for discrete information shocks (key enabler for `InformedTraderAgent`). |
 | Data extraction | **Beta** | `parse_logs_df` works but requires post-hoc reconstruction. No streaming metrics. |
 | Documentation | **Good** | Config system docs, custom agent guide, LLM gotchas, data extraction — all current and accurate. |
 
