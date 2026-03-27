@@ -82,6 +82,27 @@ class BaseAgentConfig(BaseModel):
             "reduced (clamped) instead of fully rejected."
         ),
     )
+    max_drawdown: int | None = Field(
+        default=None,
+        description=(
+            "Maximum loss from starting_cash in cents before the circuit "
+            "breaker permanently halts the agent.  None = disabled."
+        ),
+    )
+    max_order_rate: int | None = Field(
+        default=None,
+        description=(
+            "Maximum orders per rate window before the circuit breaker "
+            "permanently halts the agent.  None = disabled."
+        ),
+    )
+    order_rate_window_ns: int = Field(
+        default=60_000_000_000,
+        description=(
+            "Tumbling window duration in nanoseconds for the order-rate "
+            "circuit breaker.  Default is 1 minute."
+        ),
+    )
 
     # Fields excluded from automatic constructor mapping
     _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset({"computation_delay"})

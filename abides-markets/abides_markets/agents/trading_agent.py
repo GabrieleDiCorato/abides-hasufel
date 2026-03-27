@@ -74,6 +74,9 @@ class TradingAgent(FinancialAgent):
         log_orders: bool = False,
         position_limit: int | None = None,
         position_limit_clamp: bool = False,
+        max_drawdown: int | None = None,
+        max_order_rate: int | None = None,
+        order_rate_window_ns: int = 60_000_000_000,
     ) -> None:
         # Base class init.
         super().__init__(id, name, type, random_state)
@@ -90,6 +93,15 @@ class TradingAgent(FinancialAgent):
         # clamped depending on position_limit_clamp.
         self.position_limit: int | None = position_limit
         self.position_limit_clamp: bool = position_limit_clamp
+
+        # Circuit breaker: latching kill-switch that permanently halts the
+        # agent when pathological behavior is detected.
+        self.max_drawdown: int | None = max_drawdown
+        self.max_order_rate: int | None = max_order_rate
+        self.order_rate_window_ns: int = order_rate_window_ns
+        self._circuit_breaker_tripped: bool = False
+        self._order_count_in_window: int = 0
+        self._window_start: NanosecondTime | None = None
 
         # Store starting_cash in case we want to refer to it for performance stats.
         # It should NOT be modified.  Use the 'CASH' key in self.holdings.
@@ -540,6 +552,79 @@ class TradingAgent(FinancialAgent):
             )
         return allowed
 
+    # ------------------------------------------------------------------
+    # Circuit breaker
+    # ------------------------------------------------------------------
+
+    def _check_circuit_breaker(self) -> bool:
+        """Return ``True`` if the circuit breaker has tripped.
+
+        Once tripped the flag latches — the agent is halted for the
+        remainder of the simulation.
+
+        Two independent triggers (either is sufficient):
+
+        1. **Drawdown**: ``starting_cash - mark_to_market(holdings)
+           >= max_drawdown``.
+        2. **Order rate**: more than ``max_order_rate`` orders placed
+           within the current ``order_rate_window_ns`` tumbling window.
+        """
+        if self._circuit_breaker_tripped:
+            return True
+
+        # --- drawdown check ---
+        if self.max_drawdown is not None and self.last_trade:
+            loss = self.starting_cash - self.mark_to_market(self.holdings)
+            if loss >= self.max_drawdown:
+                self._circuit_breaker_tripped = True
+                logger.warning(
+                    f"TradingAgent circuit-breaker tripped (drawdown): "
+                    f"loss={loss} >= max_drawdown={self.max_drawdown}"
+                )
+                self.logEvent(
+                    "CIRCUIT_BREAKER_TRIPPED",
+                    {"reason": "max_drawdown", "loss": loss},
+                )
+                return True
+
+        # --- order-rate check ---
+        if self.max_order_rate is not None:
+            if (
+                self._window_start is not None
+                and self.current_time - self._window_start
+                < self.order_rate_window_ns
+                and self._order_count_in_window >= self.max_order_rate
+            ):
+                self._circuit_breaker_tripped = True
+                logger.warning(
+                    f"TradingAgent circuit-breaker tripped (order rate): "
+                    f"orders={self._order_count_in_window} "
+                    f">= max_order_rate={self.max_order_rate}"
+                )
+                self.logEvent(
+                    "CIRCUIT_BREAKER_TRIPPED",
+                    {
+                        "reason": "max_order_rate",
+                        "orders": self._order_count_in_window,
+                    },
+                )
+                return True
+
+        return False
+
+    def _record_order_for_rate_check(self) -> None:
+        """Bump the order counter for the current tumbling window."""
+        if self.max_order_rate is None:
+            return
+        if (
+            self._window_start is None
+            or self.current_time - self._window_start
+            >= self.order_rate_window_ns
+        ):
+            self._window_start = self.current_time
+            self._order_count_in_window = 0
+        self._order_count_in_window += 1
+
     def create_limit_order(
         self,
         symbol: str,
@@ -571,6 +656,10 @@ class TradingAgent(FinancialAgent):
                 the order.
             tag:
         """
+
+        # Circuit breaker: halt all new orders once tripped.
+        if self._check_circuit_breaker():
+            return None
 
         # Enforce per-symbol position limit before allocating an order id.
         if self.position_limit is not None and quantity > 0:
@@ -670,6 +759,7 @@ class TradingAgent(FinancialAgent):
         if order is not None:
             self.orders[order.order_id] = deepcopy(order)
             self.send_message(self.exchange_id, LimitOrderMsg(order))
+            self._record_order_for_rate_check()
 
             if self.log_orders:
                 self.logEvent("ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
@@ -698,6 +788,10 @@ class TradingAgent(FinancialAgent):
                 the order.
             tag:
         """
+
+        # Circuit breaker: halt all new orders once tripped.
+        if self._check_circuit_breaker():
+            return
 
         # Enforce per-symbol position limit before allocating an order id.
         if self.position_limit is not None and quantity > 0:
@@ -729,6 +823,7 @@ class TradingAgent(FinancialAgent):
                     return
             self.orders[order.order_id] = deepcopy(order)
             self.send_message(self.exchange_id, MarketOrderMsg(order))
+            self._record_order_for_rate_check()
             if self.log_orders:
                 self.logEvent("ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
 
@@ -746,6 +841,10 @@ class TradingAgent(FinancialAgent):
         Arguments:
             orders: A list of Orders to place with the exchange as a single batch.
         """
+
+        # Circuit breaker: halt all new orders once tripped.
+        if self._check_circuit_breaker():
+            return
 
         messages = []
 
@@ -776,6 +875,7 @@ class TradingAgent(FinancialAgent):
             # object per order, that never alters its original state, and eliminate all
             # these copies.
             self.orders[order.order_id] = deepcopy(order)
+            self._record_order_for_rate_check()
 
             if self.log_orders:
                 self.logEvent("ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
@@ -950,6 +1050,10 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"After order execution, agent open orders: {self.orders}")
 
         self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
+
+        # Proactively check the circuit breaker after every fill so the
+        # latch trips as soon as a fill pushes loss past the threshold.
+        self._check_circuit_breaker()
 
     def order_accepted(self, order: LimitOrder) -> None:
         """
