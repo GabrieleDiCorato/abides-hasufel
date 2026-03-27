@@ -155,7 +155,7 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
 |-------|:----------:|:-------------:|--------------|
 | **ExchangeAgent** | ✅ (line 225) | ✅ | `get_daily_open_price` (line 230), `f_log` truthiness check (line 275) |
 | **ValueAgent** | ✅ (line 74) | ✅ | `observe_price(sigma_n=self.sigma_n)` for noisy Bayesian update (line 155); `observe_price(sigma_n=0)` for exact final valuation (line 85) |
-| **NoiseAgent** | ❌ | ❌ | No oracle access (dead reference removed in v2.0.0) |
+| **NoiseAgent** | ❌ | ❌ | No oracle access |
 | **MomentumAgent** | ❌ | ❌ | No oracle access |
 | **AdaptiveMarketMakerAgent** | ❌ | ❌ | No oracle access |
 | **POVExecutionAgent** | ❌ | ❌ | No oracle access |
@@ -199,7 +199,7 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
 | Clean provider protocol design | Strength | `BatchDataProvider` / `PointDataProvider` are structural-typing Protocols — no subclassing required. |
 | Three interpolation strategies | Strength | FORWARD_FILL, NEAREST, LINEAR — covers all common use cases for timestamp gaps. |
 | LRU cache for point mode | Strength | Configurable `cache_size` keeps memory bounded for database-backed lookups. |
-| **Not compilable via config system** | Critical | `compiler.py` line 213 raises `NotImplementedError` for `ExternalDataOracleConfig`. The most production-relevant oracle cannot be configured declaratively. Workaround: manual injection via `custom_properties`, which bypasses the config system's validation. |
+| Injection-only by design | Design | `ExternalDataOracleConfig` is a marker type — the framework does not perform file I/O or construct the oracle. Users build `ExternalDataOracle` with their chosen data provider and inject it via `SimulationBuilder.oracle_instance()` or `compile(config, oracle_instance=...)`. The compiler raises `ValueError` if the marker is encountered without injection, guiding users to the correct path. |
 
 ### 5.6 Data Providers
 
@@ -217,11 +217,11 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
 
 2. **No oracle event subscription API**: The megashock system in `SparseMeanRevertingOracle` generates realistic price discontinuities, but they are **invisible to agents**. No agent can detect "a shock just happened." An event subscription API is the key architectural enabler for informed-trader strategies, news-reactive agents, and adversarial stress testing (flash crash simulation, adverse selection spikes).
 
-3. **ExternalDataOracle not compilable**: The `NotImplementedError` at `compiler.py:213` blocks the most production-relevant oracle from declarative configuration. This forces users into manual `compile()` + injection workflows.
+3. ~~**ExternalDataOracle not compilable**~~: *Resolved in v2.2.0.* `ExternalDataOracleConfig` is now a marker type by design — the framework should not perform file I/O or construct data-backed oracles. Users build `ExternalDataOracle` with their chosen `BatchDataProvider` or `PointDataProvider` and inject it via `SimulationBuilder.oracle_instance()`. The compiler raises a clear `ValueError` if the marker is encountered without injection.
 
-4. **Oracle is implicitly mandatory**: `MarketConfig.oracle` defaults to `SparseMeanRevertingOracleConfig()`, so every simulation silently includes an oracle even though only 2 of 6 agents use it. Simulations with only LOB-based agents (Noise + Momentum + AMM) shouldn't require an oracle, but the implicit default hides this unnecessary coupling.
+4. ~~**Oracle is implicitly mandatory**~~: *Resolved in v2.2.0.* `MarketConfig.oracle` is now a required field with no default. Users must explicitly choose an oracle or set `oracle: null` for LOB-only simulations.
 
-5. **ValueAgent parameter duplication with silent misalignment**: ValueAgent's Bayesian model parameters (`r_bar`, `kappa`, `sigma_s`) are independent copies of what the oracle may use, with different defaults across three layers:
+5. ~~**ValueAgent parameter duplication with silent misalignment**~~: *Resolved in v2.2.0.* `r_bar`, `kappa`, `sigma_s` now auto-inherit from oracle config via `AgentCreationContext` when not explicitly set. `sigma_s` is a configurable field in `ValueAgentConfig`. Explicit user values always win. The historic defaults table is preserved below for reference:
 
    | Param | Oracle (SparseMR) default | ValueAgentConfig default | ValueAgent.__init__ default | Configurable in config? |
    |-------|--------------------------|-------------------------|---------------------------|:---:|
@@ -230,11 +230,9 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
    | sigma_s | 0 | — | 100,000 (!!!) | **NO** |
    | sigma_n | N/A | r_bar/100 | 10,000 | Yes |
 
-   The `kappa` 10× discrepancy between oracle and ValueAgentConfig is particularly insidious: it means the agent's prior belief about mean-reversion speed silently differs from the generating process. `sigma_s` is hardcoded in `ValueAgent.__init__` at 100,000 but not exposed as a config field at all, making it impossible to calibrate through the config system.
+6. ~~**Dead code in AgentCreationContext**~~: *Resolved in v2.2.0.* `AgentCreationContext.oracle_r_bar` is now used by `ValueAgentConfig._prepare_constructor_kwargs()` for auto-inheritance. Extended with `oracle_kappa` and `oracle_sigma_s`.
 
-6. **Dead code in AgentCreationContext**: `AgentCreationContext.oracle_r_bar` is populated by the compiler at `compiler.py:71` but never read by any agent config. It was intended for ValueAgent auto-derivation that was never implemented.
-
-7. **ExternalDataOracleConfig pretends file I/O**: `ExternalDataOracleConfig.data_path` implies the framework will load external data files, but the compiler raises `NotImplementedError`. The framework should not do file I/O — external data injection should be handled by the user building an oracle instance and injecting it.
+7. ~~**ExternalDataOracleConfig pretends file I/O**~~: *Resolved in v2.2.0.* `ExternalDataOracleConfig` is now a pure marker type with no `data_path` field. External data injection is handled by the user building an `ExternalDataOracle` instance and injecting it via `SimulationBuilder.oracle_instance()`.
 
 ---
 
