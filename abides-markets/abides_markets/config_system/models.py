@@ -12,9 +12,10 @@ a ``SimulationConfig`` into the runtime dict that ``Kernel`` expects.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -24,31 +25,82 @@ class SparseMeanRevertingOracleConfig(BaseModel):
     """Oracle using OU process with Poisson megashocks."""
 
     type: Literal["sparse_mean_reverting"] = "sparse_mean_reverting"
-    r_bar: int = Field(default=100_000, description="Mean fundamental value in cents.")
-    kappa: float = Field(
-        default=1.67e-16, description="Mean-reversion speed of OU process."
+    r_bar: int = Field(
+        default=100_000,
+        description=(
+            "Mean fundamental value in integer cents (e.g. $100.00 = 10_000). "
+            "This is the long-run price the OU process reverts toward."
+        ),
+        examples=[100_000, 50_000],
+        json_schema_extra={"unit": "cents"},
     )
-    sigma_s: float = Field(default=0, description="Shock variance.")
+    kappa: float = Field(
+        default=1.67e-16,
+        description=(
+            "Mean-reversion speed of the OU process (per nanosecond). "
+            "Larger values pull the fundamental price back to r_bar faster."
+        ),
+    )
+    sigma_s: float = Field(
+        default=0,
+        description=(
+            "Variance of per-step shocks to the fundamental price. "
+            "Higher values produce more volatile fundamental dynamics."
+        ),
+    )
     fund_vol: float = Field(
-        default=5e-5, description="Volatility (std) of the fundamental."
+        default=5e-5,
+        description=(
+            "Volatility (standard deviation) of the continuous-time "
+            "fundamental price. Controls daily price variation."
+        ),
     )
     megashock_lambda_a: float = Field(
         default=2.77778e-18,
-        description="Megashock arrival rate (per nanosecond).",
+        description=(
+            "Megashock arrival rate (per nanosecond). Megashocks are rare, "
+            "large jumps in fundamental value. The default corresponds "
+            "to roughly one megashock per hour."
+        ),
     )
-    megashock_mean: float = Field(default=1000, description="Megashock mean.")
+    megashock_mean: float = Field(
+        default=1000,
+        description="Mean magnitude of megashock jumps (in cents).",
+        json_schema_extra={"unit": "cents"},
+    )
     megashock_var: float = Field(
-        default=50_000, description="Megashock magnitude variance."
+        default=50_000,
+        description="Variance of megashock magnitude distribution.",
     )
 
 
 class MeanRevertingOracleConfig(BaseModel):
-    """Oracle using simple discrete mean-reversion process."""
+    """Oracle using simple discrete mean-reversion process.
+
+    .. deprecated::
+        Use ``SparseMeanRevertingOracleConfig`` instead.  This oracle steps
+        once per nanosecond, which is prohibitively expensive for long
+        simulations (> 1 M steps raises ``ValueError``).
+    """
 
     type: Literal["mean_reverting"] = "mean_reverting"
-    r_bar: int = Field(default=100_000, description="Mean fundamental value in cents.")
-    kappa: float = Field(default=0.05, description="Mean-reversion speed.")
-    sigma_s: float = Field(default=100_000, description="Shock variance.")
+    r_bar: int = Field(
+        default=100_000,
+        description="Mean fundamental value in integer cents (e.g. $100.00 = 10_000).",
+        examples=[100_000, 50_000],
+        json_schema_extra={"unit": "cents"},
+    )
+    kappa: float = Field(
+        default=0.05,
+        description=(
+            "Mean-reversion speed. Larger values pull the fundamental "
+            "back to r_bar faster."
+        ),
+    )
+    sigma_s: float = Field(
+        default=100_000,
+        description="Variance of per-step shocks to the fundamental price.",
+    )
 
 
 class ExternalDataOracleConfig(BaseModel):
@@ -77,20 +129,57 @@ OracleConfig = Union[
 class ExchangeConfig(BaseModel):
     """Configuration for the ExchangeAgent (always agent id=0)."""
 
-    book_logging: bool = Field(default=True, description="Log order book snapshots.")
-    book_log_depth: int = Field(default=10, description="Depth of book snapshots.")
+    book_logging: bool = Field(
+        default=True,
+        description=(
+            "Log order book snapshots at each book update. Required for "
+            "L1/L2 time-series extraction in SimulationResult."
+        ),
+    )
+    book_log_depth: int = Field(
+        default=10,
+        ge=1,
+        description=(
+            "Number of price levels to capture per side in book snapshots. "
+            "Higher values capture deeper book state but use more memory."
+        ),
+    )
     stream_history_length: int = Field(
         default=500,
-        description="Number of past orders stored for transacted volume computation.",
+        ge=1,
+        description=(
+            "Number of recent trades stored for transacted volume computation. "
+            "Used by market-maker agents (AdaptiveMarketMaker) to estimate "
+            "participation-of-volume. Higher values give smoother volume "
+            "estimates but increase memory usage."
+        ),
     )
     log_orders: bool = Field(
-        default=False, description="Log all exchange order activity."
+        default=False,
+        description=(
+            "Log all exchange order activity (submits, cancels, fills). "
+            "Enables detailed post-simulation order-flow analysis but "
+            "significantly increases log size."
+        ),
     )
     pipeline_delay: int = Field(
-        default=0, description="Order acceptance latency in ns."
+        default=0,
+        ge=0,
+        description=(
+            "Order acceptance latency in nanoseconds. Simulates the delay "
+            "between an order reaching the exchange and being processed. "
+            "0 = immediate processing."
+        ),
+        json_schema_extra={"unit": "nanoseconds"},
     )
     computation_delay: int = Field(
-        default=0, description="Exchange computation delay in ns."
+        default=0,
+        ge=0,
+        description=(
+            "Exchange computation delay in nanoseconds. Added to every "
+            "exchange action (match, cancel, etc.). 0 = no extra delay."
+        ),
+        json_schema_extra={"unit": "nanoseconds"},
     )
 
 
@@ -100,10 +189,27 @@ class ExchangeConfig(BaseModel):
 class MarketConfig(BaseModel):
     """General market parameters: ticker, trading hours, oracle, exchange."""
 
-    ticker: str = Field(default="ABM", description="Trading symbol.")
-    date: str = Field(default="20210205", description="Simulation date (YYYYMMDD).")
-    start_time: str = Field(default="09:30:00", description="Market open time.")
-    end_time: str = Field(default="10:00:00", description="Market close time.")
+    ticker: str = Field(
+        default="ABM", description="Trading symbol.", examples=["ABM", "AAPL"]
+    )
+    date: str = Field(
+        default="20210205",
+        description="Simulation date in YYYYMMDD format.",
+        pattern=r"^\d{8}$",
+        examples=["20210205", "20230915"],
+    )
+    start_time: str = Field(
+        default="09:30:00",
+        description="Market open time in HH:MM:SS format.",
+        pattern=r"^\d{2}:\d{2}:\d{2}$",
+        examples=["09:30:00", "08:00:00"],
+    )
+    end_time: str = Field(
+        default="10:00:00",
+        description="Market close time in HH:MM:SS format.",
+        pattern=r"^\d{2}:\d{2}:\d{2}$",
+        examples=["10:00:00", "16:00:00"],
+    )
     oracle: OracleConfig | None = Field(
         description=(
             "Oracle configuration.  Set to an OracleConfig to enable a "
@@ -121,7 +227,31 @@ class MarketConfig(BaseModel):
             "seed price.  Ignored when an oracle is present (the oracle "
             "provides opening prices via get_daily_open_price())."
         ),
+        examples=[10_000, 100_000],
+        json_schema_extra={"unit": "cents"},
     )
+
+    @field_validator("date")
+    @classmethod
+    def _validate_date(cls, v: str) -> str:
+        if not re.fullmatch(r"\d{8}", v):
+            raise ValueError(f"date must be in YYYYMMDD format, got '{v}'")
+        month, day = int(v[4:6]), int(v[6:8])
+        if not (1 <= month <= 12 and 1 <= day <= 31):
+            raise ValueError(f"date has invalid month/day: month={month}, day={day}")
+        return v
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def _validate_time(cls, v: str) -> str:
+        if not re.fullmatch(r"\d{2}:\d{2}:\d{2}", v):
+            raise ValueError(f"Time must be in HH:MM:SS format, got '{v}'")
+        parts = v.split(":")
+        h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
+        if not (0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59):
+            raise ValueError(f"Time has invalid components: {h:02d}:{m:02d}:{s:02d}")
+        return v
+
     exchange: ExchangeConfig = Field(
         default_factory=ExchangeConfig,
         description="Exchange agent configuration.",
@@ -155,9 +285,13 @@ class AgentGroupConfig(BaseModel):
 class LatencyConfig(BaseModel):
     """Network latency model configuration."""
 
-    type: str = Field(
+    type: Literal["deterministic", "no_latency"] = Field(
         default="deterministic",
-        description="Latency type: 'deterministic' or 'no_latency'.",
+        description=(
+            "Latency model type. 'deterministic' adds realistic network "
+            "delays between agents and the exchange. 'no_latency' removes "
+            "all network delays (useful for unit testing)."
+        ),
     )
 
 
@@ -170,7 +304,13 @@ class InfrastructureConfig(BaseModel):
     )
     default_computation_delay: int = Field(
         default=50,
-        description="Default computation delay per agent action in nanoseconds.",
+        ge=0,
+        description=(
+            "Default computation delay per agent action in nanoseconds. "
+            "Simulates the time an agent spends processing before acting. "
+            "Can be overridden per agent type via agent config."
+        ),
+        json_schema_extra={"unit": "nanoseconds"},
     )
 
 
@@ -182,11 +322,22 @@ class SimulationMeta(BaseModel):
 
     seed: Union[int, Literal["random"]] = Field(
         default="random",
-        description="RNG seed for reproducibility. Use 'random' for a fresh seed.",
+        description=(
+            "RNG seed for reproducibility. Use an integer for deterministic "
+            "runs or 'random' for a fresh seed each time."
+        ),
+        examples=[42, 12345, "random"],
     )
-    log_level: str = Field(default="INFO", description="Stdout log level.")
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO",
+        description="Stdout log level for kernel and agent messages.",
+    )
     log_orders: bool = Field(
-        default=True, description="Enable order logging for all agents."
+        default=True,
+        description=(
+            "Enable order logging for all agents. Individual agents can "
+            "override this via their own log_orders setting."
+        ),
     )
 
 

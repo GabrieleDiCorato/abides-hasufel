@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 import numpy as np
 from pydantic import BaseModel, Field, model_validator
@@ -57,7 +57,10 @@ class BaseAgentConfig(BaseModel):
 
     starting_cash: int = Field(
         default=10_000_000,
+        ge=0,
         description="Initial cash in cents ($100k = 10_000_000).",
+        examples=[10_000_000, 100_000_000],
+        json_schema_extra={"unit": "cents"},
     )
     log_orders: bool | None = Field(
         default=None,
@@ -65,10 +68,12 @@ class BaseAgentConfig(BaseModel):
     )
     computation_delay: int | None = Field(
         default=None,
+        ge=0,
         description=(
             "Per-agent-type computation delay in nanoseconds. "
             "None = use the simulation-level default_computation_delay."
         ),
+        json_schema_extra={"unit": "nanoseconds"},
     )
     position_limit: int | None = Field(
         default=None,
@@ -86,13 +91,16 @@ class BaseAgentConfig(BaseModel):
     )
     max_drawdown: int | None = Field(
         default=None,
+        ge=0,
         description=(
             "Maximum loss from starting_cash in cents before the circuit "
             "breaker permanently halts the agent.  None = disabled."
         ),
+        json_schema_extra={"unit": "cents"},
     )
     max_order_rate: int | None = Field(
         default=None,
+        ge=1,
         description=(
             "Maximum orders per rate window before the circuit breaker "
             "permanently halts the agent.  None = disabled."
@@ -100,10 +108,12 @@ class BaseAgentConfig(BaseModel):
     )
     order_rate_window_ns: int = Field(
         default=60_000_000_000,
+        ge=1,
         description=(
             "Tumbling window duration in nanoseconds for the order-rate "
-            "circuit breaker.  Default is 1 minute."
+            "circuit breaker.  Default is 1 minute (60_000_000_000 ns)."
         ),
+        json_schema_extra={"unit": "nanoseconds"},
     )
 
     # Fields excluded from automatic constructor mapping
@@ -215,11 +225,22 @@ class NoiseAgentConfig(BaseAgentConfig):
 
     noise_mkt_open_offset: str = Field(
         default="-00:30:00",
-        description="Offset from market open for noise wakeup window start (e.g. '-00:30:00').",
+        description=(
+            "Offset from market open for noise wakeup window start. "
+            "Format: '[±]HH:MM:SS' — a negative value means before market "
+            "open (e.g. '-00:30:00' = 30 minutes before open)."
+        ),
+        examples=["-00:30:00", "-01:00:00", "00:00:00"],
+        json_schema_extra={"format": "duration"},
     )
     noise_mkt_close_time: str = Field(
         default="16:00:00",
-        description="Time-of-day for noise wakeup window end.",
+        description=(
+            "Time-of-day (HH:MM:SS) for noise wakeup window end. The agent "
+            "wakes at a uniformly random time between the offset-adjusted "
+            "market open and this time."
+        ),
+        examples=["16:00:00", "12:00:00"],
     )
 
     _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset(
@@ -281,6 +302,8 @@ class ValueAgentConfig(BaseAgentConfig):
             "Prior mean fundamental value in cents.  None = auto-inherit "
             "from oracle config (recommended).  E.g. $100.00 = 10_000."
         ),
+        examples=[100_000, 50_000],
+        json_schema_extra={"unit": "cents"},
     )
     kappa: float | None = Field(
         default=None,
@@ -371,15 +394,26 @@ class ValueAgentConfig(BaseAgentConfig):
 class MomentumAgentConfig(BaseAgentConfig):
     """Configuration for MomentumAgent — trend-follower using moving average crossover."""
 
-    min_size: int = Field(default=1, description="Minimum order size.")
-    max_size: int = Field(default=10, description="Maximum order size.")
+    min_size: int = Field(default=1, ge=1, description="Minimum order size in shares.")
+    max_size: int = Field(default=10, ge=1, description="Maximum order size in shares.")
     wake_up_freq: str = Field(
         default="37s",
-        description="Wake-up frequency as duration string (e.g. '37s', '1min').",
+        description=(
+            "Wake-up frequency as a duration string. Supported formats: "
+            "'Ns' (seconds), 'Nmin' (minutes), 'Nh' (hours), "
+            "'HH:MM:SS'. The default 37s is calibrated to produce "
+            "realistic trading frequency for trend-following agents."
+        ),
+        examples=["37s", "1min", "00:01:00"],
+        json_schema_extra={"format": "duration"},
     )
     poisson_arrival: bool = Field(
         default=True,
-        description="If True, wakeup intervals are Poisson-distributed.",
+        description=(
+            "If True, wakeup intervals are Poisson-distributed around "
+            "wake_up_freq (more realistic). If False, wakeups are "
+            "exactly periodic."
+        ),
     )
     short_window: int = Field(
         default=20,
@@ -414,40 +448,122 @@ class MomentumAgentConfig(BaseAgentConfig):
 # Adaptive Market Maker Agent
 # ---------------------------------------------------------------------------
 class AdaptiveMarketMakerConfig(BaseAgentConfig):
-    """Configuration for AdaptiveMarketMakerAgent — inventory-skewed ladder market maker."""
+    """Configuration for AdaptiveMarketMakerAgent — inventory-skewed ladder market maker.
 
-    pov: float = Field(default=0.025, description="Percentage of volume per level.")
+    This agent places limit orders on both sides of the book at multiple
+    price levels (a "ladder").  It adapts its spread to observed market
+    conditions and skews quotes based on inventory to manage risk.
+    """
+
+    pov: float = Field(
+        default=0.025,
+        ge=0,
+        le=1,
+        description=(
+            "Target participation-of-volume fraction per price level "
+            "(0.0–1.0).  Controls order size at each level: "
+            "order_qty = pov × stream_history_volume.  "
+            "0.025 = 2.5%% of recent volume per level."
+        ),
+    )
     min_order_size: int = Field(
-        default=1, description="Minimum order size at any level."
+        default=1,
+        ge=1,
+        description="Minimum order size in shares at any price level.",
     )
     window_size: Union[int, str] = Field(
         default="adaptive",
-        description="Spread window in ticks or 'adaptive'.",
+        description=(
+            "Spread window size. An integer sets a fixed spread in ticks "
+            "(minimum 1). The string 'adaptive' lets the agent dynamically "
+            "estimate the spread from recent order book data using an "
+            "EWMA controlled by spread_alpha."
+        ),
+        examples=["adaptive", 5, 10],
     )
-    num_ticks: int = Field(default=10, description="Number of price levels each side.")
+    num_ticks: int = Field(
+        default=10,
+        ge=1,
+        description=(
+            "Number of price levels placed on each side of the book. "
+            "More levels provide deeper liquidity but spread the agent's "
+            "capital thinner."
+        ),
+    )
     wake_up_freq: str = Field(
         default="60s",
-        description="Wake-up frequency as duration string.",
+        description=(
+            "Wake-up frequency as a duration string. Controls how often "
+            "the market maker re-evaluates and updates its quotes. "
+            "Supported formats: 'Ns', 'Nmin', 'Nh', 'HH:MM:SS'."
+        ),
+        examples=["60s", "30s", "2min"],
+        json_schema_extra={"format": "duration"},
     )
     poisson_arrival: bool = Field(
-        default=True, description="Poisson-distributed wakeups."
+        default=True,
+        description=(
+            "If True, wakeup intervals are Poisson-distributed around "
+            "wake_up_freq (more realistic). If False, exactly periodic."
+        ),
     )
     cancel_limit_delay: int = Field(
         default=50,
-        description="Delay in nanoseconds before cancel takes effect.",
+        ge=0,
+        description=(
+            "Delay in nanoseconds between deciding to cancel an order and "
+            "the cancel message being sent. Simulates internal processing "
+            "latency. Most users can leave this at the default."
+        ),
+        json_schema_extra={"unit": "nanoseconds"},
     )
-    skew_beta: float = Field(default=0, description="Inventory skew parameter.")
-    price_skew_param: int | None = Field(default=4, description="Price skew parameter.")
+    skew_beta: float = Field(
+        default=0,
+        description=(
+            "Inventory skew strength. Controls how much the agent shifts "
+            "its quotes in response to inventory imbalance. Positive values "
+            "skew the mid-price away from the side where the agent is long, "
+            "encouraging mean-reversion of inventory to zero. "
+            "0 = symmetric quoting (no skew)."
+        ),
+    )
+    price_skew_param: int | None = Field(
+        default=4,
+        description=(
+            "Controls non-linear price skewing across ladder levels. "
+            "Higher values concentrate skew at levels closer to the mid, "
+            "while lower values spread skew more evenly. "
+            "None = disable price skewing entirely."
+        ),
+    )
     level_spacing: float = Field(
         default=5,
-        description="Spacing between price levels as fraction of spread.",
+        ge=0,
+        description=(
+            "Spacing multiplier between price levels as a fraction of the "
+            "estimated spread. E.g. 5.0 means each level is spaced "
+            "5 × spread_estimate apart. Higher values create wider ladders."
+        ),
     )
     spread_alpha: float = Field(
         default=0.75,
-        description="EWMA parameter for spread estimation.",
+        ge=0,
+        le=1,
+        description=(
+            "EWMA smoothing parameter for spread estimation (0.0–1.0). "
+            "Higher values weight recent observations more heavily "
+            "(faster adaptation). Lower values produce smoother, more "
+            "stable spread estimates."
+        ),
     )
     backstop_quantity: int = Field(
-        default=0, description="Orders at the outermost level."
+        default=0,
+        ge=0,
+        description=(
+            "Extra order quantity placed at the outermost price level on "
+            "each side. Acts as a safety net to capture large sweeping "
+            "orders.  0 = no backstop."
+        ),
     )
 
     def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):
@@ -461,25 +577,70 @@ class AdaptiveMarketMakerConfig(BaseAgentConfig):
 # POV Execution Agent
 # ---------------------------------------------------------------------------
 class POVExecutionAgentConfig(BaseAgentConfig):
-    """Configuration for POVExecutionAgent — executes large orders as percentage of volume."""
+    """Configuration for POVExecutionAgent — executes large orders as percentage of volume.
+
+    This agent slices a parent order into child orders, participating at a
+    target fraction of observed market volume (POV) within a time window.
+    """
 
     start_time_offset: str = Field(
         default="00:30:00",
-        description="Offset from market open when execution begins.",
+        description=(
+            "Offset from market open when execution begins.  "
+            "Format: 'HH:MM:SS'.  '00:30:00' = start 30 min after open."
+        ),
+        examples=["00:30:00", "00:00:00", "01:00:00"],
+        json_schema_extra={"format": "duration"},
     )
     end_time_offset: str = Field(
         default="00:30:00",
-        description="Offset before market close when execution ends.",
+        description=(
+            "Offset before market close when execution stops.  "
+            "Format: 'HH:MM:SS'.  '00:30:00' = stop 30 min before close."
+        ),
+        examples=["00:30:00", "00:00:00"],
+        json_schema_extra={"format": "duration"},
     )
-    freq: str = Field(default="1min", description="Wake-up frequency.")
-    pov: float = Field(default=0.1, description="Target % of observed volume.")
-    direction: str = Field(
+    freq: str = Field(
+        default="1min",
+        description=(
+            "Wake-up frequency as a duration string. Controls how often "
+            "the agent checks volume and submits child orders. "
+            "Supported: 'Ns', 'Nmin', 'Nh', 'HH:MM:SS'."
+        ),
+        examples=["1min", "30s", "5min"],
+        json_schema_extra={"format": "duration"},
+    )
+    pov: float = Field(
+        default=0.1,
+        ge=0,
+        le=1,
+        description=(
+            "Target participation-of-volume fraction (0.0–1.0).  "
+            "Each wakeup the agent submits: child_qty = pov × recent_volume.  "
+            "0.1 = target 10%% of market volume."
+        ),
+    )
+    direction: Literal["BID", "ASK"] = Field(
         default="BID",
         description="Order direction: 'BID' (buy) or 'ASK' (sell).",
     )
-    quantity: int = Field(default=1_200_000, description="Total target quantity.")
+    quantity: int = Field(
+        default=1_200_000,
+        ge=1,
+        description=(
+            "Total parent order quantity in shares.  The agent stops "
+            "when this many shares have been executed or when the "
+            "execution window closes."
+        ),
+        examples=[1_200_000, 500_000],
+    )
     trade: bool = Field(
-        default=True, description="If False, only logs without trading."
+        default=True,
+        description=(
+            "If True, the agent submits live orders.  If False, it only "
+            "logs what it *would* trade (dry-run / shadow mode)."
+        ),
     )
 
     _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset(
