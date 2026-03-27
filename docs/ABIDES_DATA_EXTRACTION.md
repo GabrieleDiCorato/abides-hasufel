@@ -113,3 +113,38 @@ If you generate an ITCH-like L3 history (`df = order_book.get_l3_itch()`), it ou
 - **`side` column**: `B` (Bid), `S` (Sell/Ask)
 
 **Warning:** The ITCH format logs `side`, but for an `EXECUTE` event, the row's `side` may be set to `NaN` depending on the log parser configuration. Handle `pd.isna(df['side'])` robustly.
+
+---
+
+## 5. SimulationResult (High-Level API)
+
+When using `run_simulation()`, you get an immutable `SimulationResult`
+with typed accessors instead of raw dicts:
+
+```python
+from abides_markets.simulation import run_simulation
+
+result = run_simulation(config)
+
+# Human-readable narrative
+print(result.summary())
+
+# Structured dict for dashboards / JSON APIs
+data = result.summary_dict()
+# → {"metadata": {...}, "markets": {...}, "agent_leaderboard": [...], "warnings": [...]}
+```
+
+### Key fields in `summary_dict()`
+
+| Key | Contents |
+|-----|----------|
+| `metadata` | seed, tickers, wall-clock elapsed time |
+| `markets` | Per-symbol: bid/ask/spread (cents), last trade, VWAP, volume, liquidity % |
+| `agent_leaderboard` | Top 10 agents by PnL (id, type, pnl_cents, pnl_pct, mark_to_market) |
+| `warnings` | Anomaly strings: one-sided market, zero trades, etc. |
+
+### VWAP
+
+`LiquidityMetrics.vwap_cents` is now computed automatically from order-book
+execution history. It is an integer-cents volume-weighted average price
+across all trades in the session.

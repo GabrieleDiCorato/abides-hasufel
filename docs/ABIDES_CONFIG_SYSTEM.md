@@ -289,15 +289,30 @@ When an `agent_class` is provided at registration, `BaseAgentConfig`
 auto-generates the `create_agents()` factory by inspecting the agent
 constructor and mapping config fields to constructor args by name.
 
+### Registry metadata
+
+Each `AgentRegistryEntry` carries:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `name` | `str` | Unique identifier (e.g. `"noise"`) |
+| `config_model` | `type` | Pydantic model for agent params |
+| `category` | `str` | One of the keys in `CATEGORIES` |
+| `description` | `str` | Human-readable description |
+| `agent_class` | `type \| None` | The ABIDES agent class to instantiate |
+| `requires_oracle` | `bool` | Whether the agent needs an oracle |
+| `typical_count_range` | `tuple[int,int] \| None` | Suggested (min, max) agent count |
+| `recommended_with` | `tuple[str,...]` | Agent types that work well alongside this one |
+
 ### Registered built-in agents
 
-| Name | Category | Config class | Agent class |
-|------|----------|-------------|-------------|
-| `noise` | background | `NoiseAgentConfig` | `NoiseAgent` |
-| `value` | background | `ValueAgentConfig` | `ValueAgent` |
-| `momentum` | strategy | `MomentumAgentConfig` | `MomentumAgent` |
-| `adaptive_market_maker` | market_maker | `AdaptiveMarketMakerConfig` | `AdaptiveMarketMakerAgent` |
-| `pov_execution` | execution | `POVExecutionAgentConfig` | `POVExecutionAgent` |
+| Name | Category | Requires Oracle | Typical Count | Recommended With |
+|------|----------|----------------|---------------|-----------------|
+| `noise` | background | No | 50–5,000 | value, adaptive_market_maker |
+| `value` | background | **Yes** | 10–500 | noise |
+| `momentum` | strategy | No | 1–50 | noise, value |
+| `adaptive_market_maker` | market_maker | No | 1–5 | noise, value |
+| `pov_execution` | execution | No | 1–1 | noise, value, adaptive_market_maker |
 
 ### Registering a custom agent
 
@@ -380,12 +395,16 @@ from abides_markets.config_system import (
     list_agent_types,
     list_templates,
     get_config_schema,
+    get_full_manifest,
     validate_config,
+    CATEGORIES,
 )
 
 # What agent types are available?
 list_agent_types()
-# → [{"name": "noise", "category": "background", "parameters": {...}}, ...]
+# → [{"name": "noise", "category": "background", "requires_oracle": False,
+#     "typical_count_range": [50, 5000], "recommended_with": ["value", ...],
+#     "parameters": {...}}, ...]
 
 # What templates are available?
 list_templates()
@@ -394,10 +413,60 @@ list_templates()
 # Full JSON Schema
 get_config_schema()
 
-# Validate a config dict
-validate_config({"simulation": {"seed": 42}})
-# → {"valid": True}
+# Complete manifest for auto-generating a configuration dashboard
+manifest = get_full_manifest()
+# → {"agent_types": [...], "market_config_schema": {...},
+#    "oracle_options": [...], "templates": [...], "categories": {...}}
 ```
+
+### Structured validation
+
+`validate_config()` returns a `ValidationResult` with structured issues
+(not just flat error strings). It runs three validation phases:
+
+1. Pydantic structural validation
+2. Per-agent param validation against registry config models
+3. Cross-agent consistency checks (soft warnings)
+
+```python
+result = validate_config(config_dict)
+
+# New API
+result.valid          # True if no errors (warnings don't count)
+result.errors         # list[ValidationIssue] — severity="error" only
+result.warnings       # list[ValidationIssue] — severity="warning" only
+for issue in result.issues:
+    print(issue.severity, issue.field_path, issue.agent_name, issue.message)
+
+# Backward-compatible dict access still works
+result["valid"]       # True/False
+result["errors"]      # list[str] — only present when invalid
+```
+
+### Category taxonomy
+
+The `CATEGORIES` constant provides display metadata for agent categories:
+
+```python
+CATEGORIES = {
+    "background":    {"label": "Liquidity & Background", "sort_order": 1, ...},
+    "market_maker":  {"label": "Market Makers",          "sort_order": 2, ...},
+    "strategy":      {"label": "Trading Strategies",     "sort_order": 3, ...},
+    "execution":     {"label": "Execution Algorithms",   "sort_order": 4, ...},
+}
+```
+
+### Cross-agent validation warnings
+
+`build()` now runs `_cross_validate()` after Pydantic validation, emitting
+`UserWarning`s for semantically suspect configurations:
+
+- Market maker with no noise/value agents (empty order book)
+- POV execution with <10 background agents
+- `start_time >= end_time` (empty trading window)
+- POV execution offsets consuming the entire market window
+- Total agent count >10,000 (performance)
+- No enabled agents at all
 
 ---
 
