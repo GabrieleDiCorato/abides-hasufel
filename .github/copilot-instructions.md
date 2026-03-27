@@ -28,6 +28,12 @@ The only agent entry points are `wakeup()` and `receive_message()`.
 `TradingAgent.wakeup()` returns `False` when market hours are unknown or market is closed.
 Always: `if not super().wakeup(current_time): return`
 
+## Oracle system (v2.2.0)
+`MarketConfig.oracle` is **required** (no default) — every config must explicitly choose an oracle or set `oracle: null`.
+- **Oracle present**: ExchangeAgent pulls opening prices from oracle. ValueAgent auto-inherits `r_bar`, `kappa`, `sigma_s` from oracle config (explicit overrides win).
+- **Oracle absent** (`oracle: null`): requires `MarketConfig.opening_price` (integer cents). ValueAgent cannot be used without an oracle.
+- **External data injection**: `ExternalDataOracleConfig` is a marker type (no `data_path`). Build the oracle yourself, then pass via `builder.oracle_instance(my_oracle)` or `compile(config, oracle_instance=my_oracle)`.
+
 ## Custom agent pattern
 Implement `TradingStrategy` → wrap in `AbidesStrategyAdapter(TradingAgent)`.
 See: `docs/ABIDES_CUSTOM_AGENT_IMPLEMENTATION_GUIDE.md`
@@ -39,10 +45,6 @@ Register agents with `@register_agent(name, agent_class=..., category=...)`.
 Config fields map to constructor args by name; override `_prepare_constructor_kwargs()` for computed args.
 `build()` eagerly validates agent params — unknown fields are rejected immediately.
 See: `docs/ABIDES_CONFIG_SYSTEM.md` and `notebooks/demo_Config_System.ipynb`
-
-## External data / oracle injection
-Use `ExternalDataOracle` with `BatchDataProvider` or `PointDataProvider`.
-See: `abides-markets/abides_markets/oracles/`
 
 ## Full reference
 - `docs/ABIDES_CONFIG_SYSTEM.md` — declarative config system, builder, templates, per-agent delays

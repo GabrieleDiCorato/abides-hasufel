@@ -80,7 +80,7 @@ market:
   date: "20210205"
   start_time: "09:30:00"
   end_time: "10:00:00"
-  oracle:
+  oracle:                        # REQUIRED — set explicitly or use null
     type: sparse_mean_reverting
     r_bar: 100000          # $1000.00 in cents
     kappa: 1.67e-16
@@ -167,6 +167,80 @@ config = (SimulationBuilder()
     .log_level("DEBUG")
     .log_orders(True)
     .build())
+```
+
+---
+
+## Oracle Configuration
+
+The oracle field in `market` is **required** — there is no implicit default.
+Set it to an oracle config dict for simulations with a fundamental-value oracle,
+or to `null`/`None` for oracle-less simulations.
+
+### Oracle-present simulation (default pattern)
+
+```python
+config = (SimulationBuilder()
+    .from_template("rmsc04")       # includes oracle config
+    .oracle(r_bar=150_000)         # override oracle params
+    .seed(42)
+    .build())
+```
+
+### Oracle-less simulation (LOB-only agents)
+
+```python
+config = (SimulationBuilder()
+    .oracle(type=None)             # explicitly no oracle
+    .market(opening_price=100_000) # required when oracle is None ($1000.00)
+    .enable_agent("noise", count=500)
+    .enable_agent("momentum", count=10)
+    .seed(42)
+    .build())
+```
+
+When oracle is `None`:
+- `opening_price` is required — it seeds the ExchangeAgent's last-trade price.
+- `ValueAgent` cannot be used (compile-time error).
+- Only LOB-based agents work: Noise, Momentum, AMM, POV, custom agents.
+
+### ValueAgent parameter auto-inheritance
+
+`ValueAgent`'s Bayesian model parameters (`r_bar`, `kappa`, `sigma_s`) auto-inherit
+from the oracle config when not explicitly set in the agent params:
+
+```python
+config = (SimulationBuilder()
+    .market(ticker="ABM")
+    .oracle(type="sparse_mean_reverting", r_bar=200_000, kappa=5e-16, sigma_s=100)
+    .enable_agent("value", count=50)  # r_bar/kappa/sigma_s inherited from oracle
+    .seed(42)
+    .build())
+```
+
+Override per-agent when needed:
+
+```python
+.enable_agent("value", count=50, r_bar=300_000)  # only r_bar overridden; kappa, sigma_s still inherited
+```
+
+`sigma_n` (observation noise) is always agent-specific and defaults to `r_bar / 100`.
+
+### External data oracle injection
+
+For `ExternalDataOracle`, build the oracle externally and inject it:
+
+```python
+from abides_markets.oracles import ExternalDataOracle
+
+oracle = ExternalDataOracle(my_data_provider)
+config = (SimulationBuilder()
+    .oracle_instance(oracle)           # injects pre-built oracle
+    .enable_agent("noise", count=500)
+    .seed(42)
+    .build())
+
+runtime = builder.build_and_compile()  # passes oracle through to runtime
 ```
 
 ---

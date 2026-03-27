@@ -76,11 +76,6 @@ The current agent roster is **minimal for academic simulation** but **incomplete
 | **HFT / Latency-Sensitive Agent** | No agent designed to exploit microsecond-level speed advantages (queue priority, stale quotes). | **P2** |
 | **Mean-Reversion Agent** | An alternative to MomentumAgent for modeling contrarian strategies. | **P2** |
 
-### 3.2 Robustness Issues
-
-
-1. ~~**No agent-level circuit breaker**~~: **RESOLVED.** Implemented directly in `TradingAgent`. Constructor params: `max_drawdown: int | None` (loss-from-starting-cash threshold in cents), `max_order_rate: int | None` (max orders per window), `order_rate_window_ns: int` (tumbling window, default 1 min). Once either trigger fires the latch is permanent — the agent is halted for the remainder of the simulation. `BaseAgentConfig` fields propagate via the config system.
-
 ---
 
 ## 4. Recommendations
@@ -113,9 +108,7 @@ The current agent roster is **minimal for academic simulation** but **incomplete
 
 ### 4.2 Architectural Improvements
 
-1. ~~**Position limit mixin**~~: **RESOLVED.** Implemented directly in `TradingAgent` (no mixin needed — all trading agents inherit it). Constructor params: `position_limit: int | None` (symmetric `[-N, +N]`), `position_limit_clamp: bool` (clamp vs. block). Pending orders are conservatively counted. `BaseAgentConfig` fields propagate via the config system.
-
-2. **Register all agents**: The gym agents (`CoreBackgroundAgent`, `FinancialGymAgent`) are not registered in the config system. For deployment, every agent type should be configurable declaratively.
+1. **Register all agents**: The gym agents (`CoreBackgroundAgent`, `FinancialGymAgent`) are not registered in the config system. For deployment, every agent type should be configurable declaratively.
 
 ---
 
@@ -226,22 +219,45 @@ Agents access the oracle via `self.kernel.oracle` in their `kernel_starting()` o
 
 3. **ExternalDataOracle not compilable**: The `NotImplementedError` at `compiler.py:213` blocks the most production-relevant oracle from declarative configuration. This forces users into manual `compile()` + injection workflows.
 
+4. **Oracle is implicitly mandatory**: `MarketConfig.oracle` defaults to `SparseMeanRevertingOracleConfig()`, so every simulation silently includes an oracle even though only 2 of 6 agents use it. Simulations with only LOB-based agents (Noise + Momentum + AMM) shouldn't require an oracle, but the implicit default hides this unnecessary coupling.
+
+5. **ValueAgent parameter duplication with silent misalignment**: ValueAgent's Bayesian model parameters (`r_bar`, `kappa`, `sigma_s`) are independent copies of what the oracle may use, with different defaults across three layers:
+
+   | Param | Oracle (SparseMR) default | ValueAgentConfig default | ValueAgent.__init__ default | Configurable in config? |
+   |-------|--------------------------|-------------------------|---------------------------|:---:|
+   | r_bar | 100,000 | 100,000 | 100,000 | Yes |
+   | kappa | 1.67e-16 | 1.67e-15 (10×) | 0.05 (!!!) | Yes |
+   | sigma_s | 0 | — | 100,000 (!!!) | **NO** |
+   | sigma_n | N/A | r_bar/100 | 10,000 | Yes |
+
+   The `kappa` 10× discrepancy between oracle and ValueAgentConfig is particularly insidious: it means the agent's prior belief about mean-reversion speed silently differs from the generating process. `sigma_s` is hardcoded in `ValueAgent.__init__` at 100,000 but not exposed as a config field at all, making it impossible to calibrate through the config system.
+
+6. **Dead code in AgentCreationContext**: `AgentCreationContext.oracle_r_bar` is populated by the compiler at `compiler.py:71` but never read by any agent config. It was intended for ValueAgent auto-derivation that was never implemented.
+
+7. **ExternalDataOracleConfig pretends file I/O**: `ExternalDataOracleConfig.data_path` implies the framework will load external data files, but the compiler raises `NotImplementedError`. The framework should not do file I/O — external data injection should be handled by the user building an oracle instance and injecting it.
+
 ---
 
 ## 6. Oracle Recommendations
 
-### 6.1 Immediate Fixes
+### 6.1 Oracle Redesign (IMPLEMENTED in v2.2.0)
 
-| Fix | File | Detail |
-|-----|------|--------|
-| Implement `ExternalDataOracleConfig` compilation | `compiler.py:212-217` | Load CSV/Parquet from `data_path`, construct `DataFrameProvider`, pass to `ExternalDataOracle`. |
+The following changes make oracle configuration explicit and fix ValueAgent parameter inheritance:
 
-### 6.2 Strategic Enhancements
+| Change | Type | Detail |
+|--------|:----:|--------|
+| **Oracle field is required** | BREAKING | `MarketConfig.oracle` no longer defaults to `SparseMeanRevertingOracleConfig()`. Users must explicitly set an oracle config or `None`. All templates must specify oracle. |
+| **Oracle-less simulations** | New | When `oracle=None`, simulations work with LOB-only agents (Noise, Momentum, AMM, POV). Compile-time error if `ValueAgent` is enabled without oracle. `MarketConfig.opening_price` is required when `oracle=None` (provides `ExchangeAgent` seed). |
+| **ExchangeAgent decoupled from oracle when absent** | Fix | When oracle is present: behavior is unchanged (calls `get_daily_open_price()` at runtime, writes `f_log`). When oracle is absent: uses `opening_prices` dict from compiler (sourced from `MarketConfig.opening_price`). |
+| **ValueAgent auto-inherits oracle params** | Fix | `r_bar`, `kappa`, `sigma_s` auto-inherit from oracle config via `AgentCreationContext` when not explicitly set. `sigma_s` is now a configurable field in `ValueAgentConfig`. Explicit user values always win. |
+| **ExternalDataOracleConfig redesigned** | BREAKING | Removed `data_path` field (framework should not do file I/O). Now a marker type that signals oracle-instance injection. Use `SimulationBuilder.oracle_instance(oracle)` to inject pre-built oracles. |
+| **Dead code resurrected** | Fix | `AgentCreationContext.oracle_r_bar` is now used by `ValueAgentConfig._prepare_constructor_kwargs()`. Extended with `oracle_kappa` and `oracle_sigma_s`. |
+
+### 6.2 Strategic Enhancements (Future)
 
 | Enhancement | Priority | Detail |
 |-------------|:--------:|--------|
 | Oracle event subscription API | P1 | Allow agents to register for discrete information shocks (megashocks, earnings). The oracle emits `OracleEventMsg(symbol, event_type, magnitude)` to subscribed agents with per-subscriber delay/noise (natural information asymmetry model). Enables the `InformedTraderAgent` pattern described in §4.1 and unlocks adversarial stress testing scenarios. Delivery via kernel-routed messages (consistent with ABIDES event model) adds natural latency modeling. |
-| `ValueAgentConfig` auto-derive `r_bar` | P1 | `_prepare_constructor_kwargs()` should extract `r_bar` from the oracle config, eliminating parameter duplication and misalignment risk. |
 | Optional AMM fundamental anchor | P2 | Some sophisticated real-world MMs (Citadel, Virtu) incorporate fundamental views to reduce inventory risk. An optional `use_oracle: bool = False` on `AdaptiveMarketMakerAgent` that blends `alpha * oracle_obs + (1-alpha) * lob_mid` would add realism for specific scenarios. Default off — the current LOB-mid quoting is correct for most MMs. |
 | Multi-symbol correlation | P2 | Current oracles generate independent series per symbol. Add covariance structure (e.g., Cholesky-decomposed correlated OU processes) for realistic cross-asset modeling. |
 | Built-in CSV/Parquet providers | P2 | Ship `CsvProvider` and `ParquetProvider` alongside `DataFrameProvider` to cover the most common external data ingestion patterns without user boilerplate. |
