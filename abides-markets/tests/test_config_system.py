@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from pydantic import ValidationError
 
 from abides_markets.config_system import (
     SimulationBuilder,
@@ -76,8 +77,8 @@ class TestRegistry:
 
 class TestModels:
     def test_default_simulation_config(self):
-        """SimulationConfig with all defaults should be valid."""
-        config = SimulationConfig()
+        """SimulationConfig with explicit oracle should be valid."""
+        config = SimulationConfig(market={"oracle": {"type": "sparse_mean_reverting"}})
         assert config.market.ticker == "ABM"
         assert config.infrastructure.default_computation_delay == 50
 
@@ -236,14 +237,27 @@ class TestCompiler:
         oracle = runtime["custom_properties"]["oracle"]
         assert oracle is not None
 
-    def test_compile_empty_agents(self):
-        """Should work with no agents enabled (just the exchange)."""
+    def test_compile_empty_agents_with_oracle(self):
+        """Should work with no agents enabled (just the exchange) and an oracle."""
         config = SimulationConfig(
+            market={"oracle": {"type": "sparse_mean_reverting"}},
             simulation={"seed": 42},
         )
         runtime = compile(config)
         assert len(runtime["agents"]) == 1  # just exchange
         assert runtime["agents"][0].type == "ExchangeAgent"
+
+    def test_compile_empty_agents_no_oracle(self):
+        """Should work with no agents and no oracle when opening_price is set."""
+        config = SimulationConfig(
+            market={"oracle": None, "opening_price": 100_000},
+            simulation={"seed": 42},
+        )
+        runtime = compile(config)
+        assert len(runtime["agents"]) == 1  # just exchange
+        assert runtime["agents"][0].type == "ExchangeAgent"
+        # Oracle should not be in custom_properties
+        assert "oracle" not in runtime["custom_properties"]
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +355,12 @@ class TestDiscoverability:
         assert "simulation" in schema["properties"]
 
     def test_validate_config_valid(self):
-        result = validate_config({"simulation": {"seed": 42}})
+        result = validate_config(
+            {
+                "market": {"oracle": {"type": "sparse_mean_reverting"}},
+                "simulation": {"seed": 42},
+            }
+        )
         assert result["valid"] is True
 
     def test_validate_config_invalid(self):
@@ -688,11 +707,13 @@ class TestModelValidation:
         assert meta.log_orders is True
 
     def test_market_config_defaults(self):
-        market = MarketConfig()
+        market = MarketConfig(oracle=None, opening_price=100_000)
         assert market.ticker == "ABM"
         assert market.date == "20210205"
         assert market.start_time == "09:30:00"
         assert market.end_time == "10:00:00"
+        assert market.oracle is None
+        assert market.opening_price == 100_000
 
 
 # ---------------------------------------------------------------------------
@@ -947,6 +968,8 @@ class TestAutoGenCreateAgents:
             mkt_close=36_000_000_000_000,
             log_orders=False,
             oracle_r_bar=200_000,
+            oracle_kappa=1.67e-16,
+            oracle_sigma_s=0,
             date_ns=0,
         )
         rng = np.random.RandomState(42)
@@ -997,6 +1020,8 @@ class TestAutoGenCreateAgents:
             mkt_close=36_000_000_000_000,
             log_orders=False,
             oracle_r_bar=100_000,
+            oracle_kappa=1.67e-16,
+            oracle_sigma_s=0,
             date_ns=0,
         )
         rng = np.random.RandomState(42)
@@ -1019,6 +1044,8 @@ class TestAutoGenCreateAgents:
             mkt_close=36_000_000_000_000,
             log_orders=True,
             oracle_r_bar=100_000,
+            oracle_kappa=1.67e-16,
+            oracle_sigma_s=0,
             date_ns=0,
         )
         rng = np.random.RandomState(42)
@@ -1178,3 +1205,301 @@ class TestEagerValidation:
         )
         with pytest.raises(ValueError):
             builder.build()
+
+
+# ---------------------------------------------------------------------------
+# Oracle redesign tests
+# ---------------------------------------------------------------------------
+
+
+class TestOracleOptional:
+    """Tests for oracle-optional simulation support."""
+
+    def test_oracle_none_with_opening_price(self):
+        """Config with oracle=None and opening_price should be valid."""
+        config = SimulationConfig(
+            market={"oracle": None, "opening_price": 100_000},
+            simulation={"seed": 42},
+        )
+        assert config.market.oracle is None
+        assert config.market.opening_price == 100_000
+
+    def test_oracle_required_field(self):
+        """MarketConfig should require oracle to be explicitly set."""
+        with pytest.raises(ValidationError):
+            MarketConfig()
+
+    def test_compile_no_oracle_no_opening_price_raises(self):
+        """Compile should raise when oracle is None and opening_price is missing."""
+        config = SimulationConfig(
+            market={"oracle": None},
+            simulation={"seed": 42},
+        )
+        with pytest.raises(ValueError, match="opening_price"):
+            compile(config)
+
+    def test_compile_no_oracle_with_opening_price(self):
+        """Compile should succeed when oracle=None and opening_price is set."""
+        config = SimulationConfig(
+            market={"oracle": None, "opening_price": 100_000},
+            simulation={"seed": 42},
+        )
+        runtime = compile(config)
+        assert "oracle" not in runtime["custom_properties"]
+        assert len(runtime["agents"]) == 1  # just exchange
+
+    def test_compile_no_oracle_exchange_has_opening_prices(self):
+        """ExchangeAgent should receive opening_prices when oracle is absent."""
+        config = SimulationConfig(
+            market={"oracle": None, "opening_price": 150_000},
+            simulation={"seed": 42},
+        )
+        runtime = compile(config)
+        exchange = runtime["agents"][0]
+        assert exchange._opening_prices == {"ABM": 150_000}
+
+    def test_compile_with_oracle_exchange_no_opening_prices(self):
+        """ExchangeAgent should NOT receive opening_prices when oracle is present."""
+        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        runtime = compile(config)
+        exchange = runtime["agents"][0]
+        assert exchange._opening_prices is None
+
+    def test_compile_value_agent_no_oracle_raises(self):
+        """Compile should raise when ValueAgent is enabled and oracle is None."""
+        config = SimulationConfig(
+            market={"oracle": None, "opening_price": 100_000},
+            agents={
+                "value": {
+                    "enabled": True,
+                    "count": 5,
+                    "params": {
+                        "r_bar": 100_000,
+                        "kappa": 1.67e-16,
+                        "sigma_s": 0,
+                    },
+                },
+            },
+            simulation={"seed": 42},
+        )
+        with pytest.raises(ValueError, match="ValueAgent requires an oracle"):
+            compile(config)
+
+    def test_compile_oracle_less_lob_agents_only(self):
+        """Simulation with only LOB-based agents should work without oracle."""
+        config = SimulationConfig(
+            market={"oracle": None, "opening_price": 100_000},
+            agents={
+                "noise": {"enabled": True, "count": 50, "params": {}},
+                "momentum": {"enabled": True, "count": 5, "params": {}},
+            },
+            simulation={"seed": 42},
+        )
+        runtime = compile(config)
+        assert "oracle" not in runtime["custom_properties"]
+        # 1 exchange + 50 noise + 5 momentum = 56
+        assert len(runtime["agents"]) == 56
+
+
+class TestValueAgentAutoInheritance:
+    """Tests for ValueAgent parameter auto-inheritance from oracle."""
+
+    def test_auto_inherit_all_from_oracle(self):
+        """ValueAgent should auto-inherit r_bar, kappa, sigma_s from oracle context."""
+        from abides_markets.agents import ValueAgent
+        from abides_markets.config_system.agent_configs import (
+            AgentCreationContext,
+            ValueAgentConfig,
+        )
+
+        config = ValueAgentConfig()  # all None — should inherit
+        context = AgentCreationContext(
+            ticker="ABM",
+            mkt_open=34_200_000_000_000,
+            mkt_close=36_000_000_000_000,
+            log_orders=False,
+            oracle_r_bar=200_000,
+            oracle_kappa=3e-16,
+            oracle_sigma_s=500,
+            date_ns=0,
+        )
+        rng = np.random.RandomState(42)
+        agents = config.create_agents(
+            count=1, id_start=1, master_rng=rng, context=context
+        )
+        agent = agents[0]
+        assert isinstance(agent, ValueAgent)
+        assert agent.r_bar == 200_000
+        assert agent.kappa == 3e-16
+        assert agent.sigma_s == 500
+        assert agent.sigma_n == 2000.0  # 200_000 / 100
+
+    def test_explicit_override_wins(self):
+        """Explicit ValueAgent params should override oracle context."""
+        from abides_markets.config_system.agent_configs import (
+            AgentCreationContext,
+            ValueAgentConfig,
+        )
+
+        config = ValueAgentConfig(
+            r_bar=300_000,
+            kappa=0.01,
+            sigma_s=999,
+            sigma_n=5000,
+        )
+        context = AgentCreationContext(
+            ticker="ABM",
+            mkt_open=34_200_000_000_000,
+            mkt_close=36_000_000_000_000,
+            log_orders=False,
+            oracle_r_bar=100_000,
+            oracle_kappa=1.67e-16,
+            oracle_sigma_s=0,
+            date_ns=0,
+        )
+        rng = np.random.RandomState(42)
+        agents = config.create_agents(
+            count=1, id_start=1, master_rng=rng, context=context
+        )
+        agent = agents[0]
+        assert agent.r_bar == 300_000
+        assert agent.kappa == 0.01
+        assert agent.sigma_s == 999
+        assert agent.sigma_n == 5000
+
+    def test_missing_oracle_and_no_explicit_raises(self):
+        """ValueAgent with no oracle context and no explicit params should raise."""
+        from abides_markets.config_system.agent_configs import (
+            AgentCreationContext,
+            ValueAgentConfig,
+        )
+
+        config = ValueAgentConfig()  # all None
+        context = AgentCreationContext(
+            ticker="ABM",
+            mkt_open=34_200_000_000_000,
+            mkt_close=36_000_000_000_000,
+            log_orders=False,
+            oracle_r_bar=None,
+            oracle_kappa=None,
+            oracle_sigma_s=None,
+            date_ns=0,
+        )
+        rng = np.random.RandomState(42)
+        with pytest.raises(ValueError, match="r_bar is None"):
+            config.create_agents(count=1, id_start=1, master_rng=rng, context=context)
+
+    def test_compile_auto_inherits_from_oracle_config(self):
+        """Full compile should auto-inherit ValueAgent params from oracle config.
+
+        Uses a builder without template to avoid template's explicit r_bar/kappa
+        in value agent params (which would override auto-inheritance).
+        """
+        config = (
+            SimulationBuilder()
+            .market(
+                ticker="ABM",
+                date="20210205",
+                start_time="09:30:00",
+                end_time="10:00:00",
+            )
+            .oracle(
+                type="sparse_mean_reverting", r_bar=250_000, kappa=5e-16, sigma_s=100
+            )
+            .enable_agent("noise", count=10)
+            .enable_agent("value", count=2)  # no explicit r_bar/kappa/sigma_s
+            .seed(42)
+            .build()
+        )
+        runtime = compile(config)
+        # Find a ValueAgent
+        value_agents = [a for a in runtime["agents"] if a.type == "ValueAgent"]
+        assert len(value_agents) == 2
+        va = value_agents[0]
+        assert va.r_bar == 250_000
+        assert va.kappa == 5e-16
+        assert va.sigma_s == 100
+        assert va.sigma_n == 2500.0  # 250_000 / 100
+
+
+class TestBuilderOracleDesign:
+    """Tests for builder oracle methods."""
+
+    def test_oracle_type_none_disables(self):
+        """builder.oracle(type=None) should set oracle to None."""
+        builder = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .oracle(type=None)
+            .market(opening_price=100_000)
+            .disable_agent("value")
+            .seed(42)
+        )
+        config = builder.build()
+        assert config.market.oracle is None
+
+    def test_builder_value_agent_no_oracle_raises(self):
+        """Builder.build() should raise when ValueAgent is enabled and no oracle."""
+        builder = (
+            SimulationBuilder()
+            .oracle(type=None)
+            .market(opening_price=100_000)
+            .enable_agent("value", count=10)
+            .seed(42)
+        )
+        with pytest.raises(ValueError, match="ValueAgent requires an oracle"):
+            builder.build()
+
+    def test_builder_no_oracle_no_opening_price_raises(self):
+        """Builder.build() should raise when no oracle and no opening_price."""
+        builder = (
+            SimulationBuilder()
+            .oracle(type=None)
+            .enable_agent("noise", count=10)
+            .seed(42)
+        )
+        with pytest.raises(ValueError, match="opening_price"):
+            builder.build()
+
+    def test_oracle_instance_injection(self):
+        """oracle_instance() should inject a pre-built oracle."""
+        # Build an oracle manually
+        import pandas as pd
+
+        from abides_core.utils import str_to_ns
+        from abides_markets.oracles import SparseMeanRevertingOracle
+
+        date_ns = pd.to_datetime("20210205").value
+        mkt_open = date_ns + str_to_ns("09:30:00")
+        mkt_close = date_ns + str_to_ns("16:00:00")
+        oracle = SparseMeanRevertingOracle(
+            mkt_open,
+            mkt_close,
+            {
+                "ABM": {
+                    "r_bar": 100_000,
+                    "kappa": 1.67e-16,
+                    "sigma_s": 0,
+                    "fund_vol": 5e-5,
+                    "megashock_lambda_a": 2.77778e-18,
+                    "megashock_mean": 1000,
+                    "megashock_var": 50_000,
+                }
+            },
+            np.random.RandomState(42),
+        )
+
+        builder = (
+            SimulationBuilder()
+            .market(ticker="ABM", date="20210205")
+            .oracle_instance(oracle)
+            .enable_agent("noise", count=10)
+            .seed(42)
+        )
+        config = builder.build()
+        assert config.market.oracle is not None
+        assert builder.get_oracle_instance() is oracle
+
+        # Compile with oracle_instance
+        runtime = builder.build_and_compile()
+        assert runtime["custom_properties"]["oracle"] is oracle
