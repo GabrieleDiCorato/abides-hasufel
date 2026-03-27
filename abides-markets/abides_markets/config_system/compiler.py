@@ -27,12 +27,21 @@ from abides_markets.config_system.registry import registry
 from abides_markets.utils import generate_latency_model
 
 
-def compile(config: SimulationConfig) -> dict[str, Any]:
+def compile(
+    config: SimulationConfig,
+    oracle_instance: Any | None = None,
+) -> dict[str, Any]:
     """Compile a declarative SimulationConfig into a Kernel-compatible runtime dict.
 
     Each call creates **fresh** agent and oracle instances.  The returned dict
     is consumed once by ``abides.run()`` — do not reuse it.  Call ``compile()``
     again (or use ``run_simulation()``) for another run.
+
+    Args:
+        config: The validated simulation configuration.
+        oracle_instance: An optional pre-built oracle to inject (e.g. an
+            ``ExternalDataOracle``).  When provided, this oracle is used
+            instead of building one from the config's oracle section.
 
     The output dict matches the format returned by ``rmsc04.build_config()``::
 
@@ -43,7 +52,7 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
             "agents": List[Agent],
             "agent_latency_model": LatencyModel,
             "default_computation_delay": int,
-            "custom_properties": {"oracle": Oracle},
+            "custom_properties": {"oracle": Oracle} | {},
             "random_state_kernel": np.random.RandomState,
             "stdout_log_level": str,
         }
@@ -62,19 +71,36 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
     mkt_close: NanosecondTime = date_ns + str_to_ns(config.market.end_time)
 
     # ── Oracle ────────────────────────────────────────────────────
-    oracle_rng = np.random.RandomState(
-        seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
-    )
-    oracle = _build_oracle(config, mkt_open, mkt_close, oracle_rng)
+    if oracle_instance is not None:
+        # Pre-built oracle injected (e.g. ExternalDataOracle)
+        oracle = oracle_instance
+    else:
+        oracle_rng = np.random.RandomState(
+            seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
+        )
+        oracle = _build_oracle(config, mkt_open, mkt_close, oracle_rng)
+
+    # ── Compile-time validation: ValueAgent requires oracle ───────
+    for agent_type_name, group in config.agents.items():
+        if not group.enabled or group.count == 0:
+            continue
+        if agent_type_name == "value" and oracle is None:
+            raise ValueError(
+                "ValueAgent requires an oracle for fundamental-value observations, "
+                "but oracle is None. Either configure an oracle in market.oracle "
+                "or remove ValueAgent from the simulation."
+            )
 
     # ── Create shared context for agent factories ─────────────────
-    oracle_r_bar = _get_oracle_r_bar(config)
+    oracle_r_bar, oracle_kappa, oracle_sigma_s = _get_oracle_params(config)
     context = AgentCreationContext(
         ticker=config.market.ticker,
         mkt_open=mkt_open,
         mkt_close=mkt_close,
         log_orders=config.simulation.log_orders,
         oracle_r_bar=oracle_r_bar,
+        oracle_kappa=oracle_kappa,
+        oracle_sigma_s=oracle_sigma_s,
         date_ns=date_ns,
     )
 
@@ -85,6 +111,17 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
 
     # Exchange is always agent id=0
     exc = config.market.exchange
+
+    # When oracle is absent, ExchangeAgent needs opening_prices from config.
+    exchange_opening_prices: dict[str, int] | None = None
+    if oracle is None:
+        if config.market.opening_price is None:
+            raise ValueError(
+                "When oracle is None, market.opening_price must be set to provide "
+                "the ExchangeAgent with a seed price (integer cents, e.g. 10_000 = $100.00)."
+            )
+        exchange_opening_prices = {config.market.ticker: config.market.opening_price}
+
     agents.append(
         ExchangeAgent(
             id=0,
@@ -102,6 +139,7 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
             random_state=np.random.RandomState(
                 seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
             ),
+            opening_prices=exchange_opening_prices,
         )
     )
     agent_count += 1
@@ -149,6 +187,10 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
     kernel_start = date_ns
     kernel_stop = mkt_close + str_to_ns("1s")
 
+    custom_properties: dict[str, Any] = {}
+    if oracle is not None:
+        custom_properties["oracle"] = oracle
+
     runtime: dict[str, Any] = {
         "seed": seed,
         "start_time": kernel_start,
@@ -156,7 +198,7 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
         "agents": agents,
         "agent_latency_model": latency_model,
         "default_computation_delay": config.infrastructure.default_computation_delay,
-        "custom_properties": {"oracle": oracle},
+        "custom_properties": custom_properties,
         "random_state_kernel": random_state_kernel,
         "stdout_log_level": config.simulation.log_level,
     }
@@ -173,8 +215,14 @@ def compile(config: SimulationConfig) -> dict[str, Any]:
 
 
 def _build_oracle(config, mkt_open, mkt_close, oracle_rng):
-    """Construct the oracle from the config's oracle section."""
+    """Construct the oracle from the config's oracle section.
+
+    Returns None when oracle config is None (oracle-less simulation).
+    """
     oc = config.market.oracle
+
+    if oc is None:
+        return None
 
     if isinstance(oc, SparseMeanRevertingOracleConfig):
         from abides_markets.oracles import SparseMeanRevertingOracle
@@ -210,18 +258,20 @@ def _build_oracle(config, mkt_open, mkt_close, oracle_rng):
         return MeanRevertingOracle(mkt_open, mkt_close, symbols, oracle_rng)
 
     elif isinstance(oc, ExternalDataOracleConfig):
-
-        raise NotImplementedError(
-            "ExternalDataOracle loading from data_path is not yet implemented. "
-            "Use compile() with a pre-built oracle injected via custom_properties."
+        raise ValueError(
+            "ExternalDataOracleConfig is a marker type — it cannot be compiled "
+            "directly.  Use SimulationBuilder.oracle_instance() to inject a "
+            "pre-built ExternalDataOracle."
         )
     else:
         raise ValueError(f"Unknown oracle type: {type(oc)}")
 
 
-def _get_oracle_r_bar(config) -> int:
-    """Extract r_bar from oracle config for derived parameters."""
+def _get_oracle_params(
+    config,
+) -> tuple[int | None, float | None, float | None]:
+    """Extract r_bar, kappa, sigma_s from oracle config for ValueAgent auto-inheritance."""
     oc = config.market.oracle
     if isinstance(oc, (SparseMeanRevertingOracleConfig, MeanRevertingOracleConfig)):
-        return oc.r_bar
-    return 100_000  # default fallback
+        return oc.r_bar, oc.kappa, oc.sigma_s
+    return None, None, None

@@ -171,6 +171,7 @@ class ExchangeAgent(FinancialAgent):
         stream_history: int = 0,
         log_orders: bool = False,
         use_metric_tracker: bool = True,
+        opening_prices: dict[str, int] | None = None,
     ) -> None:
         super().__init__(id, name, type, random_state)
 
@@ -227,6 +228,9 @@ class ExchangeAgent(FinancialAgent):
         # (this is most likely all agents)
         self.market_close_price_subscriptions: list[int] = []
 
+        # Fallback opening prices when no oracle is present (set by compiler).
+        self._opening_prices: dict[str, int] | None = opening_prices
+
     def kernel_initializing(self, kernel: "Kernel") -> None:
         """
         The exchange agent overrides this to obtain a reference to an oracle.
@@ -234,6 +238,9 @@ class ExchangeAgent(FinancialAgent):
         This is needed to establish a "last trade price" at open (i.e. an opening
         price) in case agents query last trade before any simulated trades are made.
         This can probably go away once we code the opening cross auction.
+
+        When no oracle is present (oracle-less simulation), the exchange falls back
+        to ``opening_prices`` provided at construction time by the compiler.
 
         Arguments:
           kernel: The ABIDES kernel that this agent instance belongs to.
@@ -243,19 +250,33 @@ class ExchangeAgent(FinancialAgent):
 
         assert self.kernel is not None
 
-        self.oracle = self.kernel.oracle
+        self.oracle = getattr(self.kernel, "oracle", None)
 
         # Obtain opening prices (in integer cents).  These are not noisy right now.
         for symbol in self.order_books:
-            try:
-                self.order_books[symbol].last_trade = self.oracle.get_daily_open_price(
-                    symbol, self.mkt_open
-                )
+            if self.oracle is not None:
+                # Oracle-present path: use oracle to get opening price (unchanged).
+                try:
+                    self.order_books[symbol].last_trade = (
+                        self.oracle.get_daily_open_price(symbol, self.mkt_open)
+                    )
+                    logger.debug(
+                        f"Opening price for {symbol} is {self.order_books[symbol].last_trade}"
+                    )
+                except AttributeError as e:
+                    logger.debug(str(e))
+            elif self._opening_prices is not None and symbol in self._opening_prices:
+                # Oracle-absent path: use opening_prices from config.
+                self.order_books[symbol].last_trade = self._opening_prices[symbol]
                 logger.debug(
-                    f"Opening price for {symbol} is {self.order_books[symbol].last_trade}"
+                    f"Opening price for {symbol} (from config) is "
+                    f"{self.order_books[symbol].last_trade}"
                 )
-            except AttributeError as e:
-                logger.debug(str(e))
+            else:
+                raise ValueError(
+                    f"No opening price source for symbol '{symbol}'. "
+                    "Either provide an oracle or set opening_prices in the market config."
+                )
 
         # Set a wakeup for the market close so we can send market close price messages.
         self.set_wakeup(self.mkt_close)
@@ -290,7 +311,7 @@ class ExchangeAgent(FinancialAgent):
 
         # If the oracle supports writing the fundamental value series for its
         # symbols, write them to disk.
-        if self.oracle.f_log:
+        if self.oracle is not None and self.oracle.f_log:
             for symbol in self.oracle.f_log:
                 dfFund = pd.DataFrame(self.oracle.f_log[symbol])
                 if not dfFund.empty:

@@ -35,8 +35,10 @@ class AgentCreationContext:
     mkt_open: NanosecondTime
     mkt_close: NanosecondTime
     log_orders: bool
-    oracle_r_bar: int  # for derived params like SIGMA_N
+    oracle_r_bar: int | None  # auto-inherited by ValueAgent when not explicitly set
     date_ns: NanosecondTime = 0  # date component in nanoseconds
+    oracle_kappa: float | None = None  # auto-inherited by ValueAgent
+    oracle_sigma_s: float | None = None  # auto-inherited by ValueAgent
 
 
 # ---------------------------------------------------------------------------
@@ -243,15 +245,58 @@ class NoiseAgentConfig(BaseAgentConfig):
 # Value Agent
 # ---------------------------------------------------------------------------
 class ValueAgentConfig(BaseAgentConfig):
-    """Configuration for ValueAgent — Bayesian learner that estimates fundamental value."""
+    """Configuration for ValueAgent — Bayesian learner that estimates fundamental value.
 
-    r_bar: int = Field(
-        default=100_000,
-        description="True mean fundamental value in cents.",
+    **Financial meaning**: The ValueAgent is an *informed trader* that observes
+    noisy signals of the true fundamental price from the oracle and maintains
+    a Bayesian posterior estimate.  Its parameters define the prior belief and
+    observation quality:
+
+    - ``r_bar``: The agent's prior mean for the fundamental price (in integer
+      cents, e.g. $100.00 = 10_000).  Typically matches the oracle's ``r_bar``
+      so the agent's prior is centered on the true long-run mean.  Auto-inherited
+      from the oracle config when ``None``.
+    - ``kappa``: Mean-reversion speed — how quickly the agent's belief reverts to
+      ``r_bar``.  A larger kappa means the agent trusts the long-run mean more
+      relative to recent observations.  Auto-inherited from the oracle config
+      when ``None``.
+    - ``sigma_s``: Variance of fundamental price shocks in the agent's model.
+      Controls how much the agent expects the fundamental to move per unit time.
+      Auto-inherited from the oracle config when ``None``.
+    - ``sigma_n``: Observation noise variance — how noisy the agent's oracle
+      observations are.  This is agent-specific (different agents can have
+      different observation quality) and defaults to ``r_bar / 100``.
+    - ``lambda_a``: Poisson arrival rate for the agent's wakeup schedule
+      (per nanosecond).
+
+    **Parameter inheritance**: When ``r_bar``, ``kappa``, or ``sigma_s`` are
+    ``None``, they are auto-inherited from the oracle config at compile time.
+    This ensures the agent's prior matches the generating process by default.
+    Explicit values always take precedence.
+    """
+
+    r_bar: int | None = Field(
+        default=None,
+        description=(
+            "Prior mean fundamental value in cents.  None = auto-inherit "
+            "from oracle config (recommended).  E.g. $100.00 = 10_000."
+        ),
     )
-    kappa: float = Field(
-        default=1.67e-15,
-        description="Mean-reversion coefficient for agent's appraisal.",
+    kappa: float | None = Field(
+        default=None,
+        description=(
+            "Mean-reversion speed for the agent's Bayesian prior.  None = "
+            "auto-inherit from oracle config (recommended).  Larger values "
+            "mean stronger mean-reversion toward r_bar."
+        ),
+    )
+    sigma_s: float | None = Field(
+        default=None,
+        description=(
+            "Fundamental shock variance in the agent's model.  None = "
+            "auto-inherit from oracle config (recommended).  Controls how "
+            "much price movement the agent expects per unit time."
+        ),
     )
     lambda_a: float = Field(
         default=5.7e-12,
@@ -259,7 +304,11 @@ class ValueAgentConfig(BaseAgentConfig):
     )
     sigma_n: int | None = Field(
         default=None,
-        description="Observation noise variance. Defaults to r_bar / 100.",
+        description=(
+            "Observation noise variance (agent-specific — NOT inherited "
+            "from oracle).  Defaults to r_bar / 100.  Larger values mean "
+            "noisier observations; 0 means perfect information."
+        ),
     )
     depth_spread: int = Field(
         default=2,
@@ -270,8 +319,46 @@ class ValueAgentConfig(BaseAgentConfig):
     def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):
         from abides_markets.models import OrderSizeModel
 
+        # Auto-inherit r_bar from oracle if not explicitly set
+        r_bar = self.r_bar
+        if r_bar is None:
+            if context.oracle_r_bar is not None:
+                r_bar = context.oracle_r_bar
+            else:
+                raise ValueError(
+                    "ValueAgentConfig.r_bar is None and no oracle r_bar available. "
+                    "Either set r_bar explicitly or provide an oracle with r_bar."
+                )
+        kwargs["r_bar"] = r_bar
+
+        # Auto-inherit kappa from oracle if not explicitly set
+        kappa = self.kappa
+        if kappa is None:
+            if context.oracle_kappa is not None:
+                kappa = context.oracle_kappa
+            else:
+                raise ValueError(
+                    "ValueAgentConfig.kappa is None and no oracle kappa available. "
+                    "Either set kappa explicitly or provide an oracle with kappa."
+                )
+        kwargs["kappa"] = kappa
+
+        # Auto-inherit sigma_s from oracle if not explicitly set
+        sigma_s = self.sigma_s
+        if sigma_s is None:
+            if context.oracle_sigma_s is not None:
+                sigma_s = context.oracle_sigma_s
+            else:
+                raise ValueError(
+                    "ValueAgentConfig.sigma_s is None and no oracle sigma_s available. "
+                    "Either set sigma_s explicitly or provide an oracle with sigma_s."
+                )
+        kwargs["sigma_s"] = sigma_s
+
+        # sigma_n is agent-specific: default to r_bar / 100
         if kwargs.get("sigma_n") is None:
-            kwargs["sigma_n"] = self.r_bar / 100
+            kwargs["sigma_n"] = r_bar / 100
+
         kwargs["order_size_model"] = OrderSizeModel()
         kwargs["name"] = f"Value Agent {agent_id}"
         kwargs["type"] = "ValueAgent"

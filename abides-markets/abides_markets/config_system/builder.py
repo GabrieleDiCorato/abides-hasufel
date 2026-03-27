@@ -20,6 +20,7 @@ from typing import Any, Union
 
 from abides_markets.config_system.models import SimulationConfig
 from abides_markets.config_system.templates import get_template
+from abides_markets.oracles.oracle import Oracle
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -42,6 +43,7 @@ class SimulationBuilder:
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
+        self._oracle_instance: Oracle | None = None
 
     def from_template(self, name: str) -> SimulationBuilder:
         """Deep-merge a template into the current config.
@@ -68,10 +70,41 @@ class SimulationBuilder:
         return self
 
     def oracle(self, **kwargs: Any) -> SimulationBuilder:
-        """Set oracle parameters directly (shorthand for ``.market(oracle={...})``)."""
+        """Set oracle parameters directly (shorthand for ``.market(oracle={...})``).
+
+        Call ``oracle(type=None)`` to explicitly disable the oracle for
+        oracle-less simulations (requires ``market.opening_price`` to be set).
+
+        Calling with other keywords (e.g. ``oracle(r_bar=200_000)``)
+        merges them into the existing oracle dict.
+        """
+        if "type" in kwargs and kwargs["type"] is None:
+            # Explicit oracle=None
+            market = self._data.setdefault("market", {})
+            market["oracle"] = None
+            return self
         market = self._data.setdefault("market", {})
         oracle = market.setdefault("oracle", {})
         oracle.update(kwargs)
+        return self
+
+    def oracle_instance(self, oracle: Oracle) -> SimulationBuilder:
+        """Inject a pre-built oracle instance for use at runtime.
+
+        This is the recommended path for ``ExternalDataOracle`` users:
+        build the oracle externally with your chosen ``BatchDataProvider``
+        or ``PointDataProvider``, then inject it here.  The config system
+        should use ``oracle(type="external_data")`` (or any marker) so
+        compile-time validation knows an oracle will be present.
+
+        The injected oracle is stored on the builder and merged into the
+        runtime dict during ``compile()`` (via ``build_and_compile()`` or
+        manual ``compile()`` with ``oracle_instance`` kwarg).
+        """
+        self._oracle_instance = oracle
+        # Auto-set external_data marker in config so compile knows oracle is present
+        market = self._data.setdefault("market", {})
+        market["oracle"] = {"type": "external_data"}
         return self
 
     def exchange(self, **kwargs: Any) -> SimulationBuilder:
@@ -156,9 +189,13 @@ class SimulationBuilder:
         2. Validates each agent group's params against its registered config model,
            catching unknown parameters, type errors, and missing required fields
            at build-time rather than compile-time.
+        3. Validates oracle-related constraints:
+           - ValueAgent requires an oracle (oracle must not be None).
+           - When oracle is None, opening_price must be set.
 
         Raises:
             pydantic.ValidationError: If the configuration is invalid.
+            ValueError: If semantic constraints are violated.
         """
         from abides_markets.config_system.registry import registry
 
@@ -183,7 +220,42 @@ class SimulationBuilder:
                     f"Invalid parameters for agent type '{agent_name}': {e}"
                 ) from e
 
+        # Oracle-related validation
+        oracle_present = (
+            config.market.oracle is not None or self._oracle_instance is not None
+        )
+        for agent_name, group in config.agents.items():
+            if not group.enabled or group.count == 0:
+                continue
+            if agent_name == "value" and not oracle_present:
+                raise ValueError(
+                    "ValueAgent requires an oracle for fundamental-value observations, "
+                    "but no oracle is configured. Either set market.oracle or use "
+                    "oracle_instance() to inject one."
+                )
+        if not oracle_present and config.market.opening_price is None:
+            raise ValueError(
+                "When no oracle is configured, market.opening_price must be set "
+                "to provide the ExchangeAgent with a seed price "
+                "(integer cents, e.g. 10_000 = $100.00)."
+            )
+
         return config
+
+    def get_oracle_instance(self) -> Oracle | None:
+        """Return the pre-built oracle instance, if any was injected via oracle_instance()."""
+        return self._oracle_instance
+
+    def build_and_compile(self) -> dict[str, Any]:
+        """Build, validate, and compile in one step.
+
+        Convenience method that calls ``build()`` then ``compile()``,
+        automatically passing through any pre-built oracle instance.
+        """
+        from abides_markets.config_system.compiler import compile as compile_config
+
+        config = self.build()
+        return compile_config(config, oracle_instance=self._oracle_instance)
 
     def to_dict(self) -> dict[str, Any]:
         """Return the raw config dict (before validation)."""

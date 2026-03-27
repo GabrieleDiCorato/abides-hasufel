@@ -52,14 +52,16 @@ class MeanRevertingOracleConfig(BaseModel):
 
 
 class ExternalDataOracleConfig(BaseModel):
-    """Oracle backed by external data (historical, CGAN, etc.)."""
+    """Oracle backed by external data (historical, CGAN, etc.).
+
+    This is a marker config type signalling that the oracle will be injected
+    at runtime via ``SimulationBuilder.oracle_instance()``.  The framework
+    does not perform file I/O — the user is responsible for constructing an
+    ``ExternalDataOracle`` with their chosen ``BatchDataProvider`` or
+    ``PointDataProvider`` and passing it to the builder.
+    """
 
     type: Literal["external_data"] = "external_data"
-    data_path: str = Field(description="Path to the data file (CSV/Parquet).")
-    interpolation: str = Field(
-        default="forward_fill",
-        description="Interpolation strategy: 'forward_fill', 'nearest', 'linear'.",
-    )
 
 
 OracleConfig = Union[
@@ -102,10 +104,23 @@ class MarketConfig(BaseModel):
     date: str = Field(default="20210205", description="Simulation date (YYYYMMDD).")
     start_time: str = Field(default="09:30:00", description="Market open time.")
     end_time: str = Field(default="10:00:00", description="Market close time.")
-    oracle: OracleConfig = Field(
-        default_factory=SparseMeanRevertingOracleConfig,
-        description="Oracle configuration.",
-        discriminator="type",
+    oracle: OracleConfig | None = Field(
+        description=(
+            "Oracle configuration.  Set to an OracleConfig to enable a "
+            "fundamental-value oracle (required for ValueAgent).  Set to "
+            "None for oracle-less simulations using only LOB-based agents "
+            "(Noise, Momentum, AMM, POV).  There is no default — this "
+            "field must be set explicitly."
+        ),
+    )
+    opening_price: int | None = Field(
+        default=None,
+        description=(
+            "Opening price in integer cents (e.g. $100.00 = 10_000).  "
+            "Required when oracle is None — provides the ExchangeAgent's "
+            "seed price.  Ignored when an oracle is present (the oracle "
+            "provides opening prices via get_daily_open_price())."
+        ),
     )
     exchange: ExchangeConfig = Field(
         default_factory=ExchangeConfig,

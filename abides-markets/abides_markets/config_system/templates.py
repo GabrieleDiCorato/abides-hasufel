@@ -101,6 +101,18 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
         },
     },
     "liquid_market": {
+        "market": {
+            "oracle": {
+                "type": "sparse_mean_reverting",
+                "r_bar": 100_000,
+                "kappa": 1.67e-16,
+                "sigma_s": 0,
+                "fund_vol": 5e-5,
+                "megashock_lambda_a": 2.77778e-18,
+                "megashock_mean": 1000,
+                "megashock_var": 50_000,
+            },
+        },
         "agents": {
             "noise": {"enabled": True, "count": 5000, "params": {}},
             "value": {"enabled": True, "count": 200, "params": {}},
@@ -109,6 +121,18 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
         },
     },
     "thin_market": {
+        "market": {
+            "oracle": {
+                "type": "sparse_mean_reverting",
+                "r_bar": 100_000,
+                "kappa": 1.67e-16,
+                "sigma_s": 0,
+                "fund_vol": 5e-5,
+                "megashock_lambda_a": 2.77778e-18,
+                "megashock_mean": 1000,
+                "megashock_var": 50_000,
+            },
+        },
         "agents": {
             "noise": {"enabled": True, "count": 100, "params": {}},
             "value": {"enabled": True, "count": 20, "params": {}},
