@@ -351,13 +351,6 @@ ordered by impact.
 
 ### TODO — Missing Validation Guards
 
-- [ ] **8.5 — Add model-level `oracle ↔ opening_price` coupling validator.**
-  Creating `MarketConfig(oracle=None)` directly (bypassing builder) allows the
-  invalid state `oracle=None, opening_price=None`.  Add `@model_validator` on
-  `MarketConfig`.  Also promote `start_time < end_time` from soft warning to
-  hard model-level error.
-  File: `abides-markets/abides_markets/config_system/models.py`.
-
 - [ ] **8.6 — Add time-window inversion guards in agent factories.**
   `NoiseAgentConfig` and `POVExecutionAgentConfig` compute execution windows
   from offsets that can produce empty or inverted ranges without any error.
