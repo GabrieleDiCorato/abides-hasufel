@@ -349,13 +349,6 @@ ordered by impact.
 > recalibrated after the config system was introduced.  **Fix direction: update
 > constructors to match config/rmsc04, not the reverse.**
 
-### TODO — Constructor ↔ Config Default Alignment
-
-- [ ] **8.2 — Align `ValueAgent.lambda_a` constructor default to rmsc04 value.**
-  Constructor uses `0.005`; rmsc04 and config system both use `5.7e-12` (per-nanosecond
-  Poisson rate, ≈0.0057 wakeups/sec).  The constructor value is a stale remnant.
-  File: `abides-markets/abides_markets/agents/value_agent.py`.
-
 ### TODO — Silent Data Loss & Fragile Internals
 
 - [ ] **8.3 — Fix `builder.oracle(type=None)` silent kwarg drop.**
