@@ -351,12 +351,6 @@ ordered by impact.
 
 ### TODO — Constructor ↔ Config Default Alignment
 
-- [ ] **8.1 — Align `AdaptiveMarketMakerAgent` constructor defaults to rmsc04-tuned values.**
-  Constructor defaults diverge from config/rmsc04 on 7 parameters: `pov` (0.05→0.025),
-  `min_order_size` (20→1), `window_size` (5→`"adaptive"`), `num_ticks` (20→10),
-  `level_spacing` (0.5→5.0), `spread_alpha` (0.85→0.75), `price_skew_param` (None→4).
-  File: `abides-markets/abides_markets/agents/market_makers/adaptive_market_maker_agent.py`.
-
 - [ ] **8.2 — Align `ValueAgent.lambda_a` constructor default to rmsc04 value.**
   Constructor uses `0.005`; rmsc04 and config system both use `5.7e-12` (per-nanosecond
   Poisson rate, ≈0.0057 wakeups/sec).  The constructor value is a stale remnant.
