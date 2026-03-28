@@ -1,6 +1,6 @@
 # ABIDES Agent & Product Assessment
 
-**Date**: 2026-03-26 (updated)
+**Date**: 2026-06-04 (updated)
 
 ---
 
@@ -38,7 +38,8 @@
 
 | Concern | Severity | Detail |
 |---------|:--------:|--------|
-| No position management | Design | Keeps buying/selling without any position limit or reversal logic. Can accumulate unbounded inventory. |
+| ~~No position management~~ | ~~Design~~ | **RESOLVED (v2.3.0)** — `RiskConfig` now flows through `MomentumAgent`. Position limits, circuit breakers, and per-fill P&L tracking are all available via config. |
+| No reversal logic | Design | Keeps buying/selling in trend direction without mean-reversion exit. A configurable exit strategy (trailing stop, profit target) would improve realism. |
 
 ### 2.5 AdaptiveMarketMakerAgent
 
@@ -46,7 +47,8 @@
 
 | Concern | Severity | Detail |
 |---------|:--------:|--------|
-| No P&L / risk tracking | Design | No max-position limit, no loss threshold, no end-of-day flatten. A production MM needs all of these. |
+| ~~No P&L / risk tracking~~ | ~~Design~~ | **PARTIALLY RESOLVED (v2.3.0)** — `RiskConfig` now flows through `AdaptiveMarketMakerAgent`. Position limits and circuit breakers (drawdown, order-rate) are configurable. Per-fill P&L events (`FILL_PNL`) track NAV and peak-NAV high-water mark after every fill. |
+| No end-of-day flatten | Design | A production MM should flatten inventory before close. No automatic position-closing logic exists. |
 
 ### 2.6 POVExecutionAgent
 
@@ -109,6 +111,27 @@ The current agent roster is **minimal for academic simulation** but **incomplete
 ### 4.2 Architectural Improvements
 
 1. **Register all agents**: The gym agents (`CoreBackgroundAgent`, `FinancialGymAgent`) are not registered in the config system. For deployment, every agent type should be configurable declaratively.
+
+### 4.3 Position Management & Risk Controls (IMPLEMENTED in v2.3.0)
+
+The following risk-management infrastructure has been implemented:
+
+| Change | Type | Detail |
+|--------|:----:|--------|
+| **`RiskConfig` frozen dataclass** | New | Bundles five risk parameters (`position_limit`, `position_limit_clamp`, `max_drawdown`, `max_order_rate`, `order_rate_window_ns`) into a single immutable object. Follows the `OrderSizeModel` injection pattern. |
+| **All 5 concrete agents accept `risk_config`** | Fix | `NoiseAgent`, `ValueAgent`, `MomentumAgent`, `AdaptiveMarketMakerAgent`, and `POVExecutionAgent` now forward `risk_config` to `TradingAgent`. Previously all five silently dropped position-limit and circuit-breaker params because their `super().__init__()` calls were hard-coded to 6 positional args. |
+| **Config system wiring** | Fix | `BaseAgentConfig._prepare_constructor_kwargs()` assembles a `RiskConfig` from YAML fields and injects it into all agent types. Subclass `_prepare_constructor_kwargs()` overrides now call `super()` to inherit the injection. |
+| **Per-fill P&L tracking** | New | `TradingAgent.order_executed()` now computes NAV after every fill, maintains a `_peak_nav` high-water mark, and emits a `FILL_PNL` log event with `{nav, peak_nav, symbol}`. |
+| **`last_trade` seeding** | Fix | `order_executed()` seeds `self.last_trade[symbol]` from fill price when no market data exists, ensuring `mark_to_market()` can always value held positions. Does not overwrite once real market data arrives. |
+
+**Remaining gaps:**
+
+| Gap | Priority | Detail |
+|-----|:--------:|--------|
+| End-of-day flatten for AMM | P1 | Production MMs should automatically flatten inventory before market close. |
+| Drawdown-from-peak enforcement | P2 | `_peak_nav` is tracked but drawdown is currently measured from `starting_cash`, not peak. A `max_peak_drawdown` mode would model hedge-fund style risk limits. |
+| Per-symbol position tracking in FILL_PNL | P2 | Current FILL_PNL logs NAV but not per-symbol position size. Adding `holdings[symbol]` to the event payload would help per-instrument analysis. |
+| Streaming metric queries | P2 | FILL_PNL events are logged but not queryable mid-simulation. A metric callback or aggregator would enable real-time dashboard feeds. |
 
 ---
 
@@ -256,11 +279,11 @@ The ratio of informed-to-uninformed agents is a key calibration parameter for re
 
 ## 7. Product Evaluation
 
-### 7.1 Quality Assessment (as of v2.1.0)
+### 7.1 Quality Assessment (as of v2.3.0)
 
-All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost performance bottleneck was eliminated in v2.1.0 via `replace_order()`. The full 312-test suite passes with zero warnings.
+All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost performance bottleneck was eliminated in v2.1.0 via `replace_order()`. Position management was wired through all agents in v2.3.0 via `RiskConfig`. The full 491-test suite passes with zero failures.
 
-**Remaining technical debt** is exclusively design-level (unbounded positions, hard-coded parameters, missing agent types) — no runtime crashes, data-corruption risks, or performance anti-patterns.
+**Remaining technical debt** is exclusively design-level (missing agent types, end-of-day flatten, streaming metrics) — no runtime crashes, data-corruption risks, or performance anti-patterns.
 
 ### 7.2 Fitness for Use Case 1 — Simulation Dashboard
 
@@ -271,14 +294,14 @@ All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost perfo
 | **Agent Variety** | ⚠️ Weak | Only 5 concrete trading agents. A dashboard user expects to drag-and-drop from a palette of 15–20 agent archetypes (noise, value, momentum, mean-reversion, TWAP, VWAP, POV, MM, stop-loss, iceberg, informed trader, pairs arb, etc.). The current roster covers academic microstructure but not institutional simulation. |
 | **Configurability** | ✅ Good | The `SimulationBuilder` + `@register_agent` system is well-designed for a dashboard front-end. Pydantic models provide schema introspection (`get_config_schema()`), enabling auto-generated forms. YAML/JSON serialization supports save/load. |
 | **Data Injection** | ⚠️ Partial | `ExternalDataOracle` with `BatchDataProvider`/`PointDataProvider` is architecturally solid. `ExternalDataOracleConfig` is a marker type — the dashboard must build the oracle and inject it via `SimulationBuilder.oracle_instance()`. No built-in `CsvProvider` or `ParquetProvider` — dashboard must ship its own loader. |
-| **Metrics & Observability** | ⚠️ Partial | `ExchangeAgent.MetricTracker` captures spread, volume, and book depth. `parse_logs_df` extracts event logs. But: (1) no per-agent P&L tracking except end-of-day `mark_to_market`, (2) no mid-simulation metric queries (snapshot-only at end), (3) `AdaptiveMarketMakerAgent` has no inventory or P&L metrics. For a dashboard, users expect real-time-style metric streams. |
-| **Realism** | ⚠️ Moderate | `NoiseAgent` is single-shot (unrealistic). `MomentumAgent` has no position limits (accumulates unbounded inventory). No stop-loss triggered volume. No iceberg orders. The resulting microstructure is recognizably market-like but lacks several stylized facts (e.g., volatility clustering from stop cascades, hidden liquidity). |
+| **Metrics & Observability** | ⚠️ Partial | `ExchangeAgent.MetricTracker` captures spread, volume, and book depth. `parse_logs_df` extracts event logs. Per-fill P&L tracking (`FILL_PNL` events with NAV and peak-NAV) was added in v2.3.0 for all agents. Remaining gaps: (1) no mid-simulation metric queries (snapshot-only at end), (2) no streaming metric feeds for dashboard real-time display, (3) per-agent P&L is logged but not aggregated into a `SimulationResult` summary. |
+| **Realism** | ⚠️ Moderate | `NoiseAgent` is single-shot (unrealistic). All agents now support position limits and circuit breakers via `RiskConfig` (v2.3.0), but no stop-loss triggered volume or iceberg orders. The resulting microstructure is recognizably market-like but lacks several stylized facts (e.g., volatility clustering from stop cascades, hidden liquidity). |
 | **Reproducibility** | ✅ Good | Hierarchical `RandomState` seeding ensures identical results across runs with same config. `SimulationConfig` is immutable and reusable. |
 
 **Key gaps for dashboard launch:**
 1. Ship TWAP + VWAP + StopLoss + MeanReversion agents (minimum viable palette — all LOB-only, no oracle access needed)
 2. Add continuous-trading mode to `NoiseAgent` (multi-wake with configurable frequency)
-3. Add per-agent P&L / execution quality metrics accessible from `SimulationResult`
+3. ~~Add per-agent P&L~~ (DONE — `FILL_PNL` events in v2.3.0) / execution quality metrics accessible from `SimulationResult` (still needed)
 4. Ship `InformedTraderAgent` + oracle event subscription API (unlocks adverse selection scenarios; the only new agent that requires oracle access)
 
 ### 7.3 Fitness for Use Case 2 — Agentic Adversarial Stress Testing
@@ -306,10 +329,9 @@ All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost perfo
 | Area | Maturity | Comment |
 |------|:--------:|---------|
 | Core simulation engine | **Production** | Kernel, message passing, order book, matching — well-tested and performant after v1.2.0 optimizations. |
-| Configuration system | **Production** | `SimulationBuilder`, registry, compiler, YAML/JSON — comprehensive and AI-friendly. |
-| Agent roster | **Alpha** | 5 concrete agents is insufficient for either use case. Minimum viable product needs 10–12 agent types. |
+| Configuration system | **Production** | `SimulationBuilder`, registry, compiler, YAML/JSON — comprehensive and AI-friendly. || Risk controls | **Beta** | `RiskConfig` (v2.3.0) wires position limits, circuit breakers, and per-fill P&L through all agents. Remaining: end-of-day flatten, peak-drawdown mode, streaming metrics. || Agent roster | **Alpha** | 5 concrete agents is insufficient for either use case. Minimum viable product needs 10–12 agent types. |
 | Oracle system | **Beta** | `SparseMeanRevertingOracle` is solid; informed/uninformed agent split correctly models real-market information asymmetry. `ExternalDataOracle` is injection-only by design (`SimulationBuilder.oracle_instance()`). ValueAgent auto-inherits oracle params. Missing: event subscription API for discrete information shocks (key enabler for `InformedTraderAgent`). |
 | Data extraction | **Beta** | `parse_logs_df` works but requires post-hoc reconstruction. No streaming metrics. |
 | Documentation | **Good** | Config system docs, custom agent guide, LLM gotchas, data extraction — all current and accurate. |
 
-**Bottom line**: ABIDES v2.1.0 is a **solid simulation engine with a capable config system** but an **underdeveloped agent ecosystem**. The engine is ready for production; the agent library needs 2–3 more development cycles to support the target use cases.
+**Bottom line**: ABIDES v2.3.0 is a **solid simulation engine with a capable config system and basic risk controls** but an **underdeveloped agent ecosystem**. The engine is ready for production; the agent library needs 2–3 more development cycles to support the target use cases.

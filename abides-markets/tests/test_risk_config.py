@@ -79,7 +79,7 @@ class TestRiskConfigDataclass:
     def test_frozen(self):
         rc = RiskConfig(position_limit=100)
         with pytest.raises(AttributeError):
-            rc.position_limit = 200  # type: ignore[misc]
+            rc.position_limit = 200  # type: ignore[misc,unused-ignore]
 
 
 # ===================================================================
