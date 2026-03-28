@@ -46,6 +46,7 @@ from ..messages.query import (
     QueryTransactedVolMsg,
     QueryTransactedVolResponseMsg,
 )
+from ..models.risk_config import RiskConfig
 from ..orders import LimitOrder, MarketOrder, Order, Side
 from .exchange_agent import ExchangeAgent
 from .financial_agent import FinancialAgent
@@ -77,6 +78,7 @@ class TradingAgent(FinancialAgent):
         max_drawdown: int | None = None,
         max_order_rate: int | None = None,
         order_rate_window_ns: int = 60_000_000_000,
+        risk_config: RiskConfig | None = None,
     ) -> None:
         # Base class init.
         super().__init__(id, name, type, random_state)
@@ -88,17 +90,28 @@ class TradingAgent(FinancialAgent):
         # Log order activity?
         self.log_orders: bool = log_orders
 
-        # Per-symbol position cap (None = disabled).  When set, orders that
-        # would push abs(net_position) beyond this limit are blocked or
-        # clamped depending on position_limit_clamp.
-        self.position_limit: int | None = position_limit
-        self.position_limit_clamp: bool = position_limit_clamp
+        # Risk configuration: RiskConfig takes precedence over flat params
+        # when both are supplied.  Flat params are kept for backward
+        # compatibility with code that constructs agents directly.
+        rc = risk_config
+        self.position_limit: int | None = (
+            rc.position_limit if rc is not None else position_limit
+        )
+        self.position_limit_clamp: bool = (
+            rc.position_limit_clamp if rc is not None else position_limit_clamp
+        )
+        self.max_drawdown: int | None = (
+            rc.max_drawdown if rc is not None else max_drawdown
+        )
+        self.max_order_rate: int | None = (
+            rc.max_order_rate if rc is not None else max_order_rate
+        )
+        self.order_rate_window_ns: int = (
+            rc.order_rate_window_ns if rc is not None else order_rate_window_ns
+        )
 
         # Circuit breaker: latching kill-switch that permanently halts the
         # agent when pathological behavior is detected.
-        self.max_drawdown: int | None = max_drawdown
-        self.max_order_rate: int | None = max_order_rate
-        self.order_rate_window_ns: int = order_rate_window_ns
         self._circuit_breaker_tripped: bool = False
         self._order_count_in_window: int = 0
         self._window_start: NanosecondTime | None = None
@@ -109,6 +122,10 @@ class TradingAgent(FinancialAgent):
         # cash, currently without leverage.  Taking short positions is permitted,
         # but does NOT increase the amount of at-risk capital allowed.
         self.starting_cash: int = starting_cash
+
+        # High-water mark for portfolio NAV, updated on each fill.
+        # Enables future drawdown-from-peak enforcement.
+        self._peak_nav: int = starting_cash
 
         # TradingAgent has constants to support simulated market orders.
         self.MKT_BUY = sys.maxsize
@@ -1048,6 +1065,21 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"After order execution, agent open orders: {self.orders}")
 
         self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
+
+        # Ensure mark_to_market() can value held positions.  Only seed
+        # last_trade from the fill when no market-data price exists yet;
+        # once real market data arrives, we never overwrite it.
+        if sym not in self.last_trade:
+            self.last_trade[sym] = order.fill_price
+
+        # Snapshot portfolio value for per-fill P&L tracking.
+        nav = self.mark_to_market(self.holdings)
+        if nav > self._peak_nav:
+            self._peak_nav = nav
+        self.logEvent(
+            "FILL_PNL",
+            {"nav": nav, "peak_nav": self._peak_nav, "symbol": sym},
+        )
 
         # Proactively check the circuit breaker after every fill so the
         # latch trips as soon as a fill pushes loss past the threshold.
