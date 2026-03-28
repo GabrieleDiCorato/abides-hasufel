@@ -334,3 +334,86 @@ All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost perfo
 | Documentation | **Good** | Config system docs, custom agent guide, LLM gotchas, data extraction — all current and accurate. |
 
 **Bottom line**: ABIDES v2.3.0 is a **solid simulation engine with a capable config system and basic risk controls** but an **underdeveloped agent ecosystem**. The engine is ready for production; the agent library needs 2–3 more development cycles to support the target use cases.
+
+---
+
+## 8. Config System Integrity
+
+Code review of the declarative config system revealed constructor ↔ config default
+mismatches, silent data-loss paths, and missing validation guards.  Items below are
+ordered by impact.
+
+> **Design decision**: `rmsc04.py` procedural configs use the *same* numerical values as
+> the config-system defaults.  These are the research-calibrated production values.
+> Constructor defaults in the agent classes are stale upstream (JPMC) values, never
+> recalibrated after the config system was introduced.  **Fix direction: update
+> constructors to match config/rmsc04, not the reverse.**
+
+### TODO — Constructor ↔ Config Default Alignment
+
+- [ ] **8.1 — Align `AdaptiveMarketMakerAgent` constructor defaults to rmsc04-tuned values.**
+  Constructor defaults diverge from config/rmsc04 on 7 parameters: `pov` (0.05→0.025),
+  `min_order_size` (20→1), `window_size` (5→`"adaptive"`), `num_ticks` (20→10),
+  `level_spacing` (0.5→5.0), `spread_alpha` (0.85→0.75), `price_skew_param` (None→4).
+  File: `abides-markets/abides_markets/agents/market_makers/adaptive_market_maker_agent.py`.
+
+- [ ] **8.2 — Align `ValueAgent.lambda_a` constructor default to rmsc04 value.**
+  Constructor uses `0.005`; rmsc04 and config system both use `5.7e-12` (per-nanosecond
+  Poisson rate, ≈0.0057 wakeups/sec).  The constructor value is a stale remnant.
+  File: `abides-markets/abides_markets/agents/value_agent.py`.
+
+### TODO — Silent Data Loss & Fragile Internals
+
+- [ ] **8.3 — Fix `builder.oracle(type=None)` silent kwarg drop.**
+  Calling `.oracle(type=None, r_bar=100_000)` silently discards `r_bar` because the
+  `type=None` branch returns early before updating.  Should raise `ValueError` when
+  extra kwargs are passed alongside `type=None`.
+  File: `abides-markets/abides_markets/config_system/builder.py`.
+
+- [ ] **8.4 — Make `_EXCLUDE_FROM_KWARGS` composable via set union.**
+  `NoiseAgentConfig` and `POVExecutionAgentConfig` copy-paste the base frozenset
+  instead of extending it.  A new risk field in `BaseAgentConfig` would silently
+  leak into constructor kwargs.  Fix: `BaseAgentConfig._EXCLUDE_FROM_KWARGS | frozenset({...})`.
+  File: `abides-markets/abides_markets/config_system/agent_configs.py`.
+
+### TODO — Missing Validation Guards
+
+- [ ] **8.5 — Add model-level `oracle ↔ opening_price` coupling validator.**
+  Creating `MarketConfig(oracle=None)` directly (bypassing builder) allows the
+  invalid state `oracle=None, opening_price=None`.  Add `@model_validator` on
+  `MarketConfig`.  Also promote `start_time < end_time` from soft warning to
+  hard model-level error.
+  File: `abides-markets/abides_markets/config_system/models.py`.
+
+- [ ] **8.6 — Add time-window inversion guards in agent factories.**
+  `NoiseAgentConfig` and `POVExecutionAgentConfig` compute execution windows
+  from offsets that can produce empty or inverted ranges without any error.
+  File: `abides-markets/abides_markets/config_system/agent_configs.py`.
+
+### TODO — Hidden Constructor Parameters
+
+- [ ] **8.7 — Expose hidden AMM and Momentum constructor parameters in config.**
+  `AdaptiveMarketMakerAgent` has 4 constructor params not in config: `anchor`,
+  `subscribe`, `subscribe_num_levels`, `min_imbalance`.  `MomentumAgent` has
+  `subscribe`.  Users cannot customize these via the declarative config system.
+  File: `abides-markets/abides_markets/config_system/agent_configs.py`.
+
+### TODO — Error Context & Documentation
+
+- [ ] **8.8 — Wrap compiler agent instantiation with error context.**
+  If `entry.config_model(**group.params)` or `create_agents()` raises, the error
+  message does not identify which agent type failed.
+  File: `abides-markets/abides_markets/config_system/compiler.py`.
+
+- [ ] **8.9 — Document `allow_overwrite` asymmetry in registry.**
+  `@register_agent` defaults `allow_overwrite=True` (notebook safety); direct
+  `registry.register()` defaults `False` (production safety).  Undocumented.
+  File: `abides-markets/abides_markets/config_system/registry.py`.
+
+### TODO — Test Coverage
+
+- [ ] **8.10 — Add tests for config system fixes.**
+  Missing: default-alignment parametrized test, time-window inversion tests,
+  oracle `type=None` kwarg-drop regression test, oracle injection e2e test,
+  model-level validation tests.
+  File: `abides-markets/tests/test_config_system.py`.
