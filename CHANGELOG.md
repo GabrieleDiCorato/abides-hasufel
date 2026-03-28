@@ -1,3 +1,44 @@
+2026-03 Release v2.2.1
+==================
+
+Code Quality
+------------
+
+* **snake_case method renames** — replaced remaining CamelCase methods across
+  all agents: ``placeOrder`` → ``place_order`` (NoiseAgent, ValueAgent),
+  ``updateEstimates`` → ``update_estimates`` (ValueAgent),
+  ``logL2style`` → ``log_l2_style`` (ExchangeAgent).
+* **VALID_STATES runtime validation** — ``TradingAgent`` gained a ``state``
+  property that validates assignments against a ``VALID_STATES`` frozenset.
+  Subclasses that declare ``VALID_STATES`` get instant ``ValueError`` on
+  typos; agents using non-string state (AdaptiveMarketMakerAgent) are
+  unaffected (``VALID_STATES = None`` skips validation).
+  Declared on NoiseAgent, ValueAgent, MomentumAgent, POVExecutionAgent.
+* **Standardized ``@register_agent``** — ``builtin_registrations.py``
+  converted from ``registry.register()`` to the ``register_agent()``
+  decorator pattern, matching the public API documented in the guide.
+
+Documentation
+-------------
+
+* **NoiseAgent annotated as reference implementation** — full rewrite with
+  WHY comments explaining event-driven architecture, async data flow,
+  state machine pattern, ``super().wakeup()`` guard, and ``isinstance``
+  dispatch.
+* **Auto-wired constructor params documented** — ``TradingAgent`` docstring
+  now lists the 6 parameters auto-injected by the config system.
+* **Custom Agent Guide expanded** — added §9 (copy-paste agent scaffold
+  with TODO markers), §10 (10-step agent-building checklist), and §11
+  (testing section with ``make_agent()`` and ``SimulationBuilder`` patterns).
+
+Tests
+-----
+
+* Created shared ``conftest.py`` with ``make_agent()`` helper,
+  ``StubKernel`` stand-in, and ``rmsc04_config`` session fixture.
+* Updated all test references for snake_case method renames.
+
+
 2026-03 Release v2.2.0
 ==================
 
