@@ -340,19 +340,30 @@ All 15 bugs identified in v2.0.0 have been resolved. The cancel-and-repost perfo
 ## 8. Config System Integrity
 
 Code review of the declarative config system revealed constructor ↔ config default
-mismatches, silent data-loss paths, and missing validation guards.  Items below are
-ordered by impact.
+mismatches, silent data-loss paths, and missing validation guards.  All items have
+been resolved.
 
 > **Design decision**: `rmsc04.py` procedural configs use the *same* numerical values as
 > the config-system defaults.  These are the research-calibrated production values.
-> Constructor defaults in the agent classes are stale upstream (JPMC) values, never
+> Constructor defaults in the agent classes were stale upstream (JPMC) values, never
 > recalibrated after the config system was introduced.  **Fix direction: update
 > constructors to match config/rmsc04, not the reverse.**
 
-### TODO — Test Coverage
+### Changes applied
 
-- [ ] **8.10 — Add tests for config system fixes.**
-  Missing: default-alignment parametrized test, time-window inversion tests,
-  oracle `type=None` kwarg-drop regression test, oracle injection e2e test,
-  model-level validation tests.
-  File: `abides-markets/tests/test_config_system.py`.
+1. **Constructor ↔ config default alignment** — `AdaptiveMarketMakerAgent` (7 params)
+   and `ValueAgent.lambda_a` updated to match rmsc04-tuned config values.
+2. **Silent data-loss fix** — `builder.oracle(type=None)` now rejects extra kwargs
+   instead of silently discarding them.
+3. **Composable `_EXCLUDE_FROM_KWARGS`** — Extracted `_BASE_EXCLUDE` constant;
+   subclasses extend via set union instead of copy-paste.
+4. **Model-level validators** — `MarketConfig` now rejects `oracle=None` without
+   `opening_price` and `start_time >= end_time` at construction time.
+5. **Time-window inversion guards** — `NoiseAgentConfig` and `POVExecutionAgentConfig`
+   reject inverted or empty execution windows.
+6. **Hidden params exposed** — AMM (`anchor`, `subscribe`, `subscribe_freq`,
+   `subscribe_num_levels`, `min_imbalance`) and Momentum (`subscribe`) added to config.
+7. **Compiler error context** — Agent instantiation failures now identify which
+   agent type caused the error.
+8. **Registry docs** — `allow_overwrite` asymmetry documented in module docstring.
+9. **Tests** — 11 new tests covering all fixes above.
