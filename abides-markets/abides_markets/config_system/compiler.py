@@ -150,15 +150,20 @@ def compile(
             continue
 
         entry = registry.get(agent_type_name)
-        # Validate params against the registered config model
-        agent_config = entry.config_model(**group.params)
+        try:
+            # Validate params against the registered config model
+            agent_config = entry.config_model(**group.params)
 
-        new_agents = agent_config.create_agents(
-            count=group.count,
-            id_start=agent_count,
-            master_rng=master_rng,
-            context=context,
-        )
+            new_agents = agent_config.create_agents(
+                count=group.count,
+                id_start=agent_count,
+                master_rng=master_rng,
+                context=context,
+            )
+        except Exception as exc:
+            raise type(exc)(
+                f"Error creating agent group '{agent_type_name}': {exc}"
+            ) from exc
         agents.extend(new_agents)
 
         # Record per-agent computation delay overrides
