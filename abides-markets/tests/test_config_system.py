@@ -1503,3 +1503,144 @@ class TestBuilderOracleDesign:
         # Compile with oracle_instance
         runtime = builder.build_and_compile()
         assert runtime["custom_properties"]["oracle"] is oracle
+
+
+# ---------------------------------------------------------------------------
+# Config system integrity tests (§8 fixes)
+# ---------------------------------------------------------------------------
+
+
+class TestConstructorConfigAlignment:
+    """Verify constructor defaults match config system defaults (§8.1, §8.2)."""
+
+    def test_amm_defaults_match_config(self):
+        """AdaptiveMarketMakerAgent constructor defaults should match config."""
+        from abides_markets.agents.market_makers.adaptive_market_maker_agent import (
+            AdaptiveMarketMakerAgent,
+        )
+        from abides_markets.config_system.agent_configs import (
+            AdaptiveMarketMakerConfig,
+        )
+        import inspect
+
+        config = AdaptiveMarketMakerConfig()
+        sig = inspect.signature(AdaptiveMarketMakerAgent.__init__)
+        # log_orders excluded: config uses None (inherit from context), constructor uses False
+        # wake_up_freq excluded: config stores "60s" string, constructor stores nanoseconds
+        shared_fields = (
+            set(AdaptiveMarketMakerConfig.model_fields.keys())
+            & set(sig.parameters.keys())
+        ) - {"log_orders", "wake_up_freq"}
+
+        for field_name in shared_fields:
+            config_val = getattr(config, field_name)
+            param = sig.parameters[field_name]
+            if param.default is inspect.Parameter.empty:
+                continue
+            constructor_val = param.default
+            assert config_val == constructor_val, (
+                f"AMM field '{field_name}': config={config_val!r}, "
+                f"constructor={constructor_val!r}"
+            )
+
+    def test_value_agent_lambda_a_matches_config(self):
+        """ValueAgent.lambda_a constructor default should match config."""
+        from abides_markets.agents.value_agent import ValueAgent
+        from abides_markets.config_system.agent_configs import ValueAgentConfig
+        import inspect
+
+        config = ValueAgentConfig()
+        sig = inspect.signature(ValueAgent.__init__)
+        assert sig.parameters["lambda_a"].default == config.lambda_a
+
+
+class TestOracleKwargDrop:
+    """Verify oracle(type=None) rejects extra kwargs (§8.3)."""
+
+    def test_oracle_type_none_rejects_extra_kwargs(self):
+        with pytest.raises(ValueError, match="silently discarded"):
+            SimulationBuilder().oracle(type=None, r_bar=100_000)
+
+    def test_oracle_type_none_alone_works(self):
+        builder = SimulationBuilder().oracle(type=None)
+        config = builder.market(opening_price=100_000).seed(42).build()
+        assert config.market.oracle is None
+
+
+class TestModelValidation:
+    """Verify model-level validators (§8.5)."""
+
+    def test_oracle_none_without_opening_price_rejected(self):
+        with pytest.raises(ValidationError, match="opening_price"):
+            MarketConfig(oracle=None)
+
+    def test_oracle_none_with_opening_price_accepted(self):
+        mc = MarketConfig(oracle=None, opening_price=100_000)
+        assert mc.oracle is None
+        assert mc.opening_price == 100_000
+
+    def test_time_inversion_rejected(self):
+        with pytest.raises(ValidationError, match="start_time.*before.*end_time"):
+            MarketConfig(
+                oracle={"type": "sparse_mean_reverting"},
+                start_time="16:00:00",
+                end_time="09:30:00",
+            )
+
+    def test_equal_times_rejected(self):
+        with pytest.raises(ValidationError, match="start_time.*before.*end_time"):
+            MarketConfig(
+                oracle={"type": "sparse_mean_reverting"},
+                start_time="10:00:00",
+                end_time="10:00:00",
+            )
+
+    def test_valid_times_accepted(self):
+        mc = MarketConfig(
+            oracle={"type": "sparse_mean_reverting"},
+            start_time="09:30:00",
+            end_time="16:00:00",
+        )
+        assert mc.start_time == "09:30:00"
+        assert mc.end_time == "16:00:00"
+
+
+class TestTimeWindowGuards:
+    """Verify agent factory time-window inversion guards (§8.6)."""
+
+    def test_pov_inverted_window_rejected(self):
+        """POV agent with offsets exceeding market window should fail at compile."""
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .enable_agent(
+                "pov_execution",
+                count=1,
+                pov=0.1,
+                quantity=1000,
+                direction="BID",
+                start_time_offset="05:00:00",
+                end_time_offset="05:00:00",
+            )
+            .seed(42)
+            .build()
+        )
+        with pytest.raises(RuntimeError, match="POV execution window.*inverted"):
+            compile(config)
+
+
+class TestCompilerErrorContext:
+    """Verify compiler wraps agent errors with type context (§8.8)."""
+
+    def test_bad_agent_param_includes_agent_type(self):
+        config = SimulationConfig(
+            market={"oracle": {"type": "sparse_mean_reverting"}},
+            agents={
+                "noise": AgentGroupConfig(
+                    count=1, params={"not_a_real_param": 42}
+                )
+            },
+            simulation={"seed": 42},
+        )
+        with pytest.raises(Exception, match="noise"):
+            compile(config)

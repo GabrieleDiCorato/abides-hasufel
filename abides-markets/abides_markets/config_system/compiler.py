@@ -161,7 +161,7 @@ def compile(
                 context=context,
             )
         except Exception as exc:
-            raise type(exc)(
+            raise RuntimeError(
                 f"Error creating agent group '{agent_type_name}': {exc}"
             ) from exc
         agents.extend(new_agents)
