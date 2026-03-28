@@ -50,14 +50,14 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         name: str | None = None,
         type: str | None = None,
         random_state: np.random.RandomState | None = None,
-        pov: float = 0.05,
-        min_order_size: int = 20,
+        pov: float = 0.025,
+        min_order_size: int = 1,
         window_size: (
             int | str
-        ) = 5,  # size in ticks or 'adaptive'. Will be converted in internal int | None
+        ) = "adaptive",  # size in ticks or 'adaptive'. Will be converted in internal int | None
         anchor: str = ANCHOR_MIDDLE_STR,
-        num_ticks: int = 20,
-        level_spacing: float = 0.5,
+        num_ticks: int = 10,
+        level_spacing: float = 5.0,
         wake_up_freq: NanosecondTime = 1_000_000_000,  # 1 second
         poisson_arrival: bool = True,
         subscribe: bool = False,
@@ -65,8 +65,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         subscribe_num_levels: int = 1,
         cancel_limit_delay: int = 50,
         skew_beta=0,
-        price_skew_param=None,
-        spread_alpha: float = 0.85,
+        price_skew_param=4,
+        spread_alpha: float = 0.75,
         backstop_quantity: int = 0,
         log_orders: bool = False,
         min_imbalance=0.9,
