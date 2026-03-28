@@ -2,6 +2,9 @@
 
 This module is imported by ``config_system.__init__`` to ensure all
 standard agents are available without explicit user action.
+
+For custom agents, use the ``@register_agent`` decorator directly on
+your config class — see ``ABIDES_CUSTOM_AGENT_IMPLEMENTATION_GUIDE.md``.
 """
 
 from abides_markets.agents import (
@@ -18,21 +21,25 @@ from abides_markets.config_system.agent_configs import (
     POVExecutionAgentConfig,
     ValueAgentConfig,
 )
-from abides_markets.config_system.registry import registry
+from abides_markets.config_system.registry import register_agent
 
-_BUILTIN_NAMES = frozenset(
-    {"noise", "value", "momentum", "adaptive_market_maker", "pov_execution"}
-)
+_ALREADY_REGISTERED = False
 
 
 def _register_builtins() -> None:
     """Register all built-in agent types. Safe to call multiple times."""
-    if _BUILTIN_NAMES.issubset(registry.registered_names()):
-        return  # already registered
+    global _ALREADY_REGISTERED
+    if _ALREADY_REGISTERED:
+        return
+    _ALREADY_REGISTERED = True
 
-    registry.register(
-        name="noise",
-        config_model=NoiseAgentConfig,
+    # We apply @register_agent imperatively here (rather than on the class
+    # definitions in agent_configs.py) to avoid circular imports — agent
+    # classes live in abides_markets.agents which must not import the config
+    # system.  The pattern is equivalent to the decorator form.
+
+    register_agent(
+        "noise",
         agent_class=NoiseAgent,
         category="background",
         description=(
@@ -42,11 +49,10 @@ def _register_builtins() -> None:
         requires_oracle=False,
         typical_count_range=(50, 5000),
         recommended_with=("value", "adaptive_market_maker"),
-    )
+    )(NoiseAgentConfig)
 
-    registry.register(
-        name="value",
-        config_model=ValueAgentConfig,
+    register_agent(
+        "value",
         agent_class=ValueAgent,
         category="background",
         description=(
@@ -56,11 +62,10 @@ def _register_builtins() -> None:
         requires_oracle=True,
         typical_count_range=(10, 500),
         recommended_with=("noise",),
-    )
+    )(ValueAgentConfig)
 
-    registry.register(
-        name="momentum",
-        config_model=MomentumAgentConfig,
+    register_agent(
+        "momentum",
         agent_class=MomentumAgent,
         category="strategy",
         description=(
@@ -70,11 +75,10 @@ def _register_builtins() -> None:
         requires_oracle=False,
         typical_count_range=(1, 50),
         recommended_with=("noise", "value"),
-    )
+    )(MomentumAgentConfig)
 
-    registry.register(
-        name="adaptive_market_maker",
-        config_model=AdaptiveMarketMakerConfig,
+    register_agent(
+        "adaptive_market_maker",
         agent_class=AdaptiveMarketMakerAgent,
         category="market_maker",
         description=(
@@ -85,11 +89,10 @@ def _register_builtins() -> None:
         requires_oracle=False,
         typical_count_range=(1, 5),
         recommended_with=("noise", "value"),
-    )
+    )(AdaptiveMarketMakerConfig)
 
-    registry.register(
-        name="pov_execution",
-        config_model=POVExecutionAgentConfig,
+    register_agent(
+        "pov_execution",
         agent_class=POVExecutionAgent,
         category="execution",
         description=(
@@ -99,7 +102,7 @@ def _register_builtins() -> None:
         requires_oracle=False,
         typical_count_range=(1, 1),
         recommended_with=("noise", "value", "adaptive_market_maker"),
-    )
+    )(POVExecutionAgentConfig)
 
 
 _register_builtins()
