@@ -1515,13 +1515,12 @@ class TestConstructorConfigAlignment:
 
     def test_amm_defaults_match_config(self):
         """AdaptiveMarketMakerAgent constructor defaults should match config."""
+        import inspect
+
         from abides_markets.agents.market_makers.adaptive_market_maker_agent import (
             AdaptiveMarketMakerAgent,
         )
-        from abides_markets.config_system.agent_configs import (
-            AdaptiveMarketMakerConfig,
-        )
-        import inspect
+        from abides_markets.config_system.agent_configs import AdaptiveMarketMakerConfig
 
         config = AdaptiveMarketMakerConfig()
         sig = inspect.signature(AdaptiveMarketMakerAgent.__init__)
@@ -1545,9 +1544,10 @@ class TestConstructorConfigAlignment:
 
     def test_value_agent_lambda_a_matches_config(self):
         """ValueAgent.lambda_a constructor default should match config."""
+        import inspect
+
         from abides_markets.agents.value_agent import ValueAgent
         from abides_markets.config_system.agent_configs import ValueAgentConfig
-        import inspect
 
         config = ValueAgentConfig()
         sig = inspect.signature(ValueAgent.__init__)
@@ -1567,7 +1567,7 @@ class TestOracleKwargDrop:
         assert config.market.oracle is None
 
 
-class TestModelValidation:
+class TestModelValidators:
     """Verify model-level validators (§8.5)."""
 
     def test_oracle_none_without_opening_price_rejected(self):
@@ -1636,9 +1636,7 @@ class TestCompilerErrorContext:
         config = SimulationConfig(
             market={"oracle": {"type": "sparse_mean_reverting"}},
             agents={
-                "noise": AgentGroupConfig(
-                    count=1, params={"not_a_real_param": 42}
-                )
+                "noise": AgentGroupConfig(count=1, params={"not_a_real_param": 42})
             },
             simulation={"seed": 42},
         )

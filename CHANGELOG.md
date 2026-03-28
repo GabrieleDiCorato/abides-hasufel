@@ -1,3 +1,159 @@
+2026-03 Release v2.2.0
+==================
+
+Risk Management
+---------------
+
+* **Position limits** — agents can now enforce per-symbol position caps.
+  A symmetric ``[-N, +N]`` share limit is checked before every order placement
+  (limit, market, multi-leg, and replace). Two enforcement modes:
+  reduce-only (clamp the order to the remaining headroom) or hard-block
+  (reject the order outright).
+* **Circuit breaker** — agents automatically stop trading when a drawdown
+  threshold or order-rate limit is breached. The kill-switch is latching
+  (once tripped it stays tripped) and is also checked proactively on every
+  fill, so a sudden adverse move disables the agent immediately.
+* **RiskConfig object** — the five risk parameters (position limit, clamp mode,
+  max drawdown, max order rate, rate window) are bundled in a frozen
+  ``RiskConfig`` dataclass.  It is wired through every concrete agent class
+  and auto-assembled by the config system, so risk rules declared in YAML
+  reach the agent without manual plumbing.
+* **Per-fill P&L tracking** — ``TradingAgent`` now logs a ``FILL_PNL`` event
+  after every execution with a running NAV and peak-NAV high-water mark,
+  enabling post-simulation equity-curve analysis.
+
+Oracle Redesign
+---------------
+
+* **Oracle is now a required configuration choice** — ``MarketConfig.oracle``
+  has no default. Every simulation must explicitly set an oracle or pass
+  ``oracle: null`` (oracle-absent mode). This eliminates silent fallback
+  behaviour.
+* **Oracle-absent mode** — setting ``oracle: null`` plus an explicit
+  ``opening_price`` (integer cents) produces a valid simulation without a
+  fundamental value process. Useful for replay and execution-only scenarios.
+* **ValueAgent auto-inherits oracle parameters** — ``r_bar``, ``kappa``, and
+  ``sigma_s`` are pulled from the oracle config automatically when not
+  overridden, removing a common source of parameter mismatch.
+* **ExternalDataOracle injection** — ``ExternalDataOracleConfig`` is now a
+  pure marker type (no ``data_path``). Users build the oracle instance
+  externally and inject it via ``builder.oracle_instance()`` or
+  ``compile(config, oracle_instance=...)``.
+* **Compile-time validation** — the compiler rejects ValueAgent without an
+  oracle, and the builder raises ``ValueError`` when extra kwargs are passed
+  alongside ``oracle(type=None)``.
+
+Order Management
+----------------
+
+* **Replace-order support** — ``ValueAgent`` and ``AdaptiveMarketMakerAgent``
+  now use ``replace_order()`` to amend existing orders in-place instead of
+  cancel-then-resubmit, cutting message traffic on every re-quote cycle.
+
+Config System Enhancements
+--------------------------
+
+* **Cross-agent validation** — ``SimulationBuilder.validate()`` returns a
+  structured ``ValidationResult`` that checks inter-agent consistency
+  (e.g. a ValueAgent without an oracle, inverted time windows, missing
+  exchange).
+* **Agent registry metadata** — each registered agent type now carries
+  oracle/count/dependency metadata and a category taxonomy (background,
+  execution, market-maker, …). A full manifest API is available for
+  programmatic discovery.
+* **Richer field descriptions** — config model fields carry human-readable
+  descriptions, physical-unit annotations, and Pydantic validators, making
+  schema introspection and AI-assisted configuration more reliable.
+* **Model-level validators** — ``MarketConfig`` rejects invalid combinations
+  (oracle absent without ``opening_price``, ``start_time ≥ end_time``) at
+  construction time rather than at compile time.
+* **Time-window inversion guards** — ``NoiseAgentConfig`` and
+  ``POVExecutionAgentConfig`` factories reject inverted wakeup/execution
+  windows during ``_prepare_constructor_kwargs()``.
+* **Exposed hidden agent parameters** — ``AdaptiveMarketMakerConfig`` gained
+  ``anchor``, ``subscribe``, ``subscribe_freq``, ``subscribe_num_levels``,
+  ``min_imbalance``; ``MomentumAgentConfig`` gained ``subscribe``.
+* **Compiler error context** — when agent instantiation fails, the error
+  message now includes the ``agent_type_name`` that caused the failure.
+* **Composable ``_EXCLUDE_FROM_KWARGS``** — risk-field exclusion sets use a
+  shared ``_BASE_EXCLUDE`` constant, so adding a new risk field propagates
+  to all subclass configs automatically.
+
+Constructor ↔ Config Alignment
+------------------------------
+
+* Aligned ``AdaptiveMarketMakerAgent`` constructor defaults to rmsc04-tuned
+  values (7 parameters updated).
+* Aligned ``ValueAgent.lambda_a`` default to the rmsc04 Poisson rate
+  (``5.7e-12``), replacing a stale upstream value.
+
+Simulation Analytics
+--------------------
+
+* **VWAP and execution metrics** — ``SimulationResult`` now exposes a
+  ``summary_dict()`` method and ``ExecutionMetrics`` with VWAP computation,
+  ready for dashboard consumption.
+
+Performance
+-----------
+
+* **O(1) message dispatch** — ``TradingAgent`` and ``ExchangeAgent`` replaced
+  their ``isinstance`` dispatch chains with dictionary-based dispatch, making
+  ``receive_message()`` constant-time in the number of message types.
+* **MRO-aware cached dispatch** — the dispatch table respects class
+  hierarchies, so subclass handler overrides are resolved correctly.
+* **Bounded collections** — ``MomentumAgent``'s mid-price history switched to
+  ``deque(maxlen=N)``; ``SparseMeanRevertingOracle``'s ``f_log`` is bounded
+  at 100 000 entries. Both prevent unbounded memory growth in long
+  simulations.
+* **Configurable MA windows** — ``MomentumAgent`` gained ``short_window`` and
+  ``long_window`` parameters so the moving-average look-back is no longer
+  hard-coded.
+* **Subclass-safe type checks** — ``NoiseAgent`` and ``ValueAgent`` replaced
+  ``type(self) is ...`` with ``isinstance`` for proper subclass
+  compatibility.
+* **Removed redundant deepcopy** on limit-order handling in
+  ``ExchangeAgent``.
+
+Bug Fixes
+---------
+
+* Fixed ``TradingAgent`` ``kernel_stopping`` result-accumulation pattern:
+  replaced ad-hoc ``if/else`` dict building with ``defaultdict(int)`` in
+  Kernel.
+* Fixed ``NoiseAgent`` surplus calculation to use integer-cent arithmetic
+  throughout (floor division instead of float division).
+* Fixed ``MomentumAgent`` crossover trigger comparison (``>`` → ``>=``).
+* Fixed ``AdaptiveMarketMakerAgent`` ``subscribe_freq`` type annotation
+  (``float`` → ``int`` nanoseconds).
+
+Tests
+-----
+
+* 28 circuit-breaker tests (drawdown, rate, latching, tumbling window, fill
+  trip, config propagation)
+* 44 position-limit tests (pending delta, enforcement modes, all order paths,
+  config fields)
+* 27 replace-order regression tests (ask-side, crossing, non-existent, AMM
+  diff-and-replace, ValueAgent partial-fill)
+* 16 oracle-redesign tests (oracle-absent, auto-inheritance, builder API)
+* 22 RiskConfig tests (dataclass, unpacking precedence, fill P&L, agent
+  forwarding, config injection)
+* Config-system integrity tests (constructor alignment, kwarg rejection,
+  model validators, time guards, compiler context)
+* Input-validation tests for ``MomentumAgent`` and ``ValueAgent`` parameter
+  guards
+
+Documentation
+-------------
+
+* Complete Custom Agent Implementation Guide rewrite with adapter pattern,
+  ``RiskConfig``, ``replace_order``, and config-system integration
+* Updated Copilot instructions with oracle system rules and custom-agent
+  pattern
+* Expanded Config System guide with Oracle Configuration section and examples
+
+
 2026-03 Release v2.1.0
 ==================
 
