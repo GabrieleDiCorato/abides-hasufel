@@ -351,12 +351,6 @@ ordered by impact.
 
 ### TODO — Silent Data Loss & Fragile Internals
 
-- [ ] **8.3 — Fix `builder.oracle(type=None)` silent kwarg drop.**
-  Calling `.oracle(type=None, r_bar=100_000)` silently discards `r_bar` because the
-  `type=None` branch returns early before updating.  Should raise `ValueError` when
-  extra kwargs are passed alongside `type=None`.
-  File: `abides-markets/abides_markets/config_system/builder.py`.
-
 - [ ] **8.4 — Make `_EXCLUDE_FROM_KWARGS` composable via set union.**
   `NoiseAgentConfig` and `POVExecutionAgentConfig` copy-paste the base frozenset
   instead of extending it.  A new risk field in `BaseAgentConfig` would silently
