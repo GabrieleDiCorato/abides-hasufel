@@ -7,6 +7,7 @@ from abides_core.utils import str_to_ns
 
 from ...messages.marketdata import L2SubReqMsg, MarketDataMsg
 from ...messages.query import QuerySpreadResponseMsg
+from ...models.risk_config import RiskConfig
 from ...orders import Side
 from ..trading_agent import TradingAgent
 
@@ -37,6 +38,7 @@ class MomentumAgent(TradingAgent):
         log_orders=False,
         short_window: int = 20,
         long_window: int = 50,
+        risk_config: RiskConfig | None = None,
     ) -> None:
         if short_window < 1 or long_window < 1:
             raise ValueError(
@@ -47,7 +49,15 @@ class MomentumAgent(TradingAgent):
                 f"short_window ({short_window}) must be <= long_window ({long_window})."
             )
 
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(
+            id,
+            name,
+            type,
+            random_state,
+            starting_cash,
+            log_orders,
+            risk_config=risk_config,
+        )
         self.symbol = symbol
         self.min_size = min_size  # Minimum order size
         self.max_size = max_size  # Maximum order size

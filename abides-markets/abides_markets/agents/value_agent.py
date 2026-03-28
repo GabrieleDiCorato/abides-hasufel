@@ -5,6 +5,7 @@ import numpy as np
 from abides_core import Message, NanosecondTime
 
 from ..messages.query import QuerySpreadResponseMsg
+from ..models.risk_config import RiskConfig
 from ..orders import LimitOrder, Side
 from .trading_agent import TradingAgent
 
@@ -28,6 +29,7 @@ class ValueAgent(TradingAgent):
         lambda_a: float = 0.005,
         log_orders: bool = False,
         depth_spread: int = 2,
+        risk_config: RiskConfig | None = None,
     ) -> None:
         if depth_spread < 1:
             raise ValueError(
@@ -35,7 +37,15 @@ class ValueAgent(TradingAgent):
             )
 
         # Base class init.
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(
+            id,
+            name,
+            type,
+            random_state,
+            starting_cash,
+            log_orders,
+            risk_config=risk_config,
+        )
 
         # Store important parameters particular to the ZI agent.
         self.symbol: str = symbol  # symbol to trade

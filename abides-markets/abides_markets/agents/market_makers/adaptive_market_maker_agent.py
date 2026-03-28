@@ -15,6 +15,7 @@ from ...messages.marketdata import (
     MarketDataMsg,
 )
 from ...messages.query import QuerySpreadResponseMsg, QueryTransactedVolResponseMsg
+from ...models.risk_config import RiskConfig
 from ...orders import LimitOrder, Side
 from ...utils import sigmoid
 from ..trading_agent import TradingAgent
@@ -69,9 +70,18 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         backstop_quantity: int = 0,
         log_orders: bool = False,
         min_imbalance=0.9,
+        risk_config: RiskConfig | None = None,
     ) -> None:
 
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(
+            id,
+            name,
+            type,
+            random_state,
+            starting_cash,
+            log_orders,
+            risk_config=risk_config,
+        )
         self.is_adaptive: bool = False
         self.symbol: str = symbol  # Symbol traded
         self.pov: float = (

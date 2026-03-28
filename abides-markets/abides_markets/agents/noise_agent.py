@@ -4,6 +4,7 @@ import numpy as np
 
 from abides_core import Message, NanosecondTime
 from abides_markets.models.order_size_model import OrderSizeModel
+from abides_markets.models.risk_config import RiskConfig
 
 from ..messages.query import QuerySpreadResponseMsg
 from ..orders import Side
@@ -28,10 +29,19 @@ class NoiseAgent(TradingAgent):
         starting_cash: int = 100000,
         log_orders: bool = False,
         order_size_model: OrderSizeModel | None = None,
+        risk_config: RiskConfig | None = None,
     ) -> None:
 
         # Base class init.
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(
+            id,
+            name,
+            type,
+            random_state,
+            starting_cash,
+            log_orders,
+            risk_config=risk_config,
+        )
 
         self.wakeup_time: NanosecondTime = wakeup_time
 

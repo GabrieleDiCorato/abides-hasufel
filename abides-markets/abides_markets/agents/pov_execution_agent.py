@@ -17,6 +17,7 @@ from abides_core import Message, NanosecondTime
 from abides_core.utils import str_to_ns
 
 from ..messages.query import QuerySpreadResponseMsg, QueryTransactedVolResponseMsg
+from ..models.risk_config import RiskConfig
 from ..orders import Side
 from .trading_agent import TradingAgent
 
@@ -70,6 +71,7 @@ class POVExecutionAgent(TradingAgent):
         type: str | None = None,
         random_state: np.random.RandomState | None = None,
         log_orders: bool = False,
+        risk_config: RiskConfig | None = None,
     ) -> None:
         """
         Initialize the POV Execution Agent.
@@ -82,7 +84,7 @@ class POVExecutionAgent(TradingAgent):
             end_time: Absolute time to stop execution (nanoseconds).
             freq: Wake-up frequency in nanoseconds. Default 1 minute.
             lookback_period: Period for volume calculation. Can be a string like "1min"
-                or nanoseconds. Defaults to freq converted to string.
+            or nanoseconds. Defaults to freq converted to string.
             pov: Percentage of volume to target (0.0 to 1.0). Default 0.1 (10%).
             direction: Side.BID to buy, Side.ASK to sell.
             quantity: Total target quantity to execute.
@@ -91,10 +93,17 @@ class POVExecutionAgent(TradingAgent):
             type: Agent type string.
             random_state: NumPy random state for reproducibility.
             log_orders: Whether to log order activity.
+            risk_config: Optional RiskConfig for position/circuit-breaker limits.
         """
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
-
-        self.symbol: str = symbol
+        super().__init__(
+            id,
+            name,
+            type,
+            random_state,
+            starting_cash,
+            log_orders,
+            risk_config=risk_config,
+        )
         self.start_time: NanosecondTime = start_time
         self.end_time: NanosecondTime = end_time
         self.freq: NanosecondTime = freq
