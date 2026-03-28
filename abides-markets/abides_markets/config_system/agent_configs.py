@@ -23,6 +23,20 @@ from pydantic import BaseModel, Field, model_validator
 from abides_core import NanosecondTime
 from abides_core.utils import get_wake_time, str_to_ns
 
+# Base set of fields excluded from automatic constructor kwarg mapping.
+# Risk-related fields are bundled into a RiskConfig object by the base class.
+# Subclass _EXCLUDE sets should extend this via ``_BASE_EXCLUDE | frozenset({...})``.
+_BASE_EXCLUDE: frozenset[str] = frozenset(
+    {
+        "computation_delay",
+        "position_limit",
+        "position_limit_clamp",
+        "max_drawdown",
+        "max_order_rate",
+        "order_rate_window_ns",
+    }
+)
+
 
 # ---------------------------------------------------------------------------
 # Shared context passed to create_agents by the compiler
@@ -118,16 +132,7 @@ class BaseAgentConfig(BaseModel):
 
     # Fields excluded from automatic constructor mapping.
     # Risk fields are bundled into a RiskConfig object instead.
-    _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset(
-        {
-            "computation_delay",
-            "position_limit",
-            "position_limit_clamp",
-            "max_drawdown",
-            "max_order_rate",
-            "order_rate_window_ns",
-        }
-    )
+    _EXCLUDE_FROM_KWARGS: frozenset[str] = _BASE_EXCLUDE
 
     def create_agents(
         self,
@@ -262,16 +267,10 @@ class NoiseAgentConfig(BaseAgentConfig):
         examples=["16:00:00", "12:00:00"],
     )
 
-    _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset(
+    _EXCLUDE_FROM_KWARGS: frozenset[str] = _BASE_EXCLUDE | frozenset(
         {
-            "computation_delay",
             "noise_mkt_open_offset",
             "noise_mkt_close_time",
-            "position_limit",
-            "position_limit_clamp",
-            "max_drawdown",
-            "max_order_rate",
-            "order_rate_window_ns",
         }
     )
 
@@ -685,18 +684,12 @@ class POVExecutionAgentConfig(BaseAgentConfig):
         ),
     )
 
-    _EXCLUDE_FROM_KWARGS: frozenset[str] = frozenset(
+    _EXCLUDE_FROM_KWARGS: frozenset[str] = _BASE_EXCLUDE | frozenset(
         {
-            "computation_delay",
             "start_time_offset",
             "end_time_offset",
             "freq",
             "direction",
-            "position_limit",
-            "position_limit_clamp",
-            "max_drawdown",
-            "max_order_rate",
-            "order_rate_window_ns",
         }
     )
 
