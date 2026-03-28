@@ -291,13 +291,14 @@ class SimulationBuilder:
                     stacklevel=3,
                 )
 
-        # start_time >= end_time
+        # start_time >= end_time — now caught by MarketConfig model validator;
+        # retained here as defense-in-depth for configs constructed without
+        # model validation.
         if config.market.start_time >= config.market.end_time:
-            warnings.warn(
+            raise ValueError(
                 f"Market start_time ({config.market.start_time}) is not before "
                 f"end_time ({config.market.end_time}) — the trading window "
-                f"is empty or inverted.",
-                stacklevel=3,
+                f"is empty or inverted."
             )
 
         # POV execution window exceeds market hours

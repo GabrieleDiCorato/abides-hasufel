@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +251,26 @@ class MarketConfig(BaseModel):
         if not (0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59):
             raise ValueError(f"Time has invalid components: {h:02d}:{m:02d}:{s:02d}")
         return v
+
+    @model_validator(mode="after")
+    def _validate_oracle_opening_price(self) -> MarketConfig:
+        """Ensure oracle-less configs provide an opening price."""
+        if self.oracle is None and self.opening_price is None:
+            raise ValueError(
+                "opening_price is required when oracle is None — the "
+                "ExchangeAgent needs a seed price."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_time_ordering(self) -> MarketConfig:
+        """Reject start_time >= end_time (inverted or zero-length market)."""
+        if self.start_time >= self.end_time:
+            raise ValueError(
+                f"start_time ({self.start_time}) must be before "
+                f"end_time ({self.end_time})."
+            )
+        return self
 
     exchange: ExchangeConfig = Field(
         default_factory=ExchangeConfig,

@@ -1230,13 +1230,12 @@ class TestOracleOptional:
             MarketConfig()
 
     def test_compile_no_oracle_no_opening_price_raises(self):
-        """Compile should raise when oracle is None and opening_price is missing."""
-        config = SimulationConfig(
-            market={"oracle": None},
-            simulation={"seed": 42},
-        )
-        with pytest.raises(ValueError, match="opening_price"):
-            compile(config)
+        """Model validation should reject oracle=None without opening_price."""
+        with pytest.raises(ValidationError, match="opening_price"):
+            SimulationConfig(
+                market={"oracle": None},
+                simulation={"seed": 42},
+            )
 
     def test_compile_no_oracle_with_opening_price(self):
         """Compile should succeed when oracle=None and opening_price is set."""
