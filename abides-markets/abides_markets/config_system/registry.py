@@ -2,6 +2,12 @@
 
 Agent types self-register here with their config schema and factory function.
 The registry provides introspection for AI agents and validation at compile time.
+
+**Overwrite policy**: ``@register_agent`` defaults to ``allow_overwrite=True``
+so that re-executing notebook cells defining custom agents does not raise.
+Direct ``registry.register()`` defaults to ``allow_overwrite=False`` as the
+production-safe default.  Pass ``allow_overwrite=True`` explicitly if you
+need to replace an existing registration programmatically.
 """
 
 from __future__ import annotations
