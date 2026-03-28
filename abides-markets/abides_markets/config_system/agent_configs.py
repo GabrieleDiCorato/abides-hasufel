@@ -284,6 +284,13 @@ class NoiseAgentConfig(BaseAgentConfig):
         noise_mkt_open = context.mkt_open + str_to_ns(self.noise_mkt_open_offset)
         noise_mkt_close = context.date_ns + str_to_ns(self.noise_mkt_close_time)
 
+        if noise_mkt_open >= noise_mkt_close:
+            raise ValueError(
+                f"NoiseAgent wakeup window is empty or inverted: "
+                f"open offset '{self.noise_mkt_open_offset}' → {noise_mkt_open}, "
+                f"close time '{self.noise_mkt_close_time}' → {noise_mkt_close}."
+            )
+
         kwargs["wakeup_time"] = get_wake_time(
             noise_mkt_open, noise_mkt_close, agent_rng
         )
@@ -704,6 +711,14 @@ class POVExecutionAgentConfig(BaseAgentConfig):
         kwargs["lookback_period"] = freq_ns
         kwargs["start_time"] = context.mkt_open + str_to_ns(self.start_time_offset)
         kwargs["end_time"] = context.mkt_close - str_to_ns(self.end_time_offset)
+
+        if kwargs["start_time"] >= kwargs["end_time"]:
+            raise ValueError(
+                f"POV execution window is empty or inverted: "
+                f"start offset '{self.start_time_offset}' → {kwargs['start_time']}, "
+                f"end offset '{self.end_time_offset}' → {kwargs['end_time']}."
+            )
+
         kwargs["direction"] = Side.BID if self.direction.upper() == "BID" else Side.ASK
         kwargs["name"] = f"POV_EXECUTION_AGENT_{agent_id}"
         kwargs["type"] = "ExecutionAgent"

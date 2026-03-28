@@ -221,6 +221,7 @@ class TestCompiler:
             SimulationBuilder()
             .from_template("rmsc04")
             .from_template("with_execution")
+            .market(end_time="16:00:00")
             .seed(42)
             .build()
         )
