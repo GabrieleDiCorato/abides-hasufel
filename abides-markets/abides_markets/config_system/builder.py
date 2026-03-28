@@ -80,6 +80,12 @@ class SimulationBuilder:
         merges them into the existing oracle dict.
         """
         if "type" in kwargs and kwargs["type"] is None:
+            extra = {k for k in kwargs if k != "type"}
+            if extra:
+                raise ValueError(
+                    f"oracle(type=None) disables the oracle — extra kwargs "
+                    f"would be silently discarded: {extra}"
+                )
             # Explicit oracle=None
             market = self._data.setdefault("market", {})
             market["oracle"] = None
