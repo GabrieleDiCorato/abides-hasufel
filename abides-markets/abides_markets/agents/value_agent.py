@@ -26,7 +26,7 @@ class ValueAgent(TradingAgent):
         kappa: float = 0.05,
         sigma_s: float = 100_000,
         order_size_model=None,
-        lambda_a: float = 0.005,
+        lambda_a: float = 5.7e-12,
         log_orders: bool = False,
         depth_spread: int = 2,
         risk_config: RiskConfig | None = None,
