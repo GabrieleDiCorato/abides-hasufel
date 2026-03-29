@@ -42,6 +42,7 @@ from .extractors import ResultExtractor
 from .profiles import ResultProfile
 from .result import (
     AgentData,
+    ExecutionMetrics,
     L1Close,
     L1Snapshots,
     L2Snapshots,
@@ -269,8 +270,12 @@ def _extract_result(
         exchange_last_trades = {
             sym: ob.last_trade for sym, ob in exchange.order_books.items()
         }
+        # Collect per-symbol liquidity for execution metrics
+        symbol_liquidity = {sym: mkt.liquidity for sym, mkt in markets.items()}
         for agent in trading_agents:
-            agent_data.append(_extract_agent_data(agent, exchange_last_trades))
+            agent_data.append(
+                _extract_agent_data(agent, exchange_last_trades, symbol_liquidity)
+            )
 
     # -- Agent logs -----------------------------------------------------------
     logs_df: pd.DataFrame | None = None
@@ -438,7 +443,9 @@ def _extract_l2_series(book_log2: list[dict]) -> L2Snapshots:
 
 
 def _extract_agent_data(
-    agent: TradingAgent, exchange_last_trades: dict[str, int]
+    agent: TradingAgent,
+    exchange_last_trades: dict[str, int],
+    symbol_liquidity: dict[str, LiquidityMetrics],
 ) -> AgentData:
     """Build AgentData for a single TradingAgent.
 
@@ -462,6 +469,8 @@ def _extract_agent_data(
     pnl = mtm - starting
     pnl_pct = (pnl / starting * 100.0) if starting != 0 else 0.0
 
+    exec_metrics = _extract_execution_metrics(agent, symbol_liquidity)
+
     return AgentData(
         agent_id=agent.id,
         agent_type=agent.type or type(agent).__name__,
@@ -471,6 +480,7 @@ def _extract_agent_data(
         mark_to_market_cents=mtm,
         pnl_cents=pnl,
         pnl_pct=pnl_pct,
+        execution_metrics=exec_metrics,
     )
 
 
@@ -488,3 +498,79 @@ def _safe_config_snapshot(config: SimulationConfig) -> dict[str, Any]:
             for name, g in config.agents.items()
         },
     }
+
+
+def _extract_execution_metrics(
+    agent: TradingAgent,
+    symbol_liquidity: dict[str, LiquidityMetrics],
+) -> ExecutionMetrics | None:
+    """Build ExecutionMetrics for execution-category agents (duck-typed).
+
+    Returns ``None`` for non-execution agents or when required attributes
+    are missing.
+    """
+    # Duck-type: execution agents expose execution_history, quantity, executed_quantity
+    execution_history: list[dict] | None = getattr(agent, "execution_history", None)
+    target_qty: int | None = getattr(agent, "quantity", None)
+    filled_qty: int | None = getattr(agent, "executed_quantity", None)
+    if execution_history is None or target_qty is None or filled_qty is None:
+        return None
+
+    fill_rate = filled_qty / target_qty * 100.0 if target_qty > 0 else 0.0
+
+    # Average fill price from execution history
+    avg_fill: int | None = None
+    if execution_history:
+        total_value = 0
+        total_qty = 0
+        for fill in execution_history:
+            price = fill.get("fill_price")
+            qty = fill.get("quantity", 0)
+            if price is not None and qty > 0:
+                total_value += int(price) * int(qty)
+                total_qty += int(qty)
+        if total_qty > 0:
+            avg_fill = total_value // total_qty
+
+    # Arrival price: mid-price from the agent's known_bids/known_asks at first order
+    # (POVExecutionAgent stores last_bid/last_ask; use first fill entry's context)
+    arrival: int | None = None
+    last_bid = getattr(agent, "last_bid", None)
+    last_ask = getattr(agent, "last_ask", None)
+    if last_bid is not None and last_ask is not None:
+        arrival = (int(last_bid) + int(last_ask)) // 2
+
+    # Session VWAP and total volume from liquidity metrics
+    # Execution agents trade a single symbol
+    symbol: str | None = getattr(agent, "symbol", None)
+    session_vwap: int | None = None
+    total_volume: int = 0
+    if symbol is not None and symbol in symbol_liquidity:
+        liq = symbol_liquidity[symbol]
+        session_vwap = liq.vwap_cents
+        total_volume = liq.total_exchanged_volume
+
+    # Derived metrics
+    vwap_slippage: int | None = None
+    if avg_fill is not None and session_vwap is not None and session_vwap > 0:
+        vwap_slippage = (avg_fill - session_vwap) * 10_000 // session_vwap
+
+    participation: float | None = None
+    if filled_qty > 0 and total_volume > 0:
+        participation = filled_qty / total_volume * 100.0
+
+    impl_shortfall: int | None = None
+    if avg_fill is not None and arrival is not None and arrival > 0:
+        impl_shortfall = (avg_fill - arrival) * 10_000 // arrival
+
+    return ExecutionMetrics(
+        target_quantity=target_qty,
+        filled_quantity=filled_qty,
+        fill_rate_pct=fill_rate,
+        avg_fill_price_cents=avg_fill,
+        vwap_cents=session_vwap,
+        vwap_slippage_bps=vwap_slippage,
+        participation_rate_pct=participation,
+        arrival_price_cents=arrival,
+        implementation_shortfall_bps=impl_shortfall,
+    )

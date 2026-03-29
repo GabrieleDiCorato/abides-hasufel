@@ -265,7 +265,9 @@ class TestDAYCleanup:
         assert book.bids[0].total_quantity == 10
 
         # DAY order should be cancelled.
-        cancelled = [m for _, m in fake_owner.messages if isinstance(m, OrderCancelledMsg)]
+        cancelled = [
+            m for _, m in fake_owner.messages if isinstance(m, OrderCancelledMsg)
+        ]
         assert len(cancelled) == 1
         assert cancelled[0].order.time_in_force == TimeInForce.DAY
 

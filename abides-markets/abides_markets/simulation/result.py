@@ -313,6 +313,56 @@ class MarketSummary(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# ExecutionMetrics — optional quality metrics for execution-category agents
+# ---------------------------------------------------------------------------
+
+
+class ExecutionMetrics(BaseModel):
+    """Execution quality metrics for a POV / TWAP / VWAP execution agent.
+
+    Populated only when the agent's category is ``"execution"`` and sufficient
+    trade data is available.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    target_quantity: int
+    """Shares the agent intended to execute."""
+
+    filled_quantity: int
+    """Shares actually filled."""
+
+    fill_rate_pct: float
+    """Percentage of target quantity filled: ``filled_quantity / target_quantity * 100``."""
+
+    avg_fill_price_cents: int | None = None
+    """Average fill price in integer cents; ``None`` if no fills."""
+
+    vwap_cents: int | None = None
+    """Session VWAP from :class:`LiquidityMetrics` (for comparison)."""
+
+    vwap_slippage_bps: int | None = None
+    """Slippage vs session VWAP in basis points: ``(avg_fill - vwap) / vwap * 10_000``.
+
+    Positive means filled above VWAP (bad for buyer, good for seller).
+    ``None`` when ``avg_fill_price_cents`` or ``vwap_cents`` is ``None``.
+    """
+
+    participation_rate_pct: float | None = None
+    """Agent filled volume as percentage of total exchanged volume."""
+
+    arrival_price_cents: int | None = None
+    """Market mid-price at the time of the agent's first order, in integer cents."""
+
+    implementation_shortfall_bps: int | None = None
+    """Shortfall vs arrival price in basis points: ``(avg_fill - arrival) / arrival * 10_000``.
+
+    Positive means filled above arrival (bad for buyer, good for seller).
+    ``None`` when ``avg_fill_price_cents`` or ``arrival_price_cents`` is ``None``.
+    """
+
+
+# ---------------------------------------------------------------------------
 # AgentData — per-agent PnL summary
 # ---------------------------------------------------------------------------
 
@@ -341,35 +391,8 @@ class AgentData(BaseModel):
     pnl_pct: float
     """PnL as percentage of starting cash: ``pnl_cents / starting_cash_cents * 100``."""
 
-
-# ---------------------------------------------------------------------------
-# ExecutionMetrics — optional quality metrics for execution-category agents
-# ---------------------------------------------------------------------------
-
-
-class ExecutionMetrics(BaseModel):
-    """Execution quality metrics for a POV / TWAP / VWAP execution agent.
-
-    Populated only when the agent's category is ``"execution"`` and sufficient
-    trade data is available.
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    target_quantity: int
-    """Shares the agent intended to execute."""
-
-    filled_quantity: int
-    """Shares actually filled."""
-
-    fill_rate_pct: float
-    """Percentage of target quantity filled: ``filled_quantity / target_quantity * 100``."""
-
-    avg_fill_price_cents: int | None = None
-    """Average fill price in integer cents; ``None`` if no fills."""
-
-    vwap_cents: int | None = None
-    """Session VWAP from :class:`LiquidityMetrics` (for comparison)."""
+    execution_metrics: ExecutionMetrics | None = None
+    """Execution quality metrics; populated only for execution-category agents."""
 
 
 # ---------------------------------------------------------------------------
@@ -476,6 +499,35 @@ class SimulationResult(BaseModel):
                     f"PnL={sign}${a.pnl_cents / 100:.2f} ({sign}{a.pnl_pct:.2f}%)"
                 )
 
+            # Execution agent metrics
+            exec_agents = [a for a in self.agents if a.execution_metrics is not None]
+            if exec_agents:
+                lines.append("  Execution agents:")
+                for a in exec_agents:
+                    em = a.execution_metrics
+                    assert em is not None  # mypy
+                    avg_str = (
+                        f"${em.avg_fill_price_cents / 100:.2f}"
+                        if em.avg_fill_price_cents is not None
+                        else "—"
+                    )
+                    slip_str = (
+                        f"{em.vwap_slippage_bps}bps"
+                        if em.vwap_slippage_bps is not None
+                        else "—"
+                    )
+                    part_str = (
+                        f"{em.participation_rate_pct:.1f}%"
+                        if em.participation_rate_pct is not None
+                        else "—"
+                    )
+                    lines.append(
+                        f"    [{a.agent_id}] {a.agent_type}: "
+                        f"filled={em.filled_quantity}/{em.target_quantity} "
+                        f"({em.fill_rate_pct:.1f}%) avg={avg_str} "
+                        f"slip={slip_str} pov={part_str}"
+                    )
+
         profile_flags = [f.name for f in ResultProfile if f in self.profile and f.name]
         lines.append(f"  Profile: {', '.join(profile_flags)}")
         if ResultProfile.L1_SERIES not in self.profile:
@@ -530,6 +582,7 @@ class SimulationResult(BaseModel):
         - ``metadata`` — seed, tickers, elapsed time.
         - ``markets`` — per-symbol snapshot: bid/ask/spread, volume, VWAP.
         - ``agent_leaderboard`` — top 10 agents by PnL.
+        - ``execution_summary`` — per-execution-agent quality metrics.
         - ``warnings`` — list of anomaly strings (one-sided market, etc.).
         """
         warnings_list: list[str] = []
@@ -574,6 +627,27 @@ class SimulationResult(BaseModel):
             for a in sorted_agents[:10]
         ]
 
+        # -- Execution agent summary -------------------------------------------
+        execution_summary: list[dict[str, Any]] = []
+        for a in self.agents:
+            if a.execution_metrics is not None:
+                em = a.execution_metrics
+                execution_summary.append(
+                    {
+                        "agent_id": a.agent_id,
+                        "agent_type": a.agent_type,
+                        "target_quantity": em.target_quantity,
+                        "filled_quantity": em.filled_quantity,
+                        "fill_rate_pct": em.fill_rate_pct,
+                        "avg_fill_price_cents": em.avg_fill_price_cents,
+                        "vwap_cents": em.vwap_cents,
+                        "vwap_slippage_bps": em.vwap_slippage_bps,
+                        "participation_rate_pct": em.participation_rate_pct,
+                        "arrival_price_cents": em.arrival_price_cents,
+                        "implementation_shortfall_bps": em.implementation_shortfall_bps,
+                    }
+                )
+
         return {
             "metadata": {
                 "seed": self.metadata.seed,
@@ -582,5 +656,6 @@ class SimulationResult(BaseModel):
             },
             "markets": market_data,
             "agent_leaderboard": leaderboard,
+            "execution_summary": execution_summary,
             "warnings": warnings_list,
         }
