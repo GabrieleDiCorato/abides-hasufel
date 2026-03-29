@@ -47,7 +47,7 @@ from ..messages.query import (
     QueryTransactedVolResponseMsg,
 )
 from ..models.risk_config import RiskConfig
-from ..orders import LimitOrder, MarketOrder, Order, Side
+from ..orders import LimitOrder, MarketOrder, Order, Side, TimeInForce
 from .exchange_agent import ExchangeAgent
 from .financial_agent import FinancialAgent
 
@@ -688,6 +688,7 @@ class TradingAgent(FinancialAgent):
         is_post_only: bool = False,
         ignore_risk: bool = True,
         tag: Any = None,
+        time_in_force: TimeInForce | None = None,
     ) -> LimitOrder:
         """
         Used by any Trading Agent subclass to create a limit order.
@@ -730,6 +731,7 @@ class TradingAgent(FinancialAgent):
             is_post_only=is_post_only,
             order_id=order_id,
             tag=tag,
+            **({"time_in_force": time_in_force} if time_in_force is not None else {}),
         )
 
         if quantity > 0:
@@ -773,6 +775,7 @@ class TradingAgent(FinancialAgent):
         is_post_only: bool = False,
         ignore_risk: bool = True,
         tag: Any = None,
+        time_in_force: TimeInForce | None = None,
     ) -> None:
         """
         Used by any Trading Agent subclass to place a limit order.
@@ -790,6 +793,7 @@ class TradingAgent(FinancialAgent):
             ignore_risk: Whether cash or risk limits should be enforced or ignored for
                 the order.
             tag:
+            time_in_force: Time-in-force qualifier (GTC, IOC, FOK, DAY).  Defaults to GTC.
         """
 
         order = self.create_limit_order(
@@ -804,6 +808,7 @@ class TradingAgent(FinancialAgent):
             is_post_only,
             ignore_risk,
             tag,
+            time_in_force,
         )
 
         if order is not None:

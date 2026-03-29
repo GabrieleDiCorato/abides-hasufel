@@ -22,6 +22,25 @@ class Side(Enum):
         return self == Side.ASK
 
 
+class TimeInForce(Enum):
+    """Time-in-force qualifiers for limit orders.
+
+    - GTC: Good-til-cancelled (default) — rests in the book until filled or
+      explicitly cancelled.
+    - IOC: Immediate-or-cancel — fills what it can immediately, then the
+      unfilled remainder is automatically cancelled (never enters the book).
+    - FOK: Fill-or-kill — either the entire order fills immediately or the
+      whole order is rejected (never enters the book).
+    - DAY: Day order — same as GTC during the trading day, but automatically
+      cancelled at market close.
+    """
+
+    GTC = "GTC"
+    IOC = "IOC"
+    FOK = "FOK"
+    DAY = "DAY"
+
+
 class Order(ABC):
     """A basic Order type used by an Exchange to conduct trades or maintain an order book.
 
@@ -113,6 +132,7 @@ class LimitOrder(Order):
         is_post_only=False,
         order_id: int | None = None,
         tag: Any | None = None,
+        time_in_force: TimeInForce = TimeInForce.GTC,
     ) -> None:
         super().__init__(
             agent_id, time_placed, symbol, quantity, side, order_id, tag=tag
@@ -125,6 +145,7 @@ class LimitOrder(Order):
         self.is_price_to_comply: bool = is_price_to_comply
         self.insert_by_id: bool = insert_by_id
         self.is_post_only: bool = is_post_only
+        self.time_in_force: TimeInForce = time_in_force
 
     def __str__(self) -> str:
         filled = ""
@@ -168,6 +189,7 @@ class LimitOrder(Order):
             order_id=self.order_id,
             is_post_only=self.is_post_only,
             tag=tag,
+            time_in_force=self.time_in_force,
         )
 
         order.fill_price = self.fill_price

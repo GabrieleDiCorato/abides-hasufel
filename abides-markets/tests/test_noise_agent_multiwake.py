@@ -12,16 +12,13 @@ Covers:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 
 from abides_core import NanosecondTime
 from abides_core.utils import str_to_ns
 from abides_markets.agents.noise_agent import NoiseAgent
 from abides_markets.messages.query import QuerySpreadResponseMsg
-
 
 # ---------------------------------------------------------------------------
 # Time constants (same as conftest)
@@ -44,7 +41,9 @@ class _StubKernel:
         self.messages: list[tuple] = []
         self.wakeups: list[NanosecondTime] = []
 
-    def send_message(self, sender_id: int, recipient_id: int, message: Any, **kwargs) -> None:
+    def send_message(
+        self, sender_id: int, recipient_id: int, message: Any, **kwargs
+    ) -> None:
         self.messages.append((sender_id, recipient_id, message))
 
 
@@ -58,7 +57,7 @@ def _make_agent(seed: int = 42, **kwargs: Any) -> NoiseAgent:
     }
     merged = {**defaults, **kwargs}
     agent = NoiseAgent(**merged)
-    agent.kernel = _StubKernel()
+    agent.kernel = _StubKernel()  # type: ignore[assignment]
     agent.exchange_id = 99
     agent.mkt_open = MKT_OPEN
     agent.mkt_close = MKT_CLOSE
@@ -113,11 +112,15 @@ class TestWakeFrequency:
 
     def test_multi_wake_fixed(self):
         freq_ns = str_to_ns("20s")
-        agent = _make_agent(multi_wake=True, wake_up_freq=freq_ns, poisson_arrival=False)
+        agent = _make_agent(
+            multi_wake=True, wake_up_freq=freq_ns, poisson_arrival=False
+        )
         assert agent.get_wake_frequency() == freq_ns
 
     def test_multi_wake_poisson_positive(self):
-        agent = _make_agent(multi_wake=True, wake_up_freq=str_to_ns("30s"), poisson_arrival=True)
+        agent = _make_agent(
+            multi_wake=True, wake_up_freq=str_to_ns("30s"), poisson_arrival=True
+        )
         freqs = [agent.get_wake_frequency() for _ in range(50)]
         assert all(f >= 0 for f in freqs)
         # Mean should be roughly 30s; at least not all zero or all identical.
@@ -145,7 +148,6 @@ class TestSingleShotRegression:
 
         # Patch set_wakeup to record calls.
         wakeup_calls: list[NanosecondTime] = []
-        original_set_wakeup = agent.set_wakeup
         agent.set_wakeup = lambda t: wakeup_calls.append(t)
 
         # Inject known spread so place_order can succeed.
@@ -167,7 +169,9 @@ class TestSingleShotRegression:
 class TestMultiWakeMode:
     def test_reschedules_after_order(self):
         """In multi-wake mode, agent schedules next wakeup after placing order."""
-        agent = _make_agent(multi_wake=True, wake_up_freq=str_to_ns("10s"), poisson_arrival=False)
+        agent = _make_agent(
+            multi_wake=True, wake_up_freq=str_to_ns("10s"), poisson_arrival=False
+        )
         agent.state = "AWAITING_SPREAD"
 
         wakeup_calls: list[NanosecondTime] = []
@@ -186,7 +190,9 @@ class TestMultiWakeMode:
 
     def test_reschedules_poisson(self):
         """In multi-wake Poisson mode, next wakeup is randomized."""
-        agent = _make_agent(multi_wake=True, wake_up_freq=str_to_ns("30s"), poisson_arrival=True)
+        agent = _make_agent(
+            multi_wake=True, wake_up_freq=str_to_ns("30s"), poisson_arrival=True
+        )
         agent.state = "AWAITING_SPREAD"
 
         wakeup_calls: list[NanosecondTime] = []
@@ -234,7 +240,9 @@ class TestNoiseAgentConfig:
     def test_multi_wake_config(self):
         from abides_markets.config_system.agent_configs import NoiseAgentConfig
 
-        cfg = NoiseAgentConfig(multi_wake=True, wake_up_freq="15s", poisson_arrival=False)
+        cfg = NoiseAgentConfig(
+            multi_wake=True, wake_up_freq="15s", poisson_arrival=False
+        )
         assert cfg.multi_wake is True
         assert cfg.wake_up_freq == "15s"
         assert cfg.poisson_arrival is False

@@ -325,6 +325,9 @@ class ExchangeAgent(FinancialAgent):
         # If we have reached market close, send market close price messages to all agents
         # that requested them.
         if current_time >= self.mkt_close:
+            # Cancel all DAY orders still resting in the book.
+            self._cancel_day_orders()
+
             message = MarketClosePriceMsg(
                 {symbol: book.last_trade for symbol, book in self.order_books.items()}
             )
@@ -695,6 +698,23 @@ class ExchangeAgent(FinancialAgent):
             # message's new_order reference is consumed here and not retained.
             self.order_books[order.symbol].replace_order(agent_id, order, new_order)
             self.publish_order_book_data(order.symbol)
+
+    # ------------------------------------------------------------------
+    # DAY order cleanup
+    # ------------------------------------------------------------------
+
+    def _cancel_day_orders(self) -> None:
+        """Cancel all resting DAY orders across every order book at market close."""
+        from ..orders import TimeInForce
+
+        for _symbol, book in self.order_books.items():
+            for side_book in (book.bids, book.asks):
+                for pl in list(side_book):
+                    for order, _meta in list(pl.visible_orders) + list(
+                        pl.hidden_orders
+                    ):
+                        if order.time_in_force == TimeInForce.DAY:
+                            book.cancel_order(order)
 
     def publish_order_book_data(self, symbol: str) -> None:
         """

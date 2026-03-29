@@ -21,7 +21,7 @@ from .messages.orderbook import (
     OrderPartialCancelledMsg,
     OrderReplacedMsg,
 )
-from .orders import LimitOrder, MarketOrder, Order, Side
+from .orders import LimitOrder, MarketOrder, Order, Side, TimeInForce
 from .price_level import PriceLevel
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,18 @@ class OrderBook:
             return idx, True
         return idx, False
 
+    def _matching_liquidity(self, order: LimitOrder) -> int:
+        """Return the total quantity available to match against *order* without modifying the book."""
+        book = self.asks if order.side.is_bid() else self.bids
+        total = 0
+        for pl in book:
+            if not pl.order_is_match(order):
+                break
+            total += pl.total_quantity
+            if total >= order.quantity:
+                return total
+        return total
+
     def handle_limit_order(self, order: LimitOrder, quiet: bool = False) -> None:
         """Matches a limit order or adds it to the order book.
 
@@ -117,6 +129,11 @@ class OrderBook:
         consuming all possible shares at the best price before moving on, without regard to
         order size "fit" or minimizing number of transactions.  Sends one notification per
         match.
+
+        Time-in-force semantics:
+        - GTC / DAY: normal matching then rest in the book (DAY cleaned up at close).
+        - IOC: match what we can, then cancel the unfilled remainder (never rests).
+        - FOK: reject the entire order if full quantity can't be filled immediately.
 
         Arguments:
             order: The limit order to process.
@@ -142,6 +159,18 @@ class OrderBook:
             )
             return
 
+        tif = order.time_in_force
+
+        # FOK pre-check: reject immediately if available liquidity is insufficient.
+        if tif == TimeInForce.FOK:
+            available = self._matching_liquidity(order)
+            if available < order.quantity:
+                if not quiet:
+                    self.owner.send_message(
+                        order.agent_id, OrderCancelledMsg(deepcopy(order))
+                    )
+                return
+
         executed: list[tuple[int, int]] = []
 
         while True:
@@ -156,18 +185,25 @@ class OrderBook:
                     break
 
             else:
-                # No matching order was found, so the new order enters the order book.  Notify the agent.
-                self.enter_order(deepcopy(order), quiet=quiet)
+                if tif in (TimeInForce.IOC, TimeInForce.FOK):
+                    # IOC/FOK: do NOT enter the book — cancel the unfilled remainder.
+                    if order.quantity > 0 and not quiet:
+                        self.owner.send_message(
+                            order.agent_id, OrderCancelledMsg(deepcopy(order))
+                        )
+                else:
+                    # GTC/DAY: enter the order into the book.
+                    self.enter_order(deepcopy(order), quiet=quiet)
 
-                logger.debug("ACCEPTED: new order {}", order)
-                logger.debug(
-                    "SENT: notifications of order acceptance to agent {} for order {}",
-                    order.agent_id,
-                    order.order_id,
-                )
+                    logger.debug("ACCEPTED: new order {}", order)
+                    logger.debug(
+                        "SENT: notifications of order acceptance to agent {} for order {}",
+                        order.agent_id,
+                        order.order_id,
+                    )
 
-                if not quiet:
-                    self.owner.send_message(order.agent_id, OrderAcceptedMsg(order))
+                    if not quiet:
+                        self.owner.send_message(order.agent_id, OrderAcceptedMsg(order))
 
                 break
 
