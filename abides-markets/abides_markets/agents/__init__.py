@@ -1,3 +1,4 @@
+from .examples.mean_reversion_agent import MeanReversionAgent
 from .examples.momentum_agent import MomentumAgent
 from .exchange_agent import ExchangeAgent
 from .financial_agent import FinancialAgent
@@ -11,6 +12,7 @@ __all__ = [
     "AdaptiveMarketMakerAgent",
     "ExchangeAgent",
     "FinancialAgent",
+    "MeanReversionAgent",
     "MomentumAgent",
     "NoiseAgent",
     "POVExecutionAgent",

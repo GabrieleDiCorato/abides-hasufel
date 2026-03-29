@@ -9,6 +9,7 @@ your config class — see ``ABIDES_CUSTOM_AGENT_IMPLEMENTATION_GUIDE.md``.
 
 from abides_markets.agents import (
     AdaptiveMarketMakerAgent,
+    MeanReversionAgent,
     MomentumAgent,
     NoiseAgent,
     POVExecutionAgent,
@@ -16,6 +17,7 @@ from abides_markets.agents import (
 )
 from abides_markets.config_system.agent_configs import (
     AdaptiveMarketMakerConfig,
+    MeanReversionAgentConfig,
     MomentumAgentConfig,
     NoiseAgentConfig,
     POVExecutionAgentConfig,
@@ -76,6 +78,19 @@ def _register_builtins() -> None:
         typical_count_range=(1, 50),
         recommended_with=("noise", "value"),
     )(MomentumAgentConfig)
+
+    register_agent(
+        "mean_reversion",
+        agent_class=MeanReversionAgent,
+        category="strategy",
+        description=(
+            "Contrarian agent using Bollinger-band / z-score mean reversion. "
+            "Buys when price is unusually low, sells when unusually high."
+        ),
+        requires_oracle=False,
+        typical_count_range=(1, 50),
+        recommended_with=("noise", "value"),
+    )(MeanReversionAgentConfig)
 
     register_agent(
         "adaptive_market_maker",

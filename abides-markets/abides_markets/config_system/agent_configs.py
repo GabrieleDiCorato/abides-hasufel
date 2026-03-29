@@ -520,6 +520,82 @@ class MomentumAgentConfig(BaseAgentConfig):
 
 
 # ---------------------------------------------------------------------------
+# Mean Reversion Agent
+# ---------------------------------------------------------------------------
+class MeanReversionAgentConfig(BaseAgentConfig):
+    """Configuration for MeanReversionAgent — contrarian z-score / Bollinger-band strategy."""
+
+    min_size: int = Field(default=1, ge=1, description="Minimum order size in shares.")
+    max_size: int = Field(default=10, ge=1, description="Maximum order size in shares.")
+    wake_up_freq: str = Field(
+        default="37s",
+        description=(
+            "Wake-up frequency as a duration string. Supported formats: "
+            "'Ns' (seconds), 'Nmin' (minutes), 'Nh' (hours), "
+            "'HH:MM:SS'."
+        ),
+        examples=["37s", "1min", "00:01:00"],
+        json_schema_extra={"format": "duration"},
+    )
+    poisson_arrival: bool = Field(
+        default=True,
+        description=(
+            "If True, wakeup intervals are Poisson-distributed around "
+            "wake_up_freq (more realistic). If False, exactly periodic."
+        ),
+    )
+    window: int = Field(
+        default=20,
+        ge=2,
+        description="Rolling window size for mean/std computation.",
+    )
+    entry_threshold: float = Field(
+        default=2.0,
+        gt=0,
+        description=(
+            "Z-score threshold for entering a position. The agent buys "
+            "when z <= -entry_threshold and sells when z >= +entry_threshold."
+        ),
+    )
+    exit_threshold: float = Field(
+        default=0.5,
+        ge=0,
+        description=(
+            "Z-score threshold for exiting. Must be < entry_threshold. "
+            "Currently used for validation only (exit logic is future work)."
+        ),
+    )
+    subscribe: bool = Field(
+        default=False,
+        description=(
+            "If True, subscribe to L2 market data instead of polling. "
+            "Subscription mode receives updates asynchronously."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_thresholds(self) -> MeanReversionAgentConfig:
+        if self.exit_threshold >= self.entry_threshold:
+            raise ValueError(
+                f"exit_threshold ({self.exit_threshold}) must be < "
+                f"entry_threshold ({self.entry_threshold})"
+            )
+        return self
+
+    def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):
+        from abides_markets.models import OrderSizeModel
+
+        kwargs = super()._prepare_constructor_kwargs(
+            kwargs, agent_id, agent_rng, context
+        )
+        kwargs["wake_up_freq"] = str_to_ns(self.wake_up_freq)
+        kwargs["order_size_model"] = OrderSizeModel()
+        kwargs["name"] = f"MEAN_REVERSION_AGENT_{agent_id}"
+        kwargs["type"] = "MeanReversionAgent"
+        return kwargs
+
+
+# ---------------------------------------------------------------------------
 # Adaptive Market Maker Agent
 # ---------------------------------------------------------------------------
 class AdaptiveMarketMakerConfig(BaseAgentConfig):
