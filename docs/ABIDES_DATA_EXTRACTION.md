@@ -1,12 +1,59 @@
 # Analyzing ABIDES Output
 
-After a simulation completes (`end_state = abides.run(config)`), you can extract complete logs, order book history, and agent metrics.
+## 1. Recommended: `SimulationResult`
 
-Here is how to extract and parse this data into usable Pandas DataFrames.
+`run_simulation()` returns a typed, immutable `SimulationResult` with structured data:
+
+```python
+from abides_markets.config_system import SimulationBuilder
+from abides_markets.simulation import run_simulation, ResultProfile
+
+config = (SimulationBuilder()
+    .from_template("rmsc04")
+    .seed(42)
+    .build())
+
+result = run_simulation(config, profile=ResultProfile.QUANT)
+```
+
+**`SimulationResult` fields:**
+
+| Field | Content |
+|-------|---------|
+| `result.metadata` | Seed, tickers, sim start/end (ns), wall-clock elapsed |
+| `result.agents` | List of `AgentData` — per-agent `pnl_cents`, `pnl_pct`, `final_holdings`, `mark_to_market_cents` |
+| `result.markets` | Dict of `MarketSummary` — per-symbol `l1_close`, `liquidity`, optional `l1_series`/`l2_series` |
+| `result.logs` | Raw agent log DataFrame (only with `ResultProfile.FULL`) |
+
+**`ResultProfile` controls depth:**
+- `SUMMARY` (default) — metadata, per-agent PnL, liquidity metrics (KB-scale)
+- `QUANT` — adds L1/L2 time-series as numpy arrays
+- `FULL` — adds raw agent log DataFrame
+
+```python
+# Per-agent PnL
+for agent in result.agents:
+    print(f"{agent.agent_name}: ${agent.pnl_cents / 100:.2f} ({agent.pnl_pct:.2%})")
+
+# Human-readable summary
+print(result.summary())
+```
 
 ---
 
-## 1. Extracting Agent Logs
+## 2. Low-Level Extraction (via `abides.run()`)
+
+For advanced use cases (gymnasium environments, custom Kernel access), you can work with the raw `end_state` dict returned by `abides.run()`. This gives access to complete agent logs and order book history.
+
+```python
+from abides_markets.config_system import compile
+from abides_core import abides
+
+runtime = compile(config)           # fresh runtime dict — consumed once
+end_state = abides.run(runtime)
+```
+
+### Extracting Agent Logs
 
 All events logged by agents during the simulation (order submissions, executions, holdings updates) can be extracted into a single DataFrame.
 
@@ -26,7 +73,7 @@ executions = logs_df[
 submissions = logs_df[logs_df.EventType == "ORDER_SUBMITTED"]
 ```
 
-## 2. Extracting Order Book History
+### Extracting Order Book History
 
 By convention, the first agent in `end_state["agents"]` is the `ExchangeAgent`. You can access its internal `OrderBook` to retrieve historical snapshots.
 

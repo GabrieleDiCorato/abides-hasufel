@@ -68,14 +68,15 @@ class MyStrategyAdapter(TradingAgent):
 
 ## 3. Agent Lifecycle
 
-1. `kernel_initializing(kernel)`: Agent created. Do not send messages.
-2. `kernel_starting(start_time)`: Find the `ExchangeAgent`. Schedule the first `wakeup()`.
-3. `wakeup(current_time)`: Main active entry point.
+Custom agents only implement two entry points. All other lifecycle phases are handled by `TradingAgent`.
+
+1. **`wakeup(current_time)`**: Main active entry point.
    - *CRITICAL:* Always call `super().wakeup(current_time)`. If it returns `False`, the market hours are unknown or the market is closed. **Do not trade if `False`.**
-   - Must schedule the next wakeup: `self.set_wakeup(current_time + self.get_wake_frequency())`.
-4. `receive_message(current_time, sender_id, message)`: React to inbound data.
-   - *CRITICAL:* Always call `super().receive_message(...)` first. `TradingAgent` uses this to update your portfolio and known bounds.
-5. `kernel_stopping()`: Log final holdings and PnL. `TradingAgent` automatically marks the portfolio to market.
+   - Must schedule the next wakeup: `self.set_wakeup(current_time + interval)`.
+2. **`receive_message(current_time, sender_id, message)`**: React to inbound data.
+   - *CRITICAL:* Always call `super().receive_message(...)` first. `TradingAgent` uses this to update your portfolio, `known_bids`/`known_asks`, and order tracking.
+
+> **For reference:** `TradingAgent` handles `kernel_starting()` (exchange discovery, first wakeup scheduling) and `kernel_stopping()` (mark-to-market, final PnL logging) automatically. You do not need to override these.
 
 ---
 
