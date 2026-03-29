@@ -57,6 +57,7 @@ from .result import (
     MarketSummary,
     SimulationMetadata,
     SimulationResult,
+    TradeAttribution,
 )
 from .runner import run_batch, run_simulation
 from .schemas import (
@@ -80,6 +81,7 @@ __all__ = [
     "L2Snapshots",
     "AgentData",
     "ExecutionMetrics",
+    "TradeAttribution",
     # Profile
     "ResultProfile",
     # Extractors

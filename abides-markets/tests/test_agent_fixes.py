@@ -6,7 +6,8 @@ Covers:
 - MomentumAgent: safe dict access, MA values as integer cents
 - TradingAgent: get_known_bid_ask return type, KeyError safety
 - ExchangeAgent: metric_tracker initialization, L3 dispatch
-- POVExecutionAgent: price type annotations, constructor attribute storage (v2.4.0 regression)
+- POVExecutionAgent: price type annotations
+- All registered agents: constructor parameter storage (v2.4.0 regression guard)
 - NoiseAgent: buy direction as bool
 - Oracle ABC: f_log default
 - ExternalDataOracle: inherits f_log default
@@ -335,73 +336,6 @@ class TestPOVAgentTypes:
         # last_bid and last_ask are initialized as None — just verify they exist and are correct type
         assert agent.last_bid is None
         assert agent.last_ask is None
-
-
-# ---------------------------------------------------------------------------
-# POVExecutionAgent — constructor stores all parameters (regression: v2.4.0)
-# ---------------------------------------------------------------------------
-
-
-class TestPOVAgentConstructorAttributes:
-    """Regression: POVExecutionAgent must store every __init__ parameter.
-
-    v2.4.0 shipped with ``symbol`` accepted but never assigned to
-    ``self.symbol``, causing AttributeError on the first ``wakeup()``.
-    """
-
-    def _make(self, **overrides):
-        defaults = dict(
-            id=0,
-            symbol="ABM",
-            starting_cash=10_000_000,
-            start_time=MKT_OPEN,
-            end_time=MKT_CLOSE,
-            random_state=np.random.RandomState(42),
-        )
-        return POVExecutionAgent(**{**defaults, **overrides})
-
-    def test_symbol_stored(self):
-        agent = self._make(symbol="XYZ")
-        assert agent.symbol == "XYZ"
-
-    def test_symbol_default_value(self):
-        agent = self._make()
-        assert agent.symbol == "ABM"
-
-    def test_start_time_stored(self):
-        agent = self._make()
-        assert agent.start_time == MKT_OPEN
-
-    def test_end_time_stored(self):
-        agent = self._make()
-        assert agent.end_time == MKT_CLOSE
-
-    def test_pov_stored(self):
-        agent = self._make(pov=0.25)
-        assert agent.pov == 0.25
-
-    def test_direction_stored(self):
-        agent = self._make(direction=Side.ASK)
-        assert agent.direction == Side.ASK
-
-    def test_quantity_stored(self):
-        agent = self._make(quantity=5000)
-        assert agent.quantity == 5000
-
-    def test_remaining_quantity_equals_quantity(self):
-        agent = self._make(quantity=5000)
-        assert agent.remaining_quantity == 5000
-
-    def test_trade_flag_stored(self):
-        agent = self._make(trade=False)
-        assert agent.trade is False
-
-    def test_symbol_accessible_like_wakeup(self):
-        """self.symbol must be usable in the same way wakeup() uses it."""
-        agent = self._make(symbol="TEST")
-        # These are the exact attribute accesses that crashed in v2.4.0
-        _ = agent.symbol
-        assert isinstance(agent.symbol, str)
 
 
 # ---------------------------------------------------------------------------
@@ -807,3 +741,78 @@ class TestAdaptiveMarketMakerReplaceOrder:
         assert len(new_orders) == 2
         assert new_orders[0].limit_price == 99_000
         assert new_orders[1].limit_price == 98_900
+
+
+# ---------------------------------------------------------------------------
+# Regression guard: every registered agent stores all __init__ params
+# ---------------------------------------------------------------------------
+
+
+def _init_stores_param(cls: type, param: str) -> bool:
+    """Check whether *cls* or any ancestor stores *param* in ``__init__``.
+
+    Walks the MRO and looks for ``self.<param> =`` or ``self.<param>:`` in
+    each class's own ``__init__`` source.  This catches the exact bug class
+    where a parameter is accepted but never assigned to ``self``.
+    """
+    for klass in cls.__mro__:
+        init = klass.__dict__.get("__init__")
+        if init is None:
+            continue
+        try:
+            src = inspect.getsource(init)
+        except (OSError, TypeError):
+            continue
+        if f"self.{param} =" in src or f"self.{param}:" in src:
+            return True
+    return False
+
+
+# Parameters handled by the framework / parent plumbing — never expected
+# to appear as ``self.<param>`` in the leaf agent class.
+_FRAMEWORK_PARAMS: frozenset[str] = frozenset(
+    {
+        "id",
+        "name",
+        "type",
+        "random_state",
+        "risk_config",
+    }
+)
+
+
+def _agent_params() -> list[tuple[str, str, type]]:
+    """Yield (agent_name, param_name, agent_class) for parametrize."""
+    from abides_markets.config_system.registry import registry
+
+    cases: list[tuple[str, str, type]] = []
+    for agent_name in registry.registered_names():
+        entry = registry.get(agent_name)
+        agent_cls = entry.agent_class
+        if agent_cls is None:
+            continue
+        sig = inspect.signature(agent_cls.__init__)
+        for pname in sig.parameters:
+            if pname == "self" or pname in _FRAMEWORK_PARAMS:
+                continue
+            cases.append((agent_name, pname, agent_cls))
+    return cases
+
+
+@pytest.mark.parametrize(
+    "agent_name, param, agent_cls",
+    _agent_params(),
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_registered_agent_stores_init_param(agent_name, param, agent_cls):
+    """Every __init__ parameter must be stored as self.<param> somewhere in the MRO.
+
+    Regression guard for the v2.4.0 bug where POVExecutionAgent accepted
+    ``symbol`` but never assigned ``self.symbol``, causing AttributeError
+    on the first wakeup.  This test covers *all* registered agents
+    automatically — no per-agent maintenance required.
+    """
+    assert _init_stores_param(agent_cls, param), (
+        f"{agent_cls.__name__}.__init__() accepts '{param}' but no class "
+        f"in its MRO stores it as self.{param}"
+    )

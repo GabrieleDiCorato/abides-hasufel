@@ -46,12 +46,15 @@ class ResultProfile(Flag):
     AGENT_LOGS = auto()
     """Result of ``parse_logs_df()`` — one row per agent log entry."""
 
+    TRADE_ATTRIBUTION = auto()
+    """Per-execution causal attribution (passive/aggressive agent IDs)."""
+
     # ------------------------------------------------------------------ tiers
     SUMMARY = METADATA | AGENT_PNL | LIQUIDITY
     """Default tier.  Kilobyte-scale output; good for REST, LLM, alerting."""
 
-    QUANT = SUMMARY | L1_SERIES | L2_SERIES
-    """Adds full time-series.  Use for backtesting and quantitative analysis."""
+    QUANT = SUMMARY | L1_SERIES | L2_SERIES | TRADE_ATTRIBUTION
+    """Adds full time-series and trade attribution.  Use for backtesting and quantitative analysis."""
 
     FULL = QUANT | AGENT_LOGS
     """All data including raw agent logs.  Primarily for debugging."""

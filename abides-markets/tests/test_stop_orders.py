@@ -15,10 +15,8 @@ from __future__ import annotations
 from copy import deepcopy
 
 import numpy as np
-import pytest
 
 from abides_core.utils import str_to_ns
-
 from abides_markets.orders import MarketOrder, Side, StopOrder
 
 MKT_OPEN: int = str_to_ns("09:30:00")
@@ -156,7 +154,9 @@ class TestExchangeStopTrigger:
         sent: list = []
         market_orders: list = []
         exchange.send_message = lambda rid, msg: sent.append((rid, msg))
-        exchange.order_books["TEST"].handle_market_order = lambda o: market_orders.append(o)
+        exchange.order_books["TEST"].handle_market_order = (
+            lambda o: market_orders.append(o)
+        )
         exchange.current_time = MKT_OPEN + 1
         exchange.publish_order_book_data = lambda s: None
 
@@ -184,7 +184,9 @@ class TestExchangeStopTrigger:
         sent: list = []
         market_orders: list = []
         exchange.send_message = lambda rid, msg: sent.append((rid, msg))
-        exchange.order_books["TEST"].handle_market_order = lambda o: market_orders.append(o)
+        exchange.order_books["TEST"].handle_market_order = (
+            lambda o: market_orders.append(o)
+        )
         exchange.current_time = MKT_OPEN + 1
         exchange.publish_order_book_data = lambda s: None
 
@@ -261,7 +263,9 @@ class TestExchangeStopTrigger:
         sent: list = []
         market_orders: list = []
         exchange.send_message = lambda rid, msg: sent.append((rid, msg))
-        exchange.order_books["TEST"].handle_market_order = lambda o: market_orders.append(o)
+        exchange.order_books["TEST"].handle_market_order = (
+            lambda o: market_orders.append(o)
+        )
         exchange.current_time = MKT_OPEN + 1
         exchange.publish_order_book_data = lambda s: None
 
@@ -284,7 +288,9 @@ class TestExchangeStopTrigger:
         sent: list = []
         market_orders: list = []
         exchange.send_message = lambda rid, msg: sent.append((rid, msg))
-        exchange.order_books["TEST"].handle_market_order = lambda o: market_orders.append(o)
+        exchange.order_books["TEST"].handle_market_order = (
+            lambda o: market_orders.append(o)
+        )
         exchange.current_time = MKT_OPEN + 1
         exchange.publish_order_book_data = lambda s: None
 
@@ -334,7 +340,6 @@ class TestPlaceStopOrder:
 
     def test_stop_triggered_removes_from_orders(self):
         """stop_triggered should remove the stop order from self.orders."""
-        from unittest.mock import MagicMock
 
         from abides_markets.agents.trading_agent import TradingAgent
 

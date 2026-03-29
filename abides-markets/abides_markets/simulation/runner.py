@@ -50,6 +50,7 @@ from .result import (
     MarketSummary,
     SimulationMetadata,
     SimulationResult,
+    TradeAttribution,
 )
 
 # ---------------------------------------------------------------------------
@@ -249,6 +250,7 @@ def _extract_result(
 
         l1_series: L1Snapshots | None = None
         l2_series: L2Snapshots | None = None
+        trades: list[TradeAttribution] | None = None
 
         if ResultProfile.L1_SERIES in profile:
             l1_series = _extract_l1_series(book_log2)
@@ -256,12 +258,16 @@ def _extract_result(
         if ResultProfile.L2_SERIES in profile:
             l2_series = _extract_l2_series(book_log2)
 
+        if ResultProfile.TRADE_ATTRIBUTION in profile:
+            trades = _extract_trades(order_book)
+
         markets[symbol] = MarketSummary(
             symbol=symbol,
             l1_close=l1_close,
             liquidity=liquidity,
             l1_series=l1_series,
             l2_series=l2_series,
+            trades=trades,
         )
 
     # -- Per-agent PnL --------------------------------------------------------
@@ -371,6 +377,30 @@ def _extract_liquidity(
         last_trade_cents=last_trade,
         vwap_cents=vwap_cents,
     )
+
+
+def _extract_trades(order_book: Any) -> list[TradeAttribution]:
+    """Build a list of :class:`TradeAttribution` from EXEC entries in order book history."""
+    trades: list[TradeAttribution] = []
+    if not hasattr(order_book, "history"):
+        return trades
+    for entry in order_book.history:
+        if entry.get("type") != "EXEC":
+            continue
+        price = entry.get("price")
+        if price is None:
+            continue
+        trades.append(
+            TradeAttribution(
+                time_ns=int(entry["time"]),
+                passive_agent_id=int(entry["agent_id"]),
+                aggressive_agent_id=int(entry["oppos_agent_id"]),
+                side=str(entry["side"]),
+                price_cents=int(price),
+                quantity=int(entry["quantity"]),
+            )
+        )
+    return trades
 
 
 def _extract_l1_series(book_log2: list[dict]) -> L1Snapshots:

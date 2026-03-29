@@ -14,7 +14,8 @@ SimulationResult
 │   ├── l1_close: L1Close          (always — O(1) extraction cost)
 │   ├── liquidity: LiquidityMetrics (always — from MetricTracker)
 │   ├── l1_series: L1Snapshots | None   (ResultProfile.L1_SERIES)
-│   └── l2_series: L2Snapshots | None   (ResultProfile.L2_SERIES)
+│   ├── l2_series: L2Snapshots | None   (ResultProfile.L2_SERIES)
+│   └── trades: list[TradeAttribution] | None (ResultProfile.TRADE_ATTRIBUTION)
 ├── agents: list[AgentData]
 ├── logs: DataFrame[RawLogsSchema] | None   (ResultProfile.AGENT_LOGS)
 ├── extensions: dict[str, Any]
@@ -130,6 +131,39 @@ class LiquidityMetrics(BaseModel):
 
     Derived from ``OrderBook.buy_transactions`` and ``OrderBook.sell_transactions``.
     """
+
+
+# ---------------------------------------------------------------------------
+# TradeAttribution — per-execution causal record
+# ---------------------------------------------------------------------------
+
+
+class TradeAttribution(BaseModel):
+    """Causal attribution for a single execution (fill).
+
+    Each record corresponds to one ``EXEC`` entry in the order book history
+    and identifies both the passive (resting) and aggressive (incoming) agent.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    time_ns: int
+    """Execution timestamp in nanoseconds (Unix epoch)."""
+
+    passive_agent_id: int
+    """Agent ID of the resting order (maker)."""
+
+    aggressive_agent_id: int
+    """Agent ID of the incoming order (taker)."""
+
+    side: str
+    """Side of the passive order: ``"BUY"`` or ``"SELL"``."""
+
+    price_cents: int
+    """Execution price in integer cents."""
+
+    quantity: int
+    """Number of shares executed."""
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +344,9 @@ class MarketSummary(BaseModel):
 
     l2_series: L2Snapshots | None = None
     """Full sparse L2 series; ``None`` unless ``ResultProfile.L2_SERIES`` was set."""
+
+    trades: list[TradeAttribution] | None = None
+    """Per-execution causal attribution; ``None`` unless ``ResultProfile.TRADE_ATTRIBUTION`` was set."""
 
 
 # ---------------------------------------------------------------------------
