@@ -59,6 +59,7 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
                 "count": 102,
                 "params": {
                     "r_bar": 100_000,
+                    "sigma_s": 100_000,
                     "mean_reversion_half_life": "4.8d",
                     "mean_wakeup_gap": "175s",
                 },
@@ -115,7 +116,7 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "agents": {
             "noise": {"enabled": True, "count": 5000, "params": {}},
-            "value": {"enabled": True, "count": 200, "params": {}},
+            "value": {"enabled": True, "count": 200, "params": {"sigma_s": 100_000}},
             "momentum": {"enabled": True, "count": 25, "params": {}},
             "adaptive_market_maker": {"enabled": True, "count": 4, "params": {}},
         },
@@ -135,7 +136,7 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "agents": {
             "noise": {"enabled": True, "count": 100, "params": {}},
-            "value": {"enabled": True, "count": 20, "params": {}},
+            "value": {"enabled": True, "count": 20, "params": {"sigma_s": 100_000}},
             "momentum": {"enabled": False, "count": 0, "params": {}},
             "adaptive_market_maker": {"enabled": False, "count": 0, "params": {}},
         },
