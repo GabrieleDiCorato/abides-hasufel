@@ -15,6 +15,7 @@ from abides_markets.agents import (
     POVExecutionAgent,
     TWAPExecutionAgent,
     ValueAgent,
+    VWAPExecutionAgent,
 )
 from abides_markets.config_system.agent_configs import (
     AdaptiveMarketMakerConfig,
@@ -24,6 +25,7 @@ from abides_markets.config_system.agent_configs import (
     POVExecutionAgentConfig,
     TWAPExecutionAgentConfig,
     ValueAgentConfig,
+    VWAPExecutionAgentConfig,
 )
 from abides_markets.config_system.registry import register_agent
 
@@ -133,6 +135,19 @@ def _register_builtins() -> None:
         typical_count_range=(1, 1),
         recommended_with=("noise", "value", "adaptive_market_maker"),
     )(TWAPExecutionAgentConfig)
+
+    register_agent(
+        "vwap_execution",
+        agent_class=VWAPExecutionAgent,
+        category="execution",
+        description=(
+            "Volume-weighted average price execution agent that sizes "
+            "slices according to an expected intraday volume profile."
+        ),
+        requires_oracle=False,
+        typical_count_range=(1, 1),
+        recommended_with=("noise", "value", "adaptive_market_maker"),
+    )(VWAPExecutionAgentConfig)
 
 
 _register_builtins()

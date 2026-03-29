@@ -9,6 +9,7 @@ from .pov_execution_agent import POVExecutionAgent
 from .trading_agent import TradingAgent
 from .twap_execution_agent import TWAPExecutionAgent
 from .value_agent import ValueAgent
+from .vwap_execution_agent import VWAPExecutionAgent
 
 __all__ = [
     "AdaptiveMarketMakerAgent",
@@ -21,5 +22,6 @@ __all__ = [
     "POVExecutionAgent",
     "TWAPExecutionAgent",
     "TradingAgent",
+    "VWAPExecutionAgent",
     "ValueAgent",
 ]

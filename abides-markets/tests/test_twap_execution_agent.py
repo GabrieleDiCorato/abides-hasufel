@@ -77,8 +77,6 @@ class TestTWAPSliceSizing:
 
         # Second slice should be larger to catch up
         second = agent._compute_slice_quantity(t + agent.freq)
-        expected_remaining_slices = agent.total_slices - 2
-        expected = math.ceil(agent.remaining_quantity / (expected_remaining_slices + 1))
         # second should be >= first since we under-filled
         assert second >= first // 2
 
