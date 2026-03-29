@@ -3,6 +3,7 @@ import logging
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.utils import str_to_ns
 from abides_markets.models.order_size_model import OrderSizeModel
 from abides_markets.models.risk_config import RiskConfig
 
@@ -12,12 +13,17 @@ from .trading_agent import TradingAgent
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_MULTI_WAKE_FREQ: int = str_to_ns("30s")
+
 
 class NoiseAgent(TradingAgent):
     """Simplest trading agent — reference implementation for new agent authors.
 
     Wakes once at a random time, requests the current spread from the exchange,
     and places a single random limit order at the bid or ask.
+
+    When ``multi_wake=True`` the agent re-schedules itself after each order,
+    producing continuous background noise flow until market close.
 
     **Architecture notes for agent developers:**
 
@@ -54,6 +60,9 @@ class NoiseAgent(TradingAgent):
         log_orders: bool = False,
         order_size_model: OrderSizeModel | None = None,
         risk_config: RiskConfig | None = None,
+        multi_wake: bool = False,
+        wake_up_freq: NanosecondTime = _DEFAULT_MULTI_WAKE_FREQ,
+        poisson_arrival: bool = True,
     ) -> None:
         # --- Call super().__init__ with the standard set of base-class params.
         # id, name, type, random_state are auto-injected by the config system;
@@ -74,6 +83,13 @@ class NoiseAgent(TradingAgent):
 
         self.wakeup_time: NanosecondTime = wakeup_time
         self.symbol: str = symbol
+
+        # Multi-wake mode: if True, agent re-schedules after each order.
+        self.multi_wake: bool = multi_wake
+        self.wake_up_freq: NanosecondTime = wake_up_freq
+        self.poisson_arrival: bool = poisson_arrival
+        if self.poisson_arrival:
+            self.arrival_rate: NanosecondTime = self.wake_up_freq
 
         # Tracks whether we've passed the pre-market phase (exchange discovery).
         self.trading: bool = False
@@ -210,6 +226,11 @@ class NoiseAgent(TradingAgent):
 
             # NOW the spread data is available — safe to place an order.
             self.place_order()
+
+            # Multi-wake mode: schedule the next wakeup instead of going silent.
+            if self.multi_wake:
+                self.set_wakeup(current_time + self.get_wake_frequency())
+
             self.state = "AWAITING_WAKEUP"
 
     # -----------------------------------------------------------------
@@ -217,4 +238,9 @@ class NoiseAgent(TradingAgent):
     # -----------------------------------------------------------------
 
     def get_wake_frequency(self) -> NanosecondTime:
+        if self.multi_wake:
+            if self.poisson_arrival:
+                delta_time = self.random_state.exponential(scale=self.arrival_rate)
+                return int(round(delta_time))
+            return self.wake_up_freq
         return self.random_state.randint(low=0, high=100)

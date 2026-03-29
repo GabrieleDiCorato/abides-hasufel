@@ -37,8 +37,14 @@ class _StubKernel:
         pass
 
 
-def _make_agent(agent_cls=MeanReversionAgent, *, seed=42, symbol="TEST",
-                starting_cash=10_000_000, **kwargs):
+def _make_agent(
+    agent_cls=MeanReversionAgent,
+    *,
+    seed=42,
+    symbol="TEST",
+    starting_cash=10_000_000,
+    **kwargs,
+):
     defaults = {
         "id": 0,
         "random_state": np.random.RandomState(seed),
@@ -83,7 +89,9 @@ class TestMeanReversionAgentConstruction:
             _make_agent(entry_threshold=-1.0)
 
     def test_exit_ge_entry_raises(self):
-        with pytest.raises(ValueError, match="exit_threshold.*must be < entry_threshold"):
+        with pytest.raises(
+            ValueError, match="exit_threshold.*must be < entry_threshold"
+        ):
             _make_agent(entry_threshold=2.0, exit_threshold=2.0)
 
     def test_negative_exit_threshold_raises(self):
@@ -238,7 +246,9 @@ class TestMeanReversionAgentConfig:
         assert cfg.exit_threshold == 0.5
 
     def test_exit_ge_entry_rejected(self):
-        with pytest.raises(ValueError, match="exit_threshold.*must be < entry_threshold"):
+        with pytest.raises(
+            ValueError, match="exit_threshold.*must be < entry_threshold"
+        ):
             MeanReversionAgentConfig(entry_threshold=1.5, exit_threshold=1.5)
 
     def test_window_below_2_rejected(self):

@@ -245,7 +245,11 @@ class BaseAgentConfig(BaseModel):
 # Noise Agent
 # ---------------------------------------------------------------------------
 class NoiseAgentConfig(BaseAgentConfig):
-    """Configuration for NoiseAgent — simple agents that wake once and place a random order."""
+    """Configuration for NoiseAgent — simple agents that wake once and place a random order.
+
+    When ``multi_wake`` is True the agent re-schedules itself after every order,
+    producing continuous background noise flow until market close.
+    """
 
     noise_mkt_open_offset: str = Field(
         default="-00:30:00",
@@ -266,11 +270,33 @@ class NoiseAgentConfig(BaseAgentConfig):
         ),
         examples=["16:00:00", "12:00:00"],
     )
+    multi_wake: bool = Field(
+        default=False,
+        description=(
+            "When True the agent re-schedules after each order, producing "
+            "continuous background noise flow until market close."
+        ),
+    )
+    wake_up_freq: str = Field(
+        default="30s",
+        description=(
+            "Average interval between wake-ups in multi-wake mode. "
+            "Parsed as a duration string (e.g. '30s', '1min')."
+        ),
+    )
+    poisson_arrival: bool = Field(
+        default=True,
+        description=(
+            "When True (and multi_wake is True), the inter-arrival time is "
+            "drawn from an exponential distribution with mean ``wake_up_freq``."
+        ),
+    )
 
     _EXCLUDE_FROM_KWARGS: frozenset[str] = _BASE_EXCLUDE | frozenset(
         {
             "noise_mkt_open_offset",
             "noise_mkt_close_time",
+            "wake_up_freq",
         }
     )
 
@@ -295,6 +321,8 @@ class NoiseAgentConfig(BaseAgentConfig):
             noise_mkt_open, noise_mkt_close, agent_rng
         )
         kwargs["order_size_model"] = OrderSizeModel()
+        if self.multi_wake:
+            kwargs["wake_up_freq"] = str_to_ns(self.wake_up_freq)
         kwargs["name"] = f"NoiseAgent {agent_id}"
         kwargs["type"] = "NoiseAgent"
         return kwargs

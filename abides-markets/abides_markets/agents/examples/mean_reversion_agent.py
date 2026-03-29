@@ -60,13 +60,9 @@ class MeanReversionAgent(TradingAgent):
         if window < 2:
             raise ValueError(f"window ({window}) must be >= 2.")
         if entry_threshold <= 0:
-            raise ValueError(
-                f"entry_threshold ({entry_threshold}) must be positive."
-            )
+            raise ValueError(f"entry_threshold ({entry_threshold}) must be positive.")
         if exit_threshold < 0:
-            raise ValueError(
-                f"exit_threshold ({exit_threshold}) must be non-negative."
-            )
+            raise ValueError(f"exit_threshold ({exit_threshold}) must be non-negative.")
         if exit_threshold >= entry_threshold:
             raise ValueError(
                 f"exit_threshold ({exit_threshold}) must be < entry_threshold ({entry_threshold})."
