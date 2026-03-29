@@ -9,9 +9,8 @@ Covers:
 
 from __future__ import annotations
 
-from pydantic import ValidationError
-
 import pytest
+from pydantic import ValidationError
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +83,17 @@ class TestExtractEquityCurve:
 
         agent = self._make_agent_with_log(
             [
-                (1_000, "FILL_PNL", {"nav": 10_000, "peak_nav": 10_000, "symbol": "AAPL"}),
+                (
+                    1_000,
+                    "FILL_PNL",
+                    {"nav": 10_000, "peak_nav": 10_000, "symbol": "AAPL"},
+                ),
                 (2_000, "ORDER_EXECUTED", {"order_id": 1}),
-                (3_000, "FILL_PNL", {"nav": 10_200, "peak_nav": 10_200, "symbol": "AAPL"}),
+                (
+                    3_000,
+                    "FILL_PNL",
+                    {"nav": 10_200, "peak_nav": 10_200, "symbol": "AAPL"},
+                ),
             ]
         )
         ec = _extract_equity_curve(agent)

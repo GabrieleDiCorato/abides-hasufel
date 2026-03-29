@@ -326,3 +326,152 @@ class TestEdgeCases:
 
         oracle = _make_oracle_batch()
         assert isinstance(oracle, Oracle)
+
+
+# ===================================================================
+# Interpolation numerical accuracy tests
+# ===================================================================
+
+
+class TestInterpolationNumericalAccuracy:
+    """Pin numeric interpolation results and test boundary conditions."""
+
+    def _sparse_series(self, drift: int = 100) -> pd.Series:
+        """Every 100ns within test window, drift per step."""
+        return _make_series(step=100, drift=drift)
+
+    def test_linear_at_first_point_exact(self):
+        """LINEAR at exact first data point = first value."""
+        series = self._sparse_series()
+        oracle = _make_oracle_batch(
+            series=series, interpolation=InterpolationStrategy.LINEAR
+        )
+        rs = np.random.RandomState(42)
+        price = oracle.observe_price("TEST", MKT_OPEN, rs, sigma_n=0)
+        assert price == PRICE_INITIAL
+
+    def test_linear_at_last_point_exact(self):
+        """LINEAR at last data point = last value."""
+        series = self._sparse_series()
+        last_ts = int(series.index[-1].value)
+        last_val = int(series.iloc[-1])
+        oracle = _make_oracle_batch(
+            series=series, interpolation=InterpolationStrategy.LINEAR
+        )
+        rs = np.random.RandomState(42)
+        price = oracle.observe_price("TEST", last_ts, rs, sigma_n=0)
+        assert price == last_val
+
+    def test_linear_quarter_point(self):
+        """LINEAR at 25% between two points."""
+        series = self._sparse_series(drift=200)
+        oracle = _make_oracle_batch(
+            series=series, interpolation=InterpolationStrategy.LINEAR
+        )
+        rs = np.random.RandomState(42)
+        # Between MKT_OPEN (100_000) and MKT_OPEN+100 (100_200)
+        # At MKT_OPEN+25: 100_000 + 0.25*200 = 100_050
+        price = oracle.observe_price("TEST", MKT_OPEN + 25, rs, sigma_n=0)
+        assert price == PRICE_INITIAL + 50
+
+    def test_linear_extrapolation_beyond_last_clamps(self):
+        """LINEAR query past the last data point — np.interp clamps to last value."""
+        series = self._sparse_series()
+        last_val = int(series.iloc[-1])
+        oracle = _make_oracle_batch(
+            series=series, interpolation=InterpolationStrategy.LINEAR
+        )
+        rs = np.random.RandomState(42)
+        # mkt_close - 1 is the clamp point in observe_price; ensure it works.
+        beyond = MKT_CLOSE - 1
+        price = oracle.observe_price("TEST", beyond, rs, sigma_n=0)
+        # np.interp clamps above to last y value.
+        assert price == last_val
+
+    def test_forward_fill_before_first_raises(self):
+        """Forward fill before the first data point raises ValueError.
+
+        The series starts at mkt_open + 100, so querying at mkt_open
+        has no preceding value → should raise.
+        """
+        ts0 = MKT_OPEN + 100
+        ts1 = MKT_OPEN + 200
+        index = pd.to_datetime([ts0, ts1], unit="ns")
+        series = pd.Series([10_000, 10_100], index=index, dtype=int)
+        oracle = _make_oracle_batch(
+            series=series, interpolation=InterpolationStrategy.FORWARD_FILL
+        )
+        rs = np.random.RandomState(42)
+        with pytest.raises(ValueError, match="No data available"):
+            oracle.observe_price("TEST", MKT_OPEN, rs, sigma_n=0)
+
+    def test_nearest_tie_breaking(self):
+        """NEAREST at exactly the midpoint: verify consistent behavior."""
+        ts0 = MKT_OPEN
+        ts1 = MKT_OPEN + 100
+        index = pd.to_datetime([ts0, ts1], unit="ns")
+        series = pd.Series([10_000, 10_200], index=index, dtype=int)
+        oracle = _make_oracle_batch(
+            series=series, interpolation=InterpolationStrategy.NEAREST
+        )
+        rs = np.random.RandomState(42)
+        mid = MKT_OPEN + 50
+        price = oracle.observe_price("TEST", mid, rs, sigma_n=0)
+        # Must be one of the two endpoints — pandas nearest picks the earlier.
+        assert price in (10_000, 10_200)
+
+    def test_linear_large_gap_precision(self):
+        """LINEAR over a large gap doesn't lose precision to float64.
+
+        The oracle subtracts a base timestamp to keep float values small.
+        """
+        # Two points 1 second apart (1e9 ns).
+        ts0 = MKT_OPEN
+        ts1 = MKT_OPEN + 1_000_000_000
+        mkt_close_wide = MKT_OPEN + 2_000_000_000
+        index = pd.to_datetime([ts0, ts1], unit="ns")
+        series = pd.Series([10_000, 20_000], index=index, dtype=int)
+        oracle = ExternalDataOracle(
+            mkt_open=MKT_OPEN,
+            mkt_close=mkt_close_wide,
+            symbols=["TEST"],
+            data={"TEST": series},
+            interpolation=InterpolationStrategy.LINEAR,
+        )
+        rs = np.random.RandomState(42)
+        # Midpoint should be exactly 15_000.
+        mid = MKT_OPEN + 500_000_000
+        price = oracle.observe_price("TEST", mid, rs, sigma_n=0)
+        assert price == 15_000
+
+
+class TestPointModeLargeCache:
+    """Verify LRU cache boundary behavior in point mode."""
+
+    def test_cache_size_1_evicts_immediately(self):
+        """With maxsize=1, second lookup evicts the first."""
+        provider = _MockPointProvider()
+        oracle = _make_oracle_point(provider=provider, cache_size=1)
+        rs = np.random.RandomState(42)
+
+        # First lookup → cache miss.
+        oracle.observe_price("TEST", MKT_OPEN, rs, sigma_n=0)
+        assert provider.call_count == 1
+
+        # Second lookup at different ts → evicts first.
+        oracle.observe_price("TEST", MKT_OPEN + 1, rs, sigma_n=0)
+        assert provider.call_count == 2
+
+        # Re-query first ts → cache miss again (evicted).
+        oracle.observe_price("TEST", MKT_OPEN, rs, sigma_n=0)
+        assert provider.call_count == 3
+
+    def test_cache_hit_does_not_call_provider(self):
+        """Repeated query at same ts uses cache."""
+        provider = _MockPointProvider()
+        oracle = _make_oracle_point(provider=provider, cache_size=100)
+        rs = np.random.RandomState(42)
+
+        oracle.observe_price("TEST", MKT_OPEN + 5, rs, sigma_n=0)
+        oracle.observe_price("TEST", MKT_OPEN + 5, rs, sigma_n=0)
+        assert provider.call_count == 1

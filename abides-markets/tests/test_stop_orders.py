@@ -353,3 +353,141 @@ class TestPlaceStopOrder:
         agent.stop_triggered(stop)
 
         assert stop.order_id not in agent.orders
+
+
+# ===================================================================
+# Stop order trigger boundary tests
+# ===================================================================
+
+
+class TestStopTriggerBoundaries:
+    """Edge-case boundaries for stop-price comparison (>=, <=, off-by-one)."""
+
+    def _make_exchange(self):
+        from abides_markets.agents.exchange_agent import ExchangeAgent
+
+        exchange = ExchangeAgent(
+            id=0,
+            mkt_open=MKT_OPEN,
+            mkt_close=MKT_CLOSE,
+            symbols=["TEST"],
+            name="TestExchange",
+            random_state=np.random.RandomState(42),
+            log_orders=False,
+            use_metric_tracker=False,
+        )
+        exchange.send_message = lambda *a, **kw: None
+        exchange.current_time = MKT_OPEN + 1
+        exchange.publish_order_book_data = lambda s: None
+        return exchange
+
+    def _arm_stop(self, exchange, side, stop_price, last_trade):
+        """Add a stop order and set last_trade, returning the stop."""
+        stop = StopOrder(1, MKT_OPEN, "TEST", 100, side, stop_price=stop_price)
+        exchange.stop_orders["TEST"].append((stop, 1))
+        exchange.order_books["TEST"].last_trade = last_trade
+        mkt_orders = []
+        exchange.order_books["TEST"].handle_market_order = lambda o: mkt_orders.append(
+            o
+        )
+        return stop, mkt_orders
+
+    # --- Buy stop: triggers when last_trade >= stop_price ---
+
+    def test_buy_stop_one_cent_below_does_not_trigger(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.BID, 10_000, 9_999)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 0
+        assert len(exchange.stop_orders["TEST"]) == 1
+
+    def test_buy_stop_exactly_at_price_triggers(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.BID, 10_000, 10_000)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 1
+        assert len(exchange.stop_orders["TEST"]) == 0
+
+    def test_buy_stop_one_cent_above_triggers(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.BID, 10_000, 10_001)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 1
+
+    # --- Sell stop: triggers when last_trade <= stop_price ---
+
+    def test_sell_stop_one_cent_above_does_not_trigger(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.ASK, 10_000, 10_001)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 0
+        assert len(exchange.stop_orders["TEST"]) == 1
+
+    def test_sell_stop_exactly_at_price_triggers(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.ASK, 10_000, 10_000)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 1
+        assert len(exchange.stop_orders["TEST"]) == 0
+
+    def test_sell_stop_one_cent_below_triggers(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.ASK, 10_000, 9_999)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 1
+
+    # --- Minimum price boundaries ---
+
+    def test_buy_stop_at_price_1_triggers(self):
+        """Lowest meaningful price: stop_price=1, last_trade=1."""
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.BID, 1, 1)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 1
+
+    def test_sell_stop_at_price_1_triggers(self):
+        exchange = self._make_exchange()
+        _, mkt = self._arm_stop(exchange, Side.ASK, 1, 1)
+        exchange._check_stop_orders("TEST")
+        assert len(mkt) == 1
+
+    # --- Multiple stops, same price ---
+
+    def test_two_buy_stops_same_price_both_trigger(self):
+        exchange = self._make_exchange()
+        s1, _ = self._arm_stop(exchange, Side.BID, 10_000, 10_000)
+        s2 = StopOrder(2, MKT_OPEN, "TEST", 50, Side.BID, stop_price=10_000)
+        exchange.stop_orders["TEST"].append((s2, 2))
+        mkt_orders = []
+        exchange.order_books["TEST"].handle_market_order = lambda o: mkt_orders.append(
+            o
+        )
+        exchange._check_stop_orders("TEST")
+        assert len(mkt_orders) == 2
+        assert len(exchange.stop_orders["TEST"]) == 0
+
+    def test_buy_and_sell_stop_same_price_both_trigger(self):
+        """At price 10_000: buy stop (>=) and sell stop (<=) both fire."""
+        exchange = self._make_exchange()
+        buy = StopOrder(1, MKT_OPEN, "TEST", 100, Side.BID, stop_price=10_000)
+        sell = StopOrder(2, MKT_OPEN, "TEST", 50, Side.ASK, stop_price=10_000)
+        exchange.stop_orders["TEST"].extend([(buy, 1), (sell, 2)])
+        exchange.order_books["TEST"].last_trade = 10_000
+        mkt_orders = []
+        exchange.order_books["TEST"].handle_market_order = lambda o: mkt_orders.append(
+            o
+        )
+        exchange._check_stop_orders("TEST")
+        assert len(mkt_orders) == 2
+        assert len(exchange.stop_orders["TEST"]) == 0
+
+    # --- last_trade=None after stops are registered ---
+
+    def test_no_trigger_when_last_trade_none(self):
+        """Stops survive when book has no last_trade."""
+        exchange = self._make_exchange()
+        stop = StopOrder(1, MKT_OPEN, "TEST", 100, Side.BID, stop_price=10_000)
+        exchange.stop_orders["TEST"].append((stop, 1))
+        exchange.order_books["TEST"].last_trade = None
+        exchange._check_stop_orders("TEST")
+        assert len(exchange.stop_orders["TEST"]) == 1

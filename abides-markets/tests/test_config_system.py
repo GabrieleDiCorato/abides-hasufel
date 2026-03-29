@@ -1826,3 +1826,207 @@ class TestCompilerErrorContext:
         )
         with pytest.raises(Exception, match="noise"):
             compile(config)
+
+
+# ---------------------------------------------------------------------------
+# Config validation edge cases (Phase 4.4)
+# ---------------------------------------------------------------------------
+
+
+class TestMarketConfigValidationEdges:
+    """Boundary and edge-case tests for MarketConfig field validators."""
+
+    def test_date_invalid_month_13(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "sparse_mean_reverting"}, date="20211305")
+
+    def test_date_invalid_day_32(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "sparse_mean_reverting"}, date="20210532")
+
+    def test_date_invalid_month_00(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "sparse_mean_reverting"}, date="20210005")
+
+    def test_date_invalid_day_00(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "sparse_mean_reverting"}, date="20210100")
+
+    def test_date_non_numeric(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "sparse_mean_reverting"}, date="2021-02-05")
+
+    def test_date_too_short(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "sparse_mean_reverting"}, date="2021020")
+
+    def test_time_hour_24(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(
+                oracle={"type": "sparse_mean_reverting"},
+                start_time="24:00:00",
+                end_time="25:00:00",
+            )
+
+    def test_time_minute_60(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(
+                oracle={"type": "sparse_mean_reverting"},
+                start_time="09:60:00",
+                end_time="16:00:00",
+            )
+
+    def test_time_second_60(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(
+                oracle={"type": "sparse_mean_reverting"},
+                start_time="09:30:60",
+                end_time="16:00:00",
+            )
+
+    def test_time_non_numeric_format(self):
+        with pytest.raises(ValidationError):
+            MarketConfig(
+                oracle={"type": "sparse_mean_reverting"},
+                start_time="nine:thirty:00",
+                end_time="16:00:00",
+            )
+
+    def test_opening_price_zero_accepted(self):
+        """opening_price=0 should be technically accepted (no min constraint)."""
+        mc = MarketConfig(oracle=None, opening_price=0)
+        assert mc.opening_price == 0
+
+    def test_oracle_type_unrecognized(self):
+        """Unknown oracle type should fail discriminated union resolution."""
+        with pytest.raises(ValidationError):
+            MarketConfig(oracle={"type": "unknown_oracle_type"})
+
+    def test_one_second_market_window_accepted(self):
+        """Minimal valid market window (1 second)."""
+        mc = MarketConfig(
+            oracle={"type": "sparse_mean_reverting"},
+            start_time="09:30:00",
+            end_time="09:30:01",
+        )
+        assert mc.start_time == "09:30:00"
+        assert mc.end_time == "09:30:01"
+
+
+class TestAgentGroupConfigEdges:
+    """Edge cases for AgentGroupConfig."""
+
+    def test_count_zero_accepted(self):
+        """count=0 is valid — zero agents of this type."""
+        ag = AgentGroupConfig(count=0)
+        assert ag.count == 0
+
+    def test_extra_fields_rejected(self):
+        """AgentGroupConfig has extra='forbid'."""
+        with pytest.raises(ValidationError):
+            AgentGroupConfig(count=5, nonexistent_field=True)
+
+    def test_params_default_empty(self):
+        ag = AgentGroupConfig(count=1)
+        assert ag.params == {}
+
+
+class TestSimulationConfigEdges:
+    """Edge cases for SimulationConfig model."""
+
+    def test_agents_sorted_deterministically(self):
+        """Agent groups sort by name regardless of insertion order."""
+        config = SimulationConfig(
+            market={"oracle": {"type": "sparse_mean_reverting"}},
+            agents={
+                "zzz_late": AgentGroupConfig(count=1),
+                "aaa_early": AgentGroupConfig(count=2),
+                "mmm_middle": AgentGroupConfig(count=3),
+            },
+            simulation={"seed": 42},
+        )
+        keys = list(config.agents.keys())
+        assert keys == sorted(keys)
+
+    def test_empty_agents_dict_accepted(self):
+        """Simulation with no agents is valid at model level."""
+        config = SimulationConfig(
+            market={"oracle": {"type": "sparse_mean_reverting"}},
+            agents={},
+            simulation={"seed": 42},
+        )
+        assert len(config.agents) == 0
+
+    def test_duplicate_agent_type_replaces(self):
+        """Dict semantics: second entry for same key wins."""
+        agents = {"noise": AgentGroupConfig(count=5)}
+        agents["noise"] = AgentGroupConfig(count=10)  # overwrite
+        config = SimulationConfig(
+            market={"oracle": {"type": "sparse_mean_reverting"}},
+            agents=agents,
+            simulation={"seed": 42},
+        )
+        assert config.agents["noise"].count == 10
+
+    def test_compile_no_agents_produces_exchange_only(self):
+        """Compiling with no agent groups produces just the exchange."""
+        config = SimulationConfig(
+            market={"oracle": {"type": "sparse_mean_reverting"}},
+            agents={},
+            simulation={"seed": 42},
+        )
+        runtime = compile(config)
+        assert len(runtime["agents"]) == 1  # exchange only
+
+
+class TestSerializationRoundTrip:
+    """Additional serialization edge cases."""
+
+    def test_config_roundtrip_preserves_oracle_type(self):
+        """Serialize and deserialize — oracle type should survive."""
+        original = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .oracle(r_bar=300_000)
+            .seed(42)
+            .build()
+        )
+        d = config_to_dict(original)
+        restored = config_from_dict(d)
+        assert restored.market.oracle.type == "sparse_mean_reverting"
+        assert restored.market.oracle.r_bar == 300_000
+
+    def test_config_roundtrip_preserves_agent_counts(self):
+        original = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .enable_agent("noise", count=77)
+            .seed(42)
+            .build()
+        )
+        d = config_to_dict(original)
+        restored = config_from_dict(d)
+        assert restored.agents["noise"].count == 77
+
+    def test_save_load_roundtrip(self):
+        """Full file-based save/load roundtrip."""
+        import tempfile
+
+        original = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            path = Path(f.name)
+        try:
+            save_config(original, path)
+            loaded = load_config(path)
+            assert loaded.simulation.seed == 42
+            assert loaded.market.ticker == original.market.ticker
+        finally:
+            path.unlink()
+
+    def test_json_schema_generation(self):
+        """get_config_schema() should return a valid JSON-serializable dict."""
+        schema = get_config_schema()
+        # Should be a dict with standard JSON-schema keys
+        assert "properties" in schema or "$defs" in schema
+        # Should be JSON-serializable
+        json.dumps(schema)

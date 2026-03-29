@@ -791,7 +791,7 @@ def _agent_params() -> list[tuple[str, str, type]]:
         agent_cls = entry.agent_class
         if agent_cls is None:
             continue
-        sig = inspect.signature(agent_cls.__init__)
+        sig = inspect.signature(agent_cls.__init__)  # type: ignore[misc]
         for pname in sig.parameters:
             if pname == "self" or pname in _FRAMEWORK_PARAMS:
                 continue

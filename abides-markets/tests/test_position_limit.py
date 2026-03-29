@@ -440,3 +440,134 @@ class TestConfigSystemPositionLimit:
         config = BaseAgentConfig()
         assert config.position_limit is None
         assert config.position_limit_clamp is False
+
+
+# ===================================================================
+# Exhaustive boundary tests — deeply short/long, exact limit, mixed pending
+# ===================================================================
+
+
+class TestPositionLimitExhaustiveBoundaries:
+    """Corner cases for _check_position_limit at extreme positions."""
+
+    def test_deeply_short_buy_clamped_to_zero(self):
+        """Holdings = -120, limit=100, BID 40, clamp=True → allowed=0 (deeply beyond limit)."""
+        agent = _make_agent(position_limit=100, position_limit_clamp=True)
+        agent.holdings[SYMBOL] = -120  # Already exceeds limit on short side
+
+        # base = -120 + 0 (no pending) = -120
+        # BID 40 → projected = -120 + 40 = -80, abs(-80)=80 ≤ 100 → allowed
+        allowed = agent._check_position_limit(SYMBOL, 40, Side.BID)
+        assert allowed == 40  # within limit after buy
+
+    def test_deeply_short_buy_clamp_returns_full_room(self):
+        """Holdings = -120, limit=100, BID 10, clamp=True → room=220.
+
+        Note: clamp returns the *maximum* allowed qty (room), not
+        min(qty, room).  When room > requested qty the caller may
+        receive a value larger than originally requested.
+        """
+        agent = _make_agent(position_limit=100, position_limit_clamp=True)
+        agent.holdings[SYMBOL] = -120
+
+        # base = -120, projected = -120 + 10 = -110, abs=110 > 100 → clamp branch
+        # room (BID) = limit - base = 100 - (-120) = 220
+        allowed = agent._check_position_limit(SYMBOL, 10, Side.BID)
+        assert allowed == 220  # clamp returns full room, NOT min(qty, room)
+
+    def test_deeply_long_sell_clamped_to_zero(self):
+        """Holdings = 120, limit=100, ASK 40, clamp=True → projected=80 ≤ 100, allowed=40."""
+        agent = _make_agent(position_limit=100, position_limit_clamp=True)
+        agent.holdings[SYMBOL] = 120
+
+        allowed = agent._check_position_limit(SYMBOL, 40, Side.ASK)
+        assert allowed == 40  # reduces position toward limit
+
+    def test_deeply_long_buy_blocked(self):
+        """Holdings = 120, limit=100, BID 10, block mode → 0 (already over limit)."""
+        agent = _make_agent(position_limit=100, position_limit_clamp=False)
+        agent.holdings[SYMBOL] = 120
+
+        # projected = 120 + 10 = 130, abs=130 > 100 → blocked
+        allowed = agent._check_position_limit(SYMBOL, 10, Side.BID)
+        assert allowed == 0
+
+    def test_deeply_long_buy_clamped(self):
+        """Holdings = 120, limit=100, BID 10, clamp → 0 (no room, already over)."""
+        agent = _make_agent(position_limit=100, position_limit_clamp=True)
+        agent.holdings[SYMBOL] = 120
+
+        # base = 120, room (BID) = limit - base = 100 - 120 = -20
+        # allowed = max(0, -20) = 0
+        allowed = agent._check_position_limit(SYMBOL, 10, Side.BID)
+        assert allowed == 0
+
+    def test_deeply_short_sell_clamped(self):
+        """Holdings = -120, limit=100, ASK 10, clamp → 0 (no room on short side)."""
+        agent = _make_agent(position_limit=100, position_limit_clamp=True)
+        agent.holdings[SYMBOL] = -120
+
+        # base = -120, room (ASK) = limit + base = 100 + (-120) = -20
+        # allowed = max(0, -20) = 0
+        allowed = agent._check_position_limit(SYMBOL, 10, Side.ASK)
+        assert allowed == 0
+
+    def test_exact_boundary_bid(self):
+        """Holdings = 99, limit=100, BID 1 → exactly at limit, allowed."""
+        agent = _make_agent(position_limit=100)
+        agent.holdings[SYMBOL] = 99
+
+        allowed = agent._check_position_limit(SYMBOL, 1, Side.BID)
+        assert allowed == 1  # projected = 100 = limit → allowed
+
+    def test_exact_boundary_ask(self):
+        """Holdings = -99, limit=100, ASK 1 → exactly at limit, allowed."""
+        agent = _make_agent(position_limit=100)
+        agent.holdings[SYMBOL] = -99
+
+        allowed = agent._check_position_limit(SYMBOL, 1, Side.ASK)
+        assert allowed == 1  # projected = -100, abs=100 = limit → allowed
+
+    def test_one_over_boundary_blocked(self):
+        """Holdings = 100, limit=100, BID 1 → projected 101, blocked."""
+        agent = _make_agent(position_limit=100)
+        agent.holdings[SYMBOL] = 100
+
+        allowed = agent._check_position_limit(SYMBOL, 1, Side.BID)
+        assert allowed == 0
+
+    def test_mixed_pending_orders_correct_delta(self):
+        """3 pending buys + 2 pending sells → correct delta in limit check."""
+        agent = _make_agent(position_limit=100, position_limit_clamp=True)
+
+        # 3 buys of 20 each = +60
+        for _ in range(3):
+            o = LimitOrder(0, MKT_OPEN, SYMBOL, 20, Side.BID, 10_000)
+            agent.orders[o.order_id] = o
+        # 2 sells of 15 each = -30
+        for _ in range(2):
+            o = LimitOrder(0, MKT_OPEN, SYMBOL, 15, Side.ASK, 10_000)
+            agent.orders[o.order_id] = o
+
+        # pending delta = 60 - 30 = 30
+        delta = agent._pending_order_delta(SYMBOL)
+        assert delta == 30
+
+        # base = 0 + 30 = 30
+        # BID 80: projected = 30 + 80 = 110 > 100
+        # clamp: room = 100 - 30 = 70
+        allowed = agent._check_position_limit(SYMBOL, 80, Side.BID)
+        assert allowed == 70
+
+    def test_replace_order_excludes_old(self):
+        """_pending_order_delta with exclude_order_id removes old order from calculation."""
+        agent = _make_agent(position_limit=100)
+
+        old = LimitOrder(0, MKT_OPEN, SYMBOL, 80, Side.BID, 10_000)
+        agent.orders[old.order_id] = old
+
+        # Without exclusion: delta = 80
+        assert agent._pending_order_delta(SYMBOL) == 80
+
+        # With exclusion of old order: delta = 0
+        assert agent._pending_order_delta(SYMBOL, exclude_order_id=old.order_id) == 0

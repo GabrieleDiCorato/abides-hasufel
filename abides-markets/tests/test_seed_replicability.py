@@ -235,6 +235,79 @@ def test_rmsc04_replicability_with_different_seeds():
     print("✓ Different seeds produce different oracle prices as expected")
 
 
+# ===================================================================
+# Additional seed/RNG isolation tests
+# ===================================================================
+
+
+def test_oracle_isolation_from_agent_count_change():
+    """Adding agents must not change oracle's fundamental value series.
+
+    The oracle has its own sub-seeded RandomState, so changing the number
+    of agents (which draws from the kernel's RNG for agent seeds) must NOT
+    change the oracle's output.
+    """
+    seed = 42
+
+    config_a = rmsc04.build_config(
+        seed=seed,
+        end_time="10:00:00",
+        num_noise_agents=50,
+        num_value_agents=5,
+        num_momentum_agents=2,
+    )
+    config_b = rmsc04.build_config(
+        seed=seed,
+        end_time="10:00:00",
+        num_noise_agents=80,  # different agent count
+        num_value_agents=8,
+        num_momentum_agents=3,
+    )
+
+    oracle_a = config_a["custom_properties"]["oracle"]
+    oracle_b = config_b["custom_properties"]["oracle"]
+
+    ticker = list(oracle_a.symbols.keys())[0]
+    mkt_open = config_a["start_time"] + str_to_ns("09:30:00")
+
+    obs_rs_a = np.random.RandomState(99)
+    obs_rs_b = np.random.RandomState(99)
+
+    for offset in [0, str_to_ns("5s"), str_to_ns("30s"), str_to_ns("1min")]:
+        ts = mkt_open + offset
+        val_a = oracle_a.observe_price(ticker, ts, obs_rs_a, sigma_n=0)
+        val_b = oracle_b.observe_price(ticker, ts, obs_rs_b, sigma_n=0)
+        assert val_a == val_b, (
+            f"Oracle value differs at offset={offset}: {val_a} vs {val_b}. "
+            "Agent count change leaked into oracle RNG."
+        )
+
+
+def test_config_build_same_seed_same_agent_ids():
+    """Same seed → identical agent lists (names, types)."""
+    seed = 12345
+
+    def build():
+        return rmsc04.build_config(
+            seed=seed,
+            end_time="10:00:00",
+            num_noise_agents=20,
+            num_value_agents=5,
+            num_momentum_agents=2,
+        )
+
+    c1 = build()
+    c2 = build()
+
+    names1 = [a.name for a in c1["agents"]]
+    names2 = [a.name for a in c2["agents"]]
+    assert names1 == names2
+
+    types1 = [type(a).__name__ for a in c1["agents"]]
+    types2 = [type(a).__name__ for a in c2["agents"]]
+    assert types1 == types2
+
+
 if __name__ == "__main__":
     print("Testing ABIDES seed replicability...")
     print("\n1. Testing replicability with same seed...")
@@ -242,5 +315,11 @@ if __name__ == "__main__":
 
     print("\n2. Testing differences with different seeds...")
     test_rmsc04_replicability_with_different_seeds()
+
+    print("\n3. Testing oracle isolation from agent count...")
+    test_oracle_isolation_from_agent_count_change()
+
+    print("\n4. Testing config build determinism...")
+    test_config_build_same_seed_same_agent_ids()
 
     print("\n✅ All replicability tests passed!")
