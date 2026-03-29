@@ -49,6 +49,7 @@ from .extractors import BaseResultExtractor, FunctionExtractor, ResultExtractor
 from .profiles import ResultProfile
 from .result import (
     AgentData,
+    EquityCurve,
     ExecutionMetrics,
     L1Close,
     L1Snapshots,
@@ -81,6 +82,7 @@ __all__ = [
     "L2Snapshots",
     "AgentData",
     "ExecutionMetrics",
+    "EquityCurve",
     "TradeAttribution",
     # Profile
     "ResultProfile",

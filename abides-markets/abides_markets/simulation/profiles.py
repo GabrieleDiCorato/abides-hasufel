@@ -49,12 +49,15 @@ class ResultProfile(Flag):
     TRADE_ATTRIBUTION = auto()
     """Per-execution causal attribution (passive/aggressive agent IDs)."""
 
+    EQUITY_CURVE = auto()
+    """Per-agent equity curve from FILL_PNL log events."""
+
     # ------------------------------------------------------------------ tiers
     SUMMARY = METADATA | AGENT_PNL | LIQUIDITY
     """Default tier.  Kilobyte-scale output; good for REST, LLM, alerting."""
 
-    QUANT = SUMMARY | L1_SERIES | L2_SERIES | TRADE_ATTRIBUTION
-    """Adds full time-series and trade attribution.  Use for backtesting and quantitative analysis."""
+    QUANT = SUMMARY | L1_SERIES | L2_SERIES | TRADE_ATTRIBUTION | EQUITY_CURVE
+    """Adds full time-series, trade attribution, and equity curves.  Use for backtesting and quantitative analysis."""
 
     FULL = QUANT | AGENT_LOGS
     """All data including raw agent logs.  Primarily for debugging."""

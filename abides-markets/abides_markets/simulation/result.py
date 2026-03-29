@@ -17,6 +17,7 @@ SimulationResult
 │   ├── l2_series: L2Snapshots | None   (ResultProfile.L2_SERIES)
 │   └── trades: list[TradeAttribution] | None (ResultProfile.TRADE_ATTRIBUTION)
 ├── agents: list[AgentData]
+│   └── equity_curve: EquityCurve | None     (ResultProfile.EQUITY_CURVE)
 ├── logs: DataFrame[RawLogsSchema] | None   (ResultProfile.AGENT_LOGS)
 ├── extensions: dict[str, Any]
 └── profile: ResultProfile
@@ -400,6 +401,36 @@ class ExecutionMetrics(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# EquityCurve — per-fill NAV time-series from FILL_PNL events
+# ---------------------------------------------------------------------------
+
+
+class EquityCurve(BaseModel):
+    """Per-fill equity curve built from FILL_PNL log events.
+
+    Each entry corresponds to one order fill.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    times_ns: list[int]
+    """Timestamp (nanoseconds) of each fill."""
+
+    nav_cents: list[int]
+    """Portfolio NAV in cents after each fill."""
+
+    peak_nav_cents: list[int]
+    """High-water mark of NAV in cents after each fill."""
+
+    @property
+    def max_drawdown_cents(self) -> int:
+        """Maximum peak-to-trough drawdown in cents.  0 if no fills."""
+        if not self.peak_nav_cents:
+            return 0
+        return max(peak - nav for peak, nav in zip(self.peak_nav_cents, self.nav_cents))
+
+
+# ---------------------------------------------------------------------------
 # AgentData — per-agent PnL summary
 # ---------------------------------------------------------------------------
 
@@ -430,6 +461,9 @@ class AgentData(BaseModel):
 
     execution_metrics: ExecutionMetrics | None = None
     """Execution quality metrics; populated only for execution-category agents."""
+
+    equity_curve: EquityCurve | None = None
+    """Per-fill equity curve from FILL_PNL events; ``None`` unless ``ResultProfile.EQUITY_CURVE`` was set."""
 
 
 # ---------------------------------------------------------------------------

@@ -42,6 +42,7 @@ from .extractors import ResultExtractor
 from .profiles import ResultProfile
 from .result import (
     AgentData,
+    EquityCurve,
     ExecutionMetrics,
     L1Close,
     L1Snapshots,
@@ -278,9 +279,13 @@ def _extract_result(
         }
         # Collect per-symbol liquidity for execution metrics
         symbol_liquidity = {sym: mkt.liquidity for sym, mkt in markets.items()}
+        extract_equity = ResultProfile.EQUITY_CURVE in profile
         for agent in trading_agents:
+            equity_curve = _extract_equity_curve(agent) if extract_equity else None
             agent_data.append(
-                _extract_agent_data(agent, exchange_last_trades, symbol_liquidity)
+                _extract_agent_data(
+                    agent, exchange_last_trades, symbol_liquidity, equity_curve
+                )
             )
 
     # -- Agent logs -----------------------------------------------------------
@@ -403,6 +408,39 @@ def _extract_trades(order_book: Any) -> list[TradeAttribution]:
     return trades
 
 
+def _extract_equity_curve(agent: TradingAgent) -> EquityCurve | None:
+    """Build an :class:`EquityCurve` from FILL_PNL events in agent.log.
+
+    Returns ``None`` if the agent has no FILL_PNL events.
+    """
+    if not hasattr(agent, "log") or not agent.log:
+        return None
+
+    times: list[int] = []
+    navs: list[int] = []
+    peaks: list[int] = []
+
+    for entry in agent.log:
+        # entry = (timestamp_ns, event_type, event_data)
+        if len(entry) < 3 or entry[1] != "FILL_PNL":
+            continue
+        data = entry[2]
+        if not isinstance(data, dict):
+            continue
+        nav = data.get("nav")
+        peak = data.get("peak_nav")
+        if nav is None or peak is None:
+            continue
+        times.append(int(entry[0]))
+        navs.append(int(nav))
+        peaks.append(int(peak))
+
+    if not times:
+        return None
+
+    return EquityCurve(times_ns=times, nav_cents=navs, peak_nav_cents=peaks)
+
+
 def _extract_l1_series(book_log2: list[dict]) -> L1Snapshots:
     """Build L1Snapshots from book_log2."""
     if not book_log2:
@@ -476,6 +514,7 @@ def _extract_agent_data(
     agent: TradingAgent,
     exchange_last_trades: dict[str, int],
     symbol_liquidity: dict[str, LiquidityMetrics],
+    equity_curve: EquityCurve | None = None,
 ) -> AgentData:
     """Build AgentData for a single TradingAgent.
 
@@ -511,6 +550,7 @@ def _extract_agent_data(
         pnl_cents=pnl,
         pnl_pct=pnl_pct,
         execution_metrics=exec_metrics,
+        equity_curve=equity_curve,
     )
 
 

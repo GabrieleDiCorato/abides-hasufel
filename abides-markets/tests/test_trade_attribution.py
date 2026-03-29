@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 
 # ---------------------------------------------------------------------------
@@ -45,8 +46,8 @@ class TestTradeAttribution:
             price_cents=100,
             quantity=10,
         )
-        with pytest.raises(Exception):
-            t.quantity = 99  # type: ignore[misc]
+        with pytest.raises((TypeError, ValidationError)):
+            t.quantity = 99
 
 
 # ---------------------------------------------------------------------------
