@@ -1,3 +1,51 @@
+2026-03 Release v2.4.0
+==================
+
+Seed Derivation — Composition-Invariant RNG Hierarchy
+-----------------------------------------------------
+
+**Breaking change:** the compiler now derives per-component seeds via
+SHA-256 identity hashing instead of a sequential ``master_rng.randint()``
+chain.  This means that **for the same master seed integer, agents will
+receive different ``random_state`` objects than in v2.3.0.**  Simulation
+results generated with earlier versions are not reproducible under v2.4.0.
+
+This is a deliberate departure from the sequential-draw approach described
+in the original ABIDES literature.  The new scheme provides two guarantees
+that the old one could not:
+
+1. **Order independence** — declaring agent groups in a different order
+   (e.g. ``enable_agent("value", ...)`` before ``enable_agent("noise", ...)``)
+   produces identical seeds.  A Pydantic ``model_validator`` on
+   ``SimulationConfig`` now sorts agent groups by name at construction time.
+
+2. **Composition invariance** — adding, removing, or resizing an agent
+   group does not shift the seeds of any other component.  Each component's
+   seed depends only on ``(master_seed, component_name, index)`` via
+   ``hashlib.sha256(f"{seed}:{component}:{index}")``, never on what other
+   components exist.
+
+Practical impact: researchers can inject a new strategy into an existing
+configuration and be certain that all *other* agents behave identically
+to the baseline — a prerequisite for controlled A/B experiments.
+
+* **``_derive_seed()`` helper** — new function in ``compiler.py`` that maps
+  ``(master_seed, component, index)`` → unsigned 32-bit integer via SHA-256.
+* **Sequential ``master_rng`` removed** — the compiler no longer maintains
+  a shared ``np.random.RandomState`` for seed allocation.  Oracle, exchange,
+  each agent group, kernel, and latency model each derive their seed
+  independently.
+* **``_sort_agents`` model validator** — ``SimulationConfig`` sorts
+  ``self.agents`` alphabetically after construction, ensuring canonical
+  ordering for deterministic agent-ID assignment and YAML serialization.
+* **5 new / strengthened tests** — order-independence, oracle injection,
+  adding-agent-preserves-seeds, changing-count-preserves-seeds, and
+  strengthened determinism assertion (verifies full ``random_state``
+  internal state equality).
+* **Documentation** — ``PARALLEL_SIMULATION_GUIDE.md`` updated with the
+  new RNG hierarchy diagram and composition-invariance note.
+
+
 2026-03 Release v2.3.0
 ==================
 

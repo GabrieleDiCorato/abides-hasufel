@@ -479,6 +479,32 @@ all work with either approach.
 
 ---
 
+## Seed Derivation (v2.4.0+)
+
+The compiler derives per-component random seeds via **identity-based
+SHA-256 hashing**, not a sequential draw from a shared RNG.  Each
+component's seed depends only on `(master_seed, component_name, index)`:
+
+```
+sha256(f"{seed}:{component}:{index}") → first 4 bytes → uint32 seed
+```
+
+This provides two guarantees:
+
+- **Order independence** — agent groups declared in any order produce
+  identical seeds.  (`SimulationConfig` sorts groups alphabetically.)
+- **Composition invariance** — adding, removing, or resizing an agent
+  group does not shift any other component's seed.
+
+See [PARALLEL_SIMULATION_GUIDE.md](PARALLEL_SIMULATION_GUIDE.md) for the
+full derivation tree.
+
+> **Breaking change from v2.3.0:** the same master seed produces different
+> agent `random_state` objects than before.  This is intentional — the old
+> sequential scheme had order-dependent and composition-dependent bugs.
+
+---
+
 ## Runtime Lifecycle
 
 `SimulationConfig` is an immutable Pydantic model — it can be reused, serialized,

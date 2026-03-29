@@ -7,6 +7,7 @@ returns, so it works with ``abides.run()``, gymnasium envs, and
 
 from __future__ import annotations
 
+import hashlib
 import math
 from datetime import datetime
 from typing import Any
@@ -26,6 +27,18 @@ from abides_markets.config_system.models import (
 )
 from abides_markets.config_system.registry import registry
 from abides_markets.utils import generate_latency_model
+
+
+def _derive_seed(master_seed: int, component: str, index: int = 0) -> int:
+    """Derive a deterministic seed from a master seed and component identity.
+
+    Uses SHA-256 to map ``(master_seed, component, index)`` to an unsigned
+    32-bit integer.  Because the derivation depends only on the component's
+    *name* (not on what other components exist), adding or removing agent
+    groups does not shift the seeds of unrelated components.
+    """
+    h = hashlib.sha256(f"{master_seed}:{component}:{index}".encode()).digest()
+    return int.from_bytes(h[:4], "big")
 
 
 def compile(
@@ -64,21 +77,19 @@ def compile(
     else:
         seed = config.simulation.seed
 
-    master_rng = np.random.RandomState(seed)
-
     # ── Timestamps ────────────────────────────────────────────────
     date_ns: NanosecondTime = pd.to_datetime(config.market.date).value
     mkt_open: NanosecondTime = date_ns + str_to_ns(config.market.start_time)
     mkt_close: NanosecondTime = date_ns + str_to_ns(config.market.end_time)
 
     # ── Oracle ────────────────────────────────────────────────────
+    # Identity-based seed: depends only on master seed + component name,
+    # so adding/removing agent groups never shifts oracle (or any other)
+    # component's seed.
     if oracle_instance is not None:
-        # Pre-built oracle injected (e.g. ExternalDataOracle)
         oracle = oracle_instance
     else:
-        oracle_rng = np.random.RandomState(
-            seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
-        )
+        oracle_rng = np.random.RandomState(seed=_derive_seed(seed, "oracle"))
         oracle = _build_oracle(config, mkt_open, mkt_close, oracle_rng)
 
     # ── Compile-time validation: ValueAgent requires oracle ───────
@@ -137,20 +148,24 @@ def compile(
             pipeline_delay=exc.pipeline_delay,
             computation_delay=exc.computation_delay,
             stream_history=exc.stream_history_length,
-            random_state=np.random.RandomState(
-                seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
-            ),
+            random_state=np.random.RandomState(seed=_derive_seed(seed, "exchange")),
             opening_prices=exchange_opening_prices,
         )
     )
     agent_count += 1
 
-    # Instantiate each enabled agent group via the registry
-    for agent_type_name, group in config.agents.items():
+    # Instantiate each enabled agent group via the registry.
+    # Sort by agent type name for deterministic agent-ID assignment.
+    # Each group gets its own RNG derived from the master seed and the
+    # group's name — adding/removing groups never shifts other groups' seeds.
+    for agent_type_name, group in sorted(config.agents.items()):
         if not group.enabled or group.count == 0:
             continue
 
         entry = registry.get(agent_type_name)
+        group_rng = np.random.RandomState(
+            seed=_derive_seed(seed, f"agent:{agent_type_name}")
+        )
         try:
             # Validate params against the registered config model
             agent_config = entry.config_model(**group.params)
@@ -158,7 +173,7 @@ def compile(
             new_agents = agent_config.create_agents(
                 count=group.count,
                 id_start=agent_count,
-                master_rng=master_rng,
+                master_rng=group_rng,
                 context=context,
             )
         except Exception as exc:
@@ -175,14 +190,10 @@ def compile(
         agent_count += group.count
 
     # ── Kernel seed ───────────────────────────────────────────────
-    random_state_kernel = np.random.RandomState(
-        seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
-    )
+    random_state_kernel = np.random.RandomState(seed=_derive_seed(seed, "kernel"))
 
     # ── Latency ───────────────────────────────────────────────────
-    latency_rng = np.random.RandomState(
-        seed=master_rng.randint(low=0, high=2**32, dtype="uint64")
-    )
+    latency_rng = np.random.RandomState(seed=_derive_seed(seed, "latency"))
     latency_model = generate_latency_model(
         agent_count,
         latency_rng,

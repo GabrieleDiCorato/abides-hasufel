@@ -10,8 +10,29 @@ ABIDES is a **discrete-event simulation** framework. Each simulation is driven b
 
 **Key facts:**
 - One `Kernel` = one simulation. The Kernel is single-threaded internally.
-- Each `Kernel`, each `Agent`, the `LatencyModel`, and each Oracle hold their own `np.random.RandomState` — all derived deterministically from a master seed in the config builder.
+- Each `Kernel`, each `Agent`, the `LatencyModel`, and each Oracle hold their own `np.random.RandomState` — all derived deterministically from a master seed via identity-based hashing (`SHA-256`). Each component's seed depends only on the master seed and the component's name — adding or removing agent groups never shifts other components' seeds.
 - There is **no built-in parallelism** within a simulation. All existing multi-run infrastructure (`version_testing/`) uses **process-based** parallelism (`p_tqdm.p_map`).
+
+### RNG Hierarchy (Identity-Based Derivation)
+
+Each component derives its seed independently from the master seed via `hashlib.sha256(f"{seed}:{component}:{index}")`:
+
+```
+compile(config, seed=42)
+├── oracle     → sha256("42:oracle:0")
+├── exchange   → sha256("42:exchange:0")
+├── agent group "noise"
+│   ├── agent 0 → group_rng from sha256("42:agent:noise:0"), then sequential randint()
+│   ├── agent 1 → ...
+│   └── agent N → ...
+├── agent group "value"
+│   ├── agent 0 → group_rng from sha256("42:agent:value:0"), independent of noise
+│   └── ...
+├── kernel     → sha256("42:kernel:0")
+└── latency    → sha256("42:latency:0")
+```
+
+**Composition invariance:** adding a new agent group (e.g. a custom strategy) does not change any existing agent's seed. This enables fair baseline-vs-strategy A/B comparison.
 
 ### Remaining Thread-Safety Concerns
 

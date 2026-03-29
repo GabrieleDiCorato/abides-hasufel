@@ -196,12 +196,175 @@ class TestCompiler:
         assert runtime["agents"][0].type == "ExchangeAgent"
 
     def test_compile_deterministic_seed(self):
-        """Same seed should produce identical agent counts."""
+        """Same seed should produce identical agent random states."""
         config1 = SimulationBuilder().from_template("rmsc04").seed(42).build()
         config2 = SimulationBuilder().from_template("rmsc04").seed(42).build()
         runtime1 = compile(config1)
         runtime2 = compile(config2)
         assert len(runtime1["agents"]) == len(runtime2["agents"])
+        # Verify every agent got the exact same random state
+        for a1, a2 in zip(runtime1["agents"], runtime2["agents"]):
+            s1 = a1.random_state.get_state()[1]
+            s2 = a2.random_state.get_state()[1]
+            np.testing.assert_array_equal(s1, s2)
+
+    def test_compile_agent_order_independent_seeds(self):
+        """Different enable_agent() call order must produce identical seeds."""
+        config_a = (
+            SimulationBuilder()
+            .market(
+                oracle={"type": "sparse_mean_reverting"},
+                date="20210205",
+            )
+            .enable_agent("noise", count=5)
+            .enable_agent("value", count=3)
+            .seed(99)
+            .build()
+        )
+        config_b = (
+            SimulationBuilder()
+            .market(
+                oracle={"type": "sparse_mean_reverting"},
+                date="20210205",
+            )
+            .enable_agent("value", count=3)
+            .enable_agent("noise", count=5)
+            .seed(99)
+            .build()
+        )
+        runtime_a = compile(config_a)
+        runtime_b = compile(config_b)
+        assert len(runtime_a["agents"]) == len(runtime_b["agents"])
+        for a, b in zip(runtime_a["agents"], runtime_b["agents"]):
+            sa = a.random_state.get_state()[1]
+            sb = b.random_state.get_state()[1]
+            np.testing.assert_array_equal(sa, sb)
+
+    def test_compile_oracle_instance_same_downstream_seeds(self):
+        """Injecting oracle_instance must not shift downstream agent seeds."""
+        # Run 1: oracle built from config
+        config1 = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        runtime1 = compile(config1)
+
+        # Run 2: inject a pre-built oracle (compile still consumes oracle seed slot)
+        config2 = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        # Build the oracle identically so we can inject it
+        oracle_from_run1 = runtime1["custom_properties"]["oracle"]
+        runtime2 = compile(config2, oracle_instance=oracle_from_run1)
+
+        # All agent random states must match
+        assert len(runtime1["agents"]) == len(runtime2["agents"])
+        for a1, a2 in zip(runtime1["agents"], runtime2["agents"]):
+            s1 = a1.random_state.get_state()[1]
+            s2 = a2.random_state.get_state()[1]
+            np.testing.assert_array_equal(s1, s2)
+
+    def test_compile_adding_agent_preserves_existing_seeds(self):
+        """Adding a new agent group must not change existing agents' seeds."""
+        # Baseline: noise + value only
+        config_base = (
+            SimulationBuilder()
+            .market(
+                oracle={"type": "sparse_mean_reverting"},
+                date="20210205",
+            )
+            .enable_agent("noise", count=5)
+            .enable_agent("value", count=3)
+            .seed(77)
+            .build()
+        )
+        # With extra group: noise + momentum + value
+        config_extra = (
+            SimulationBuilder()
+            .market(
+                oracle={"type": "sparse_mean_reverting"},
+                date="20210205",
+            )
+            .enable_agent("noise", count=5)
+            .enable_agent("momentum", count=2)
+            .enable_agent("value", count=3)
+            .seed(77)
+            .build()
+        )
+        rt_base = compile(config_base)
+        rt_extra = compile(config_extra)
+
+        # Collect seeds by agent type from both runtimes (skip exchange at [0])
+        def seeds_by_type(agents):
+            result = {}
+            for a in agents[1:]:  # skip exchange
+                result.setdefault(a.type, []).append(a.random_state.get_state()[1])
+            return result
+
+        base_seeds = seeds_by_type(rt_base["agents"])
+        extra_seeds = seeds_by_type(rt_extra["agents"])
+
+        # Noise and value seeds must be identical in both runs
+        for agent_type in ("NoiseAgent", "ValueAgent"):
+            assert len(base_seeds[agent_type]) == len(extra_seeds[agent_type])
+            for s_base, s_extra in zip(base_seeds[agent_type], extra_seeds[agent_type]):
+                np.testing.assert_array_equal(s_base, s_extra)
+
+        # Exchange seed must also be stable
+        s0_base = rt_base["agents"][0].random_state.get_state()[1]
+        s0_extra = rt_extra["agents"][0].random_state.get_state()[1]
+        np.testing.assert_array_equal(s0_base, s0_extra)
+
+    def test_compile_changing_count_preserves_other_group_seeds(self):
+        """Changing one group's count must not affect other groups' seeds."""
+        config_small = (
+            SimulationBuilder()
+            .market(
+                oracle={"type": "sparse_mean_reverting"},
+                date="20210205",
+            )
+            .enable_agent("noise", count=5)
+            .enable_agent("value", count=3)
+            .seed(88)
+            .build()
+        )
+        config_large = (
+            SimulationBuilder()
+            .market(
+                oracle={"type": "sparse_mean_reverting"},
+                date="20210205",
+            )
+            .enable_agent("noise", count=50)
+            .enable_agent("value", count=3)
+            .seed(88)
+            .build()
+        )
+        rt_small = compile(config_small)
+        rt_large = compile(config_large)
+
+        # Value agents must have identical seeds in both runs
+        val_small = [
+            a.random_state.get_state()[1]
+            for a in rt_small["agents"]
+            if a.type == "ValueAgent"
+        ]
+        val_large = [
+            a.random_state.get_state()[1]
+            for a in rt_large["agents"]
+            if a.type == "ValueAgent"
+        ]
+        assert len(val_small) == len(val_large) == 3
+        for vs, vl in zip(val_small, val_large):
+            np.testing.assert_array_equal(vs, vl)
+
+        # First 5 noise agents must also match
+        noise_small = [
+            a.random_state.get_state()[1]
+            for a in rt_small["agents"]
+            if a.type == "NoiseAgent"
+        ]
+        noise_large = [
+            a.random_state.get_state()[1]
+            for a in rt_large["agents"]
+            if a.type == "NoiseAgent"
+        ][:5]
+        for ns, nl in zip(noise_small, noise_large):
+            np.testing.assert_array_equal(ns, nl)
 
     def test_compile_disabled_agents_excluded(self):
         config = (
@@ -228,9 +391,10 @@ class TestCompiler:
         runtime = compile(config)
         # 1117 + 1 execution = 1118
         assert len(runtime["agents"]) == 1118
-        # Last agent should be the execution agent
-        last_agent = runtime["agents"][-1]
-        assert last_agent.type == "ExecutionAgent"
+        # Execution agent should be present (agents sorted alphabetically,
+        # so position depends on agent type name)
+        agent_types = [a.type for a in runtime["agents"]]
+        assert "ExecutionAgent" in agent_types
 
     def test_compile_oracle_is_set(self):
         config = SimulationBuilder().from_template("rmsc04").seed(42).build()
@@ -552,11 +716,15 @@ class TestPerAgentComputationDelay:
         assert "per_agent_computation_delays" in runtime
         delays = runtime["per_agent_computation_delays"]
 
-        # Exchange is id=0, noise is 1-5, value is 6-8
-        for agent_id in range(1, 6):
-            assert delays[agent_id] == 200
-        for agent_id in range(6, 9):
-            assert delays[agent_id] == 500
+        # Group agents by type (skip exchange at id=0)
+        noise_ids = [a.id for a in runtime["agents"] if a.type == "NoiseAgent"]
+        value_ids = [a.id for a in runtime["agents"] if a.type == "ValueAgent"]
+        assert len(noise_ids) == 5
+        assert len(value_ids) == 3
+        for aid in noise_ids:
+            assert delays[aid] == 200
+        for aid in value_ids:
+            assert delays[aid] == 500
         # Exchange should not have a per-agent override
         assert 0 not in delays
 

@@ -381,6 +381,9 @@ class SimulationConfig(BaseModel):
     - ``agents``: dict mapping agent type name → AgentGroupConfig
     - ``infrastructure``: latency, computation delay
     - ``simulation``: seed, logging
+
+    Agent groups are sorted by name to guarantee deterministic seed
+    assignment regardless of insertion order.
     """
 
     market: MarketConfig = Field(
@@ -399,3 +402,9 @@ class SimulationConfig(BaseModel):
         default_factory=SimulationMeta,
         description="Simulation-level parameters.",
     )
+
+    @model_validator(mode="after")
+    def _sort_agents(self) -> SimulationConfig:
+        """Sort agent groups by name for deterministic seed assignment."""
+        self.agents = dict(sorted(self.agents.items()))
+        return self
