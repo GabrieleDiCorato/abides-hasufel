@@ -51,7 +51,7 @@ The informed/uninformed split is **correct by design** — ValueAgent pushes pri
 |-------|-------|--------|
 | **NoiseAgent** | Single-shot — places one order then goes silent | Unrealistic microstructure; fewer background messages than real markets |
 | **MomentumAgent** | No exit/reversal logic — rides trend indefinitely | Overstates trend-following impact; no stop-loss or profit-target |
-| **AdaptiveMarketMakerAgent** | No end-of-day inventory flatten | MM carries residual position through close — unrealistic P&L |
+| **AdaptiveMarketMakerAgent** | ~~No end-of-day inventory flatten~~ ✅ Fixed | `flatten_before_close` parameter added; configurable via `AdaptiveMarketMakerConfig`. |
 | **POVExecutionAgent** | Market orders only; no urgency parameter | No price improvement; can't model time-adaptive execution |
 | **TradingAgent** | Drawdown measured from `starting_cash`, not peak NAV | `_peak_nav` is tracked but not used for enforcement |
 | **TradingAgent** | `FILL_PNL` logs NAV but not per-symbol position | Limits per-instrument analysis |
@@ -65,8 +65,8 @@ The informed/uninformed split is **correct by design** — ValueAgent pushes pri
 | Agent | Description | Oracle? | Depends On |
 |-------|-------------|:-------:|------------|
 | **MeanReversionAgent** | Bollinger-band/z-score contrarian strategy. Complement to MomentumAgent. | No | Nothing — LOB-only |
-| **TWAPExecutionAgent** | Uniform time-sliced child orders. Configurable start/end, randomization, limit-vs-market. | No | Nothing |
-| **VWAPExecutionAgent** | Volume-profile-weighted execution. Structurally different from POV (benchmark vs. participation rate). | No | Nothing |
+| ~~**TWAPExecutionAgent**~~ | ✅ Implemented — uniform time-sliced child orders with IOC limit. Subclasses `BaseSlicingExecutionAgent`. | No | Nothing |
+| ~~**VWAPExecutionAgent**~~ | ✅ Implemented — volume-profile-weighted execution. Configurable U-shape or custom profile. | No | Nothing |
 | **InformedTraderAgent** | Reacts to discrete oracle events (megashocks, earnings) with configurable delay/precision/aggressiveness. Models adverse selection. | Yes — events | Oracle event subscription API |
 | **ImplementationShortfallAgent** | Almgren-Chriss optimal execution balancing market impact vs. timing risk. | No | Nothing |
 | **PairsArbitrageAgent** | Trades two correlated symbols on spread z-score. First multi-symbol agent. | No | Correlated oracle |
@@ -78,8 +78,8 @@ Iceberg and stop orders are **exchange-level mechanisms** — implementing them 
 
 | Feature | Detail |
 |---------|--------|
-| **Time-in-force (IOC, FOK, DAY)** | All orders are currently GTC. IOC is essential for execution algos that avoid resting orders. Simplest exchange change. |
-| **Stop orders** | No `stop_price` / triggered-order queue. Exchange should convert stops to market/limit atomically on trigger. Enables flash-crash / cascade scenarios. |
+| ~~**Time-in-force (IOC, FOK, DAY)**~~ | ✅ Implemented. All orders support IOC, FOK, DAY time-in-force. |
+| ~~**Stop orders**~~ | ✅ Implemented. `StopOrder` with exchange-side trigger queue. Converts to market order on last-trade crossing. |
 | **Iceberg / reserve orders** | `PriceLevel` already separates visible/hidden queues. Add `display_quantity` to `LimitOrder`; auto-refresh visible slice on fill. |
 | **Exchange-level circuit breakers** | No trading halts or LULD bands. Only agent-level via `RiskConfig`. Shapes tail-risk dynamics. |
 | **Self-trade prevention** | No same-agent matching check. Real exchanges reject or cancel self-trades. |
@@ -98,17 +98,17 @@ Iceberg and stop orders are **exchange-level mechanisms** — implementing them 
 
 | Issue | Detail |
 |-------|--------|
-| **No standardized execution-quality metrics** | VWAP slippage, implementation shortfall, participation rate not auto-computed. |
-| **No causal order attribution** | Cannot determine which agent caused a price move. Tag trades with aggressor/passive agent ID. |
-| **FILL_PNL aggregation** | Per-fill events exist but aren't aggregated into `SimulationResult`. |
+| ~~**No standardized execution-quality metrics**~~ | ✅ `ExecutionMetrics` model: VWAP slippage, implementation shortfall, participation rate, fill rate. Populated automatically for execution-category agents. |
+| ~~**No causal order attribution**~~ | ✅ `TradeAttribution` model: passive/aggressive agent IDs per execution. Gated by `ResultProfile.TRADE_ATTRIBUTION`. |
+| ~~**FILL_PNL aggregation**~~ | ✅ `EquityCurve` model: per-fill NAV time-series with `max_drawdown_cents`. Gated by `ResultProfile.EQUITY_CURVE`. |
 
 ### 3.5 Existing Agent Improvements
 
 | Issue | Detail |
 |-------|--------|
-| **NoiseAgent multi-wake mode** | Configurable continuous trading (wake frequency parameter) instead of single-shot. |
+| ~~**NoiseAgent multi-wake mode**~~ | ✅ Implemented. Configurable `num_wakeups` parameter. |
 | **MomentumAgent exit logic** | Configurable trailing stop / profit target / reversal signal. |
-| **AMM end-of-day flatten** | Schedule market orders to flatten inventory N minutes before close. |
+| ~~**AMM end-of-day flatten**~~ | ✅ Implemented. `flatten_before_close` parameter cancels quotes and zeros position before close. |
 | **POV limit-order mode** | Support limit orders with active crossing for price improvement. |
 | **Peak-drawdown enforcement** | Use `_peak_nav` (already tracked) as drawdown reference instead of `starting_cash`. |
 
@@ -136,14 +136,14 @@ Items are ordered by combined value: **ABIDES as a library** × **agentic stress
 
 ### P1 — High value for ABIDES; enables next tier of stress scenarios
 
-| # | Item | Type | Rationale |
-|---|------|:----:|-----------|
-| 5 | **TWAPExecutionAgent** | New agent | Most basic institutional algo. Follows POV state-machine pattern. Requires IOC for non-resting slices. Adds institutional background flow to scenarios. |
-| 6 | **VWAPExecutionAgent** | New agent | Industry-standard execution benchmark. Structurally different from POV (price benchmark vs. participation). Build alongside TWAP — shared execution infrastructure. |
-| 7 | **Stop orders (exchange-level)** | Exchange | Enables flash-crash / cascade scenarios — stop-triggered volume drives volatility clustering. Agent-side polling distorts timing. Unlocks a major class of stress-testing scenarios. |
-| 8 | **AMM end-of-day flatten** | Agent fix | Affects P&L realism for every simulation with market makers. Small targeted change in `AdaptiveMarketMakerAgent`. |
-| 9 | **Causal order attribution** | Observability | Tag trades with aggressor/passive agent ID. Lets the AI agent explain *why* prices moved — essential for actionable stress-test feedback. |
-| 10 | **FILL_PNL aggregation in SimulationResult** | Observability | Surface per-agent equity curves without post-hoc log parsing. Makes `summary_dict()` self-contained. |
+| # | Item | Type | Status | Rationale |
+|---|------|:----:|:------:|-----------|
+| 5 | **TWAPExecutionAgent** | New agent | ✅ Done | Most basic institutional algo. Follows POV state-machine pattern. Requires IOC for non-resting slices. Adds institutional background flow to scenarios. |
+| 6 | **VWAPExecutionAgent** | New agent | ✅ Done | Industry-standard execution benchmark. Structurally different from POV (price benchmark vs. participation). Build alongside TWAP — shared execution infrastructure. |
+| 7 | **Stop orders (exchange-level)** | Exchange | ✅ Done | Enables flash-crash / cascade scenarios — stop-triggered volume drives volatility clustering. Agent-side polling distorts timing. Unlocks a major class of stress-testing scenarios. |
+| 8 | **AMM end-of-day flatten** | Agent fix | ✅ Done | Affects P&L realism for every simulation with market makers. Small targeted change in `AdaptiveMarketMakerAgent`. |
+| 9 | **Causal order attribution** | Observability | ✅ Done | Tag trades with aggressor/passive agent ID. Lets the AI agent explain *why* prices moved — essential for actionable stress-test feedback. |
+| 10 | **FILL_PNL aggregation in SimulationResult** | Observability | ✅ Done | Surface per-agent equity curves without post-hoc log parsing. Makes `summary_dict()` self-contained. |
 
 ### P2 — Significant value; larger effort or narrower use case
 
