@@ -1,3 +1,51 @@
+2026-03 Release v2.5.1
+==================
+
+Bug Fixes
+---------
+
+* **Fixed: ValueAgent sigma_t Bayesian update** — the posterior variance
+  formula used ``self.sigma_t`` (the current prior) in place of
+  ``sigma_tprime`` (the propagated variance at observation time), causing the
+  agent's uncertainty to collapse incorrectly and producing over-confident
+  fundamental estimates.  Corrected to
+  ``(self.sigma_n * sigma_tprime) / (self.sigma_n + sigma_tprime)``.
+
+* **Fixed: sigma_s auto-inheritance for SparseMeanRevertingOracle** —
+  ``_get_oracle_params()`` in the compiler was forwarding ``oc.sigma_s``
+  (a field that does not exist on ``SparseMeanRevertingOracleConfig``),
+  silently injecting ``None`` into every ValueAgent.  The compiler now
+  derives ``sigma_s = oracle.fund_vol ** 2`` (the per-nanosecond shock
+  variance the Bayesian update expects) and ``rmsc04.py`` was updated
+  to pass the same quantity directly.
+
+* **Fixed: AdaptiveMarketMaker negative price orders** — with a wide spread
+  or large ``tick_size`` the computed ``lowest_bid`` could fall below zero,
+  causing the exchange to reject the order.  Price lists are now filtered
+  to ``price >= 1`` before submission.
+
+Simulation Quality
+------------------
+
+* **NoiseAgent multi-wake enabled in templates** — all built-in templates
+  (``rmsc03``, ``rmsc04``, ``small``) now configure NoiseAgent with
+  ``multi_wake=True, wake_up_freq="30s"``, producing a continuous background
+  noise flow instead of a single early-session burst.
+
+* **ValueAgent sigma_s removed from template defaults** — hardcoded
+  ``sigma_s=100_000`` overrides have been removed from all templates so that
+  the compiler-derived value (from oracle ``fund_vol``) is used consistently.
+
+Tests
+-----
+
+* **Long-simulation regression tests** — new
+  ``test_long_simulation_health.py`` runs full-duration simulations across
+  templates and checks end-state invariants (no NaN prices, non-empty order
+  history, agent cash >= 0).  Catches the sigma_t / sigma_s regression
+  described above.
+
+
 2026-03 Release v2.5.0
 ==================
 
