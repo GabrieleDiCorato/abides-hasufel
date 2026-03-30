@@ -23,7 +23,6 @@ from abides_markets.agents.value_agent import ValueAgent
 from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation
 
-
 # ---------------------------------------------------------------------------
 # ValueAgent sigma_t convergence unit test
 # ---------------------------------------------------------------------------
@@ -53,8 +52,7 @@ class TestValueAgentSigmaTConvergence:
         delta = 175_000_000_000  # 175 seconds in ns (typical wakeup gap)
         sigma_tprime = ((1 - agent.kappa) ** (2 * delta)) * agent.sigma_t
         sigma_tprime += (
-            (1 - (1 - agent.kappa) ** (2 * delta))
-            / (1 - (1 - agent.kappa) ** 2)
+            (1 - (1 - agent.kappa) ** (2 * delta)) / (1 - (1 - agent.kappa) ** 2)
         ) * agent.sigma_s
 
         assert sigma_tprime > 0, "sigma_tprime should be > 0 after time advancement"
@@ -74,8 +72,7 @@ class TestValueAgentSigmaTConvergence:
         for _ in range(100):
             sigma_tprime = ((1 - kappa) ** (2 * delta)) * sigma_t
             sigma_tprime += (
-                (1 - (1 - kappa) ** (2 * delta))
-                / (1 - (1 - kappa) ** 2)
+                (1 - (1 - kappa) ** (2 * delta)) / (1 - (1 - kappa) ** 2)
             ) * sigma_s
             sigma_t = (sigma_n * sigma_tprime) / (sigma_n + sigma_tprime)
 
@@ -154,12 +151,12 @@ class TestLongSimulationHealth:
         result = run_simulation(config)
         liq = result.markets["ABM"].liquidity
 
-        assert liq.pct_time_no_bid < 50, (
-            f"Bid side empty {liq.pct_time_no_bid:.1f}% of session (seed={seed})"
-        )
-        assert liq.pct_time_no_ask < 50, (
-            f"Ask side empty {liq.pct_time_no_ask:.1f}% of session (seed={seed})"
-        )
+        assert (
+            liq.pct_time_no_bid < 50
+        ), f"Bid side empty {liq.pct_time_no_bid:.1f}% of session (seed={seed})"
+        assert (
+            liq.pct_time_no_ask < 50
+        ), f"Ask side empty {liq.pct_time_no_ask:.1f}% of session (seed={seed})"
         assert liq.total_exchanged_volume > 0, "No trades occurred"
 
 
@@ -195,9 +192,9 @@ class TestLegacyConfigHealth:
         # Verify the sigma_s fix is applied
         value_agents = [a for a in config["agents"] if isinstance(a, ValueAgent)]
         assert len(value_agents) > 0, "No ValueAgent instances found in legacy config"
-        assert value_agents[0].sigma_s == pytest.approx(2.5e-9), (
-            f"Legacy config should use fund_vol² as sigma_s, got {value_agents[0].sigma_s}"
-        )
+        assert value_agents[0].sigma_s == pytest.approx(
+            2.5e-9
+        ), f"Legacy config should use fund_vol² as sigma_s, got {value_agents[0].sigma_s}"
 
         kernel = Kernel(
             log_dir="__test_legacy_health",
@@ -220,11 +217,11 @@ class TestLegacyConfigHealth:
         exchange = config["agents"][0]
         tracker = exchange.metric_trackers.get("ABM")
         assert tracker is not None, "No metric tracker for ABM"
-        assert tracker.pct_time_no_liquidity_bids < 50, (
-            f"Bid side empty {tracker.pct_time_no_liquidity_bids:.1f}%"
-        )
-        assert tracker.pct_time_no_liquidity_asks < 50, (
-            f"Ask side empty {tracker.pct_time_no_liquidity_asks:.1f}%"
-        )
+        assert (
+            tracker.pct_time_no_liquidity_bids < 50
+        ), f"Bid side empty {tracker.pct_time_no_liquidity_bids:.1f}%"
+        assert (
+            tracker.pct_time_no_liquidity_asks < 50
+        ), f"Ask side empty {tracker.pct_time_no_liquidity_asks:.1f}%"
 
         shutil.rmtree("log/__test_legacy_health", ignore_errors=True)
