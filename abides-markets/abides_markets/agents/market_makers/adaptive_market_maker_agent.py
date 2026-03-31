@@ -349,6 +349,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             if (
                 self.state["AWAITING_MARKET_DATA"] is False
                 and self.state["AWAITING_TRANSACTED_VOLUME"] is False
+                and mid is not None
             ):
                 self.place_orders(mid)
                 self.state = self.initialise_state()
