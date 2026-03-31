@@ -1,3 +1,32 @@
+2026-04 Release v2.5.2
+==================
+
+Bug Fixes
+---------
+
+* **Fixed: AdaptiveMarketMakerAgent subscribe-mode crash when mid is None** —
+  the subscribe path in ``receive_message()`` called ``place_orders(mid)``
+  without a ``mid is not None`` guard.  When the order book lacks both sides
+  at simulation start, ``mid`` is ``None`` → ``int(None)`` → ``TypeError``.
+
+New Features
+------------
+
+* **Full-day scenario templates** — five new templates for strategy evaluation:
+  ``stable_day`` (low-vol control), ``volatile_day`` (megashock stress),
+  ``low_liquidity`` (thin book), ``trending_day`` (weak mean-reversion +
+  momentum), ``stress_test`` (extreme conditions).  All run 09:30–16:00 and
+  compose with overlay templates.
+
+Documentation
+-------------
+
+* Improved config field descriptions for ``ValueAgentConfig.depth_spread``,
+  ``VWAPExecutionAgentConfig`` time offsets and frequency, and
+  ``MeanRevertingOracleConfig.kappa``.
+
+---
+
 2026-03 Release v2.5.1
 ==================
 
