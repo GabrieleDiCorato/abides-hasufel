@@ -11,28 +11,30 @@ import pytest
 
 from abides_markets.simulation.metrics import (
     compute_agent_pnl,
+    compute_effective_spread,
     compute_equity_curve,
     compute_execution_metrics,
     compute_l1_close,
     compute_l1_series,
     compute_l2_series,
     compute_liquidity_metrics,
+    compute_mean_spread,
     compute_metrics,
+    compute_sharpe_ratio,
     compute_trade_attribution,
+    compute_volatility,
     compute_vwap,
 )
 from abides_markets.simulation.result import (
     AgentData,
     EquityCurve,
     ExecutionMetrics,
-    L1Close,
     L1Snapshots,
     L2Snapshots,
     LiquidityMetrics,
     MarketSummary,
     TradeAttribution,
 )
-
 
 # ===================================================================
 # compute_vwap
@@ -452,3 +454,170 @@ class TestComputeMetrics:
         from abides_markets.simulation import compute_metrics as cm
 
         assert callable(cm)
+
+
+# ===================================================================
+# Helper: build L1Snapshots from simple data
+# ===================================================================
+
+
+def _make_l1(
+    rows: list[tuple[int, int | None, int | None, int | None, int | None]],
+) -> L1Snapshots:
+    """Build L1Snapshots from (time_ns, bid_price, bid_qty, ask_price, ask_qty) tuples."""
+    times = [r[0] for r in rows]
+    return L1Snapshots(
+        times_ns=np.array(times, dtype=np.int64),
+        bid_prices=np.array([r[1] for r in rows], dtype=object),
+        bid_quantities=np.array([r[2] for r in rows], dtype=object),
+        ask_prices=np.array([r[3] for r in rows], dtype=object),
+        ask_quantities=np.array([r[4] for r in rows], dtype=object),
+    )
+
+
+def _make_empty_l1() -> L1Snapshots:
+    empty = np.array([], dtype=np.int64)
+    empty_obj = np.array([], dtype=object)
+    return L1Snapshots(
+        times_ns=empty,
+        bid_prices=empty_obj,
+        bid_quantities=empty_obj,
+        ask_prices=empty_obj,
+        ask_quantities=empty_obj,
+    )
+
+
+# ===================================================================
+# compute_mean_spread
+# ===================================================================
+
+
+class TestComputeMeanSpread:
+    def test_empty_l1(self):
+        assert compute_mean_spread(_make_empty_l1()) is None
+
+    def test_no_two_sided(self):
+        l1 = _make_l1([(100, 9900, 10, None, None)])
+        assert compute_mean_spread(l1) is None
+
+    def test_single_row(self):
+        l1 = _make_l1([(100, 9900, 10, 10100, 5)])
+        assert compute_mean_spread(l1) == pytest.approx(200.0)
+
+    def test_multiple_rows(self):
+        l1 = _make_l1([
+            (100, 9900, 10, 10100, 5),  # spread = 200
+            (200, 9950, 20, 10050, 15),  # spread = 100
+            (300, None, None, 10000, 10),  # one-sided, skipped
+        ])
+        assert compute_mean_spread(l1) == pytest.approx(150.0)
+
+
+# ===================================================================
+# compute_effective_spread
+# ===================================================================
+
+
+class TestComputeEffectiveSpread:
+    def test_empty_fills(self):
+        l1 = _make_l1([(100, 9900, 10, 10100, 5)])
+        assert compute_effective_spread([], l1) is None
+
+    def test_empty_l1(self):
+        assert compute_effective_spread([(10_000, 50, 100)], _make_empty_l1()) is None
+
+    def test_no_two_sided_l1(self):
+        l1 = _make_l1([(100, 9900, 10, None, None)])
+        assert compute_effective_spread([(10_000, 50, 100)], l1) is None
+
+    def test_single_fill_at_mid(self):
+        # mid = (9900 + 10100) / 2 = 10000
+        l1 = _make_l1([(100, 9900, 10, 10100, 5)])
+        fills = [(10_000, 50, 100)]
+        assert compute_effective_spread(fills, l1) == pytest.approx(0.0)
+
+    def test_single_fill_above_mid(self):
+        # mid = 10000, fill at 10050 → eff_spread = 2 * 50 = 100
+        l1 = _make_l1([(100, 9900, 10, 10100, 5)])
+        fills = [(10_050, 50, 150)]
+        assert compute_effective_spread(fills, l1) == pytest.approx(100.0)
+
+    def test_multiple_fills(self):
+        l1 = _make_l1([
+            (100, 9900, 10, 10100, 5),  # mid = 10000
+            (200, 9950, 20, 10050, 15),  # mid = 10000
+        ])
+        # fill1 at 10025 vs mid 10000 → 2*25=50
+        # fill2 at 9975 vs mid 10000 → 2*25=50
+        fills = [(10_025, 50, 150), (9_975, 50, 250)]
+        assert compute_effective_spread(fills, l1) == pytest.approx(50.0)
+
+
+# ===================================================================
+# compute_volatility
+# ===================================================================
+
+
+class TestComputeVolatility:
+    def test_empty(self):
+        assert compute_volatility(_make_empty_l1()) is None
+
+    def test_too_few_rows(self):
+        rows = [(i * 1_000_000, 10000, 10, 10100, 5) for i in range(10)]
+        assert compute_volatility(_make_l1(rows)) is None
+
+    def test_constant_mid(self):
+        rows = [(i * 1_000_000, 10000, 10, 10100, 5) for i in range(40)]
+        assert compute_volatility(_make_l1(rows)) is None  # std=0
+
+    def test_returns_positive(self):
+        # Construct varying mid-prices
+        base = 10_000
+        rows = []
+        for i in range(40):
+            offset = (i % 5) * 10  # cycles: 0,10,20,30,40,0,10...
+            bid = base + offset
+            ask = bid + 100
+            rows.append((i * 1_000_000_000, bid, 10, ask, 5))
+        vol = compute_volatility(_make_l1(rows))
+        assert vol is not None
+        assert vol > 0
+
+
+# ===================================================================
+# compute_sharpe_ratio
+# ===================================================================
+
+
+class TestComputeSharpeRatio:
+    def test_none_curve(self):
+        assert compute_sharpe_ratio(None) is None
+
+    def test_too_few_points(self):
+        curve = EquityCurve(
+            times_ns=list(range(10)),
+            nav_cents=[10_000] * 10,
+            peak_nav_cents=[10_000] * 10,
+        )
+        assert compute_sharpe_ratio(curve) is None
+
+    def test_flat_nav(self):
+        n = 40
+        curve = EquityCurve(
+            times_ns=list(range(n)),
+            nav_cents=[10_000] * n,
+            peak_nav_cents=[10_000] * n,
+        )
+        assert compute_sharpe_ratio(curve) is None  # std=0
+
+    def test_trending_up(self):
+        n = 40
+        navs = [10_000_000 + i * 1000 for i in range(n)]
+        curve = EquityCurve(
+            times_ns=[i * 1_000_000_000 for i in range(n)],
+            nav_cents=navs,
+            peak_nav_cents=navs,
+        )
+        sharpe = compute_sharpe_ratio(curve)
+        assert sharpe is not None
+        assert sharpe > 0

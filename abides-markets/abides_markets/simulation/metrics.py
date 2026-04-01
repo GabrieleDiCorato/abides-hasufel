@@ -30,7 +30,8 @@ Example — compute all market + agent metrics at once::
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -45,6 +46,9 @@ from .result import (
     MarketSummary,
     TradeAttribution,
 )
+
+# Nanoseconds per calendar year (365.25 days).
+_NS_PER_YEAR: int = int(365.25 * 24 * 3600 * 1_000_000_000)
 
 # ---------------------------------------------------------------------------
 # Primitive metric helpers
@@ -104,6 +108,163 @@ def compute_liquidity_metrics(
     )
 
 
+# ---------------------------------------------------------------------------
+# Microstructure metrics (Tier 1) — derived from L1 snapshots
+# ---------------------------------------------------------------------------
+
+
+def compute_mean_spread(l1: L1Snapshots) -> float | None:
+    """Time-averaged quoted spread from two-sided L1 snapshots.
+
+    Considers only rows where both bid and ask prices are present.
+    Returns the arithmetic mean spread in cents, or ``None`` if no
+    two-sided rows exist.
+    """
+    if len(l1.times_ns) == 0:
+        return None
+
+    total = 0.0
+    count = 0
+    for i in range(len(l1.times_ns)):
+        bid = l1.bid_prices[i]
+        ask = l1.ask_prices[i]
+        if bid is not None and ask is not None:
+            total += float(ask) - float(bid)
+            count += 1
+
+    return total / count if count > 0 else None
+
+
+def compute_effective_spread(
+    fills: Sequence[tuple[int, int, int]],
+    l1: L1Snapshots,
+) -> float | None:
+    """Average effective spread from fills joined to the nearest L1 mid-price.
+
+    Parameters
+    ----------
+    fills:
+        Sequence of ``(fill_price_cents, quantity, fill_time_ns)`` tuples.
+    l1:
+        L1 snapshot series with ``times_ns``, ``bid_prices``, ``ask_prices``.
+
+    Returns
+    -------
+    float | None
+        Mean effective spread in cents:
+        ``mean(2 * |fill_price - mid_price|)`` over fills with a valid
+        two-sided L1 quote.  ``None`` if no fills could be matched.
+    """
+    if not fills or len(l1.times_ns) == 0:
+        return None
+
+    # Pre-compute two-sided mid-prices and their timestamps.
+    mid_times: list[int] = []
+    mid_prices: list[float] = []
+    for i in range(len(l1.times_ns)):
+        bid = l1.bid_prices[i]
+        ask = l1.ask_prices[i]
+        if bid is not None and ask is not None:
+            mid_times.append(int(l1.times_ns[i]))
+            mid_prices.append((float(bid) + float(ask)) / 2.0)
+
+    if not mid_times:
+        return None
+
+    mid_times_arr = np.array(mid_times, dtype=np.int64)
+
+    total = 0.0
+    count = 0
+    for fill_price, _qty, fill_time in fills:
+        idx = int(np.searchsorted(mid_times_arr, fill_time, side="right")) - 1
+        if idx < 0:
+            idx = 0
+        mid = mid_prices[idx]
+        total += 2.0 * abs(float(fill_price) - mid)
+        count += 1
+
+    return total / count if count > 0 else None
+
+
+def compute_volatility(l1: L1Snapshots) -> float | None:
+    """Annualised mid-price return volatility from two-sided L1 snapshots.
+
+    Algorithm (per Rohan §2.1):
+
+    1. Filter two-sided rows.
+    2. Compute mid-price = (bid + ask) / 2.
+    3. Compute returns: r_t = mid_t / mid_{t-1} - 1.
+    4. Annualise from median inter-snapshot interval.
+
+    Returns ``None`` if fewer than 30 two-sided return observations.
+    """
+    if len(l1.times_ns) == 0:
+        return None
+
+    mids: list[float] = []
+    times: list[int] = []
+    for i in range(len(l1.times_ns)):
+        bid = l1.bid_prices[i]
+        ask = l1.ask_prices[i]
+        if bid is not None and ask is not None:
+            mids.append((float(bid) + float(ask)) / 2.0)
+            times.append(int(l1.times_ns[i]))
+
+    if len(mids) < 31:
+        return None
+
+    mids_arr = np.array(mids)
+    returns = mids_arr[1:] / mids_arr[:-1] - 1.0
+
+    if len(returns) < 30:
+        return None
+
+    std_r = float(np.std(returns, ddof=1))
+    if std_r == 0.0:
+        return None
+
+    dt = np.diff(np.array(times, dtype=np.int64))
+    median_dt = float(np.median(dt))
+    if median_dt <= 0:
+        return None
+
+    return std_r * float(np.sqrt(_NS_PER_YEAR / median_dt))
+
+
+def compute_sharpe_ratio(curve: EquityCurve | None) -> float | None:
+    """Annualised Sharpe ratio from an equity curve.
+
+    Algorithm (per Rohan §1.3):
+
+    1. Compute fill-by-fill NAV returns.
+    2. Sharpe = mean(r) / std(r) * sqrt(NS_PER_YEAR / median_dt).
+
+    Returns ``None`` if the curve is ``None``, has fewer than 30 observations,
+    or the return standard deviation is zero.
+    """
+    if curve is None or len(curve.nav_cents) < 31:
+        return None
+
+    navs = np.array(curve.nav_cents, dtype=np.float64)
+    returns = navs[1:] / navs[:-1] - 1.0
+
+    if len(returns) < 30:
+        return None
+
+    mean_r = float(np.mean(returns))
+    std_r = float(np.std(returns, ddof=1))
+
+    if std_r == 0.0:
+        return None
+
+    dt = np.diff(np.array(curve.times_ns, dtype=np.int64))
+    median_dt = float(np.median(dt))
+    if median_dt <= 0:
+        return None
+
+    return (mean_r / std_r) * float(np.sqrt(_NS_PER_YEAR / median_dt))
+
+
 def compute_l1_close(book_log2: list[dict[str, Any]]) -> L1Close:
     """Extract :class:`L1Close` from the last entry in *book_log2*.
 
@@ -119,9 +280,7 @@ def compute_l1_close(book_log2: list[dict[str, Any]]) -> L1Close:
     asks = last["asks"]
     bid_price = int(bids[0][0]) if len(bids) > 0 else None
     ask_price = int(asks[0][0]) if len(asks) > 0 else None
-    return L1Close(
-        time_ns=time_ns, bid_price_cents=bid_price, ask_price_cents=ask_price
-    )
+    return L1Close(time_ns=time_ns, bid_price_cents=bid_price, ask_price_cents=ask_price)
 
 
 def compute_l1_series(book_log2: list[dict[str, Any]]) -> L1Snapshots:
@@ -237,6 +396,7 @@ def compute_agent_pnl(
     agent_id: int = 0,
     agent_type: str = "",
     agent_name: str = "",
+    agent_category: str = "",
     execution_metrics: ExecutionMetrics | None = None,
     equity_curve: EquityCurve | None = None,
 ) -> AgentData:
@@ -254,7 +414,7 @@ def compute_agent_pnl(
     basket_value_cents:
         Additional portfolio value in cents (e.g. ``basket_size * nav_diff``
         from ABIDES internal accounting).  Default 0 for external callers.
-    agent_id, agent_type, agent_name:
+    agent_id, agent_type, agent_name, agent_category:
         Agent identifiers for the returned :class:`AgentData`.
     execution_metrics:
         Pre-computed :class:`ExecutionMetrics`, or ``None``.
@@ -276,6 +436,7 @@ def compute_agent_pnl(
         agent_id=agent_id,
         agent_type=agent_type,
         agent_name=agent_name or f"agent_{agent_id}",
+        agent_category=agent_category,
         final_holdings=holdings,
         starting_cash_cents=starting_cash_cents,
         mark_to_market_cents=mtm,
@@ -312,9 +473,7 @@ def compute_execution_metrics(
     arrival_price_cents:
         Market mid-price at first order, in integer cents.
     """
-    fill_rate = (
-        filled_quantity / target_quantity * 100.0 if target_quantity > 0 else 0.0
-    )
+    fill_rate = filled_quantity / target_quantity * 100.0 if target_quantity > 0 else 0.0
 
     # Average fill price
     avg_fill: int | None = None
@@ -441,9 +600,7 @@ def compute_metrics(
         [e for e in exec_entries if e.get("price") is not None]
     )
     vwap_trades: list[tuple[int, int]] = [
-        (int(e["price"]), int(e["quantity"]))
-        for e in exec_entries
-        if e.get("price") is not None
+        (int(e["price"]), int(e["quantity"])) for e in exec_entries if e.get("price") is not None
     ]
     vwap_cents = compute_vwap(vwap_trades)
 
