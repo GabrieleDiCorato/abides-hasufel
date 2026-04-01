@@ -22,21 +22,32 @@ Execution is solely driven by two callbacks:
 
 ---
 
-## 2. The Recommended Pattern: Interface + Adapter
+## 2. Two Approaches: Simple Agent vs. Adapter Pattern
 
-Do not tightly couple your trading strategy logic directly to ABIDES internals.
-Use the **Adapter Pattern** — define your own decoupling layer, then bridge it to ABIDES:
+Every custom agent in ABIDES is a `TradingAgent` subclass registered with the config system. There's no way around this — `TradingAgent` provides ~1,200 lines of plumbing (exchange discovery, market hours, bid/ask caching, portfolio tracking, order lifecycle) that you'd otherwise reimplement. Never inherit from `Agent` or `FinancialAgent` directly.
 
-1. **Strategy Protocol (Your Code):** A `typing.Protocol` (or ABC) entirely agnostic of ABIDES. Defines callbacks like `on_tick(snapshot, portfolio)`, `on_fill(fill_info, portfolio)`, `get_wakeup_interval_ns()`. Takes clean dataclasses you define (e.g., `MarketSnapshot`, `PortfolioState`).
-2. **Strategy Implementation (Your Code):** Implements the protocol with your trading logic. Zero ABIDES imports.
-3. **Adapter (Bridge — Your Code):** A class that inherits from `TradingAgent` and translates ABIDES events into your protocol's callbacks. Registered with the ABIDES config system via `@register_agent`.
+What differs is how you organize your **trading logic**:
+
+### Approach A: Direct subclass (simple agents)
+
+Put your logic directly in `wakeup()` and `receive_message()`. Best for single-purpose agents, prototyping, and when you don't need to reuse the strategy outside ABIDES.
+
+This is the approach used by all built-in agents (`NoiseAgent`, `MomentumAgent`, etc.) and the copy-paste scaffold in §9.
+
+### Approach B: Adapter pattern (reusable strategies)
+
+Define a strategy protocol in your own code (zero ABIDES imports), implement your trading logic against that protocol, then write a thin adapter that inherits `TradingAgent` and translates ABIDES events → your protocol callbacks.
+
+1. **Strategy Protocol (Your Code):** A `typing.Protocol` (or ABC) with callbacks like `on_tick(snapshot, portfolio)`, `on_fill(fill_info, portfolio)`. Takes clean dataclasses you define.
+2. **Strategy Implementation (Your Code):** Implements the protocol. Zero ABIDES imports.
+3. **Adapter (Your Code):** Inherits `TradingAgent`, translates ABIDES events into your protocol's callbacks. Registered via `@register_agent`.
+
+This approach is worth the overhead when you need testability outside the simulator, or you plan to swap between ABIDES and another backtesting framework.
 
 > [!NOTE]
-> ABIDES does **not** ship a built-in strategy protocol or adapter. You define these in your own project — ABIDES provides the base class (`TradingAgent`) and the config-system hooks (`@register_agent`, `BaseAgentConfig`) to plug them in. This keeps the simulation framework decoupled from any particular strategy interface.
+> ABIDES does **not** ship a built-in strategy protocol or adapter. You define these in your own project — ABIDES provides the base class (`TradingAgent`) and the config-system hooks (`@register_agent`, `BaseAgentConfig`) to plug them in.
 
 ### Adapter skeleton
-
-Your adapter subclasses `TradingAgent` and holds a reference to a strategy instance:
 
 ```python
 class MyStrategyAdapter(TradingAgent):
@@ -61,8 +72,67 @@ class MyStrategyAdapter(TradingAgent):
         # Intercept OrderExecutedMsg → call strategy.on_fill(...)
 ```
 
-### Why extend `TradingAgent`?
-`TradingAgent` implements ~1,200 lines of necessary plumbing: exchange discovery, market hours tracking, bid/ask spread caching, portfolio tracking, and order lifecycle management. If you inherit from `Agent` or `FinancialAgent`, you will have to reimplement all of this.
+### What's coupled regardless of approach
+
+Whichever approach you choose, your ABIDES-side code *will* depend on:
+- `TradingAgent` (base class) and `BaseAgentConfig` + `@register_agent` (config system)
+- ABIDES message types in `receive_message()` (see §2.2)
+- `Side` enum and order helpers for placing orders
+- Integer-cents prices, nanosecond time, and async message-driven data flow
+
+The adapter pattern decouples your **strategy algorithm** from these, but the adapter itself is inextricably ABIDES-specific. For simple agents, this overhead isn't justified.
+
+---
+
+### 2.1 What Your Code Will Import
+
+Minimum imports for any custom agent:
+
+```python
+# Always needed
+from abides_markets.agents import TradingAgent
+from abides_markets.config_system import BaseAgentConfig, register_agent
+from abides_core.utils import str_to_ns          # duration string → nanoseconds
+from pydantic import Field                        # config model fields
+```
+
+Additional imports depending on what your agent does:
+
+| Import | When needed |
+|--------|-------------|
+| `from abides_markets.orders import Side` | Placing orders with explicit side (`Side.BID`, `Side.ASK`) |
+| `from abides_markets.messages.query import QuerySpreadResponseMsg` | Handling point-query spread responses |
+| `from abides_markets.messages.marketdata import L2SubReqMsg, L2DataMsg` | Using L2 subscriptions |
+| `from abides_markets.messages.market import MarketHoursMsg` | Detecting market open/close (rarely needed — `super().wakeup()` handles this) |
+| `from abides_markets.messages.order import OrderExecutedMsg, OrderAcceptedMsg, OrderCancelledMsg` | Reacting to order lifecycle events beyond the default `TradingAgent` handling |
+
+The config system auto-injects `id`, `name`, `type`, `symbol`, `random_state`, and `risk_config` — you don't import or construct these.
+
+---
+
+### 2.2 Message Types You'll Handle
+
+Your `receive_message()` will encounter these message types. `TradingAgent` handles most of them automatically — you only need to intercept the ones your strategy cares about.
+
+| Message | Handled by `TradingAgent`? | When to intercept |
+|---------|:-:|---|
+| `MarketHoursMsg` | **Yes** — sets `mkt_open`/`mkt_close` | Rarely |
+| `QuerySpreadResponseMsg` | **Yes** — updates `known_bids`/`known_asks` | When using pull-based data and you need to act immediately on fresh data |
+| `L1DataMsg` / `L2DataMsg` | **Yes** — updates `known_bids`/`known_asks`, `last_trade` | When using subscriptions and you need per-tick logic |
+| `OrderAcceptedMsg` | **Yes** — tracked in `self.orders` | If you need confirmation logging |
+| `OrderExecutedMsg` | **Yes** — updates `holdings`, removes from `self.orders` | **Almost always** — to trigger strategy `on_fill()` logic |
+| `OrderCancelledMsg` | **Yes** — removes from `self.orders` | If you track cancel confirmations |
+| `MarketClosedMsg` | **Yes** — sets `mkt_closed` flag | Rarely |
+
+**Key pattern:** Always call `super().receive_message(...)` first, *then* check message type:
+
+```python
+def receive_message(self, current_time, sender_id, message):
+    super().receive_message(current_time, sender_id, message)
+    if isinstance(message, OrderExecutedMsg):
+        # React to fill — self.holdings is already updated by super()
+        ...
+```
 
 ---
 
@@ -158,7 +228,27 @@ class MyStrategyConfig(BaseAgentConfig):
 
 When `agent_class` is provided, the config system **auto-generates** `create_agents()` by introspecting your adapter's constructor and mapping config field names → constructor parameter names. Fields listed in `_BASE_EXCLUDE` (risk guard fields) are excluded from this mapping — they flow through `RiskConfig` instead.
 
-### Step 2: Override `_prepare_constructor_kwargs()` for computed args
+### Step 2: Exclude fields that need transformation (`_EXCLUDE_FROM_KWARGS`)
+
+Config fields are auto-mapped to constructor args **by name**. But some fields need transformation before they become constructor args (e.g., `"30s"` string → nanosecond integer). These must be excluded from auto-mapping and handled in `_prepare_constructor_kwargs()`.
+
+Set `_EXCLUDE_FROM_KWARGS` to prevent auto-mapping of specific fields:
+
+```python
+from abides_markets.config_system.agent_configs import _BASE_EXCLUDE
+
+class MyStrategyConfig(BaseAgentConfig):
+    threshold: float = Field(default=0.05)
+    wake_up_freq: str = Field(default="30s")  # string, not nanoseconds
+
+    _EXCLUDE_FROM_KWARGS = _BASE_EXCLUDE | frozenset({"wake_up_freq"})
+```
+
+`_BASE_EXCLUDE` already covers all risk guard fields (`position_limit`, `max_drawdown`, etc.) — always include it when extending.
+
+If all your config fields map directly to constructor params by name and type (no transformation needed), you can skip this — the default `_BASE_EXCLUDE` is inherited.
+
+### Step 3: Override `_prepare_constructor_kwargs()` for computed args
 
 If your adapter needs arguments that aren't simple config-field pass-throughs (e.g., converting a duration string to nanoseconds, or creating a non-serializable strategy instance), override the hook:
 
@@ -167,10 +257,12 @@ class MyStrategyConfig(BaseAgentConfig):
     threshold: float = Field(default=0.05)
     wake_up_freq: str = Field(default="30s")
 
+    _EXCLUDE_FROM_KWARGS = _BASE_EXCLUDE | frozenset({"wake_up_freq"})
+
     def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):
         kwargs = super()._prepare_constructor_kwargs(kwargs, agent_id, agent_rng, context)
         from abides_core.utils import str_to_ns
-        # Convert string → nanoseconds
+        # Convert string → nanoseconds (excluded from auto-mapping above)
         kwargs["wake_up_freq"] = str_to_ns(self.wake_up_freq)
         # Inject a non-serializable strategy object (created fresh per agent)
         kwargs["strategy"] = MyStrategy(
@@ -180,12 +272,18 @@ class MyStrategyConfig(BaseAgentConfig):
         return kwargs
 ```
 
+The `context` parameter is an `AgentCreationContext` dataclass providing simulation-level values:
+- `context.ticker` — the simulation's ticker symbol
+- `context.mkt_open` / `context.mkt_close` — market hours (nanoseconds)
+- `context.date_ns` — simulation date as nanoseconds from epoch
+- `context.oracle_r_bar`, `context.oracle_kappa`, `context.oracle_sigma_s` — oracle params (if set)
+
 > [!IMPORTANT]
 > Always call `super()._prepare_constructor_kwargs(...)` first — the base implementation bundles risk guard fields into `RiskConfig`.
 >
 > Pydantic fields must be JSON-serializable (for YAML/JSON config export). Non-serializable objects like strategy instances must be created inside `_prepare_constructor_kwargs()`, not stored as fields.
 
-### Step 3: Build and run
+### Step 4: Build and run
 
 ```python
 from abides_markets.config_system import SimulationBuilder
@@ -309,9 +407,11 @@ end_state = abides.run(runtime)
 
 ---
 
-## 9. Copy-Paste Agent Scaffold
+## 9. Copy-Paste Agent Scaffold (Simple Approach)
 
-Use this minimal working skeleton as a starting point. Each `# TODO:` marker indicates a line you **must** customise.
+This is an **Approach A** skeleton (see §2) — trading logic lives directly in the `TradingAgent` subclass. Use this for single-purpose agents and prototyping. For the adapter pattern (Approach B), wrap the strategy logic in a separate protocol class and inject it via `_prepare_constructor_kwargs()` as shown in §6.
+
+Each `# TODO:` marker indicates a line you **must** customise.
 
 ```python
 """TODO: module docstring — describe what this agent does."""
