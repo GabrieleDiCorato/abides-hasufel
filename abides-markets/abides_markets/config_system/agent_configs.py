@@ -382,12 +382,29 @@ class ValueAgentConfig(BaseAgentConfig):
         examples=["48d", "4.8d", "30d"],
         json_schema_extra={"format": "duration"},
     )
+    kappa: float | None = Field(
+        default=None,
+        description=(
+            "Per-nanosecond mean-reversion rate (alternative to "
+            "mean_reversion_half_life).  When set, mean_reversion_half_life "
+            "must not be explicitly provided — the two are mutually exclusive.  "
+            "None = auto-inherit from oracle config (recommended)."
+        ),
+    )
     sigma_s: float | None = Field(
         default=None,
         description=(
             "Fundamental shock variance in the agent's model.  None = "
             "auto-inherit from oracle config (recommended).  Controls how "
             "much price movement the agent expects per unit time."
+        ),
+    )
+    lambda_a: float | None = Field(
+        default=None,
+        description=(
+            "Per-nanosecond Poisson wakeup arrival rate (alternative to "
+            "mean_wakeup_gap).  When set, mean_wakeup_gap must not be "
+            "explicitly provided — the two are mutually exclusive."
         ),
     )
     mean_wakeup_gap: str = Field(
@@ -424,10 +441,32 @@ class ValueAgentConfig(BaseAgentConfig):
 
     _EXCLUDE_FROM_KWARGS: frozenset[str] = _BASE_EXCLUDE | frozenset(
         {
+            "kappa",
+            "lambda_a",
             "mean_reversion_half_life",
             "mean_wakeup_gap",
         }
     )
+
+    @model_validator(mode="after")
+    def _validate_no_dual_specification(self) -> ValueAgentConfig:
+        """Reject configs that specify both the raw rate and the duration string."""
+        if (
+            self.kappa is not None
+            and "mean_reversion_half_life" in self.model_fields_set
+        ):
+            raise ValueError(
+                "Cannot set both 'kappa' and 'mean_reversion_half_life' — "
+                "they are mutually exclusive representations of the same "
+                "mean-reversion speed.  Use one or the other."
+            )
+        if self.lambda_a is not None and "mean_wakeup_gap" in self.model_fields_set:
+            raise ValueError(
+                "Cannot set both 'lambda_a' and 'mean_wakeup_gap' — "
+                "they are mutually exclusive representations of the same "
+                "wakeup frequency.  Use one or the other."
+            )
+        return self
 
     def _prepare_constructor_kwargs(self, kwargs, agent_id, agent_rng, context):
         import math
@@ -452,16 +491,16 @@ class ValueAgentConfig(BaseAgentConfig):
 
         # Auto-inherit kappa from oracle if not explicitly set.
         # context.oracle_kappa is already in per-ns units (converted by compiler).
-        hl = self.mean_reversion_half_life
-        if hl is not None:
-            kwargs["kappa"] = math.log(2) / str_to_ns(hl)
+        if self.kappa is not None:
+            kwargs["kappa"] = self.kappa
+        elif self.mean_reversion_half_life is not None:
+            kwargs["kappa"] = math.log(2) / str_to_ns(self.mean_reversion_half_life)
         elif context.oracle_kappa is not None:
             kwargs["kappa"] = context.oracle_kappa
         else:
             raise ValueError(
-                "ValueAgentConfig.mean_reversion_half_life is None and no oracle "
-                "kappa available. Either set mean_reversion_half_life explicitly "
-                "or provide an oracle with a half-life."
+                "ValueAgentConfig: no kappa source available. Set kappa, "
+                "mean_reversion_half_life, or provide an oracle with a half-life."
             )
 
         # Auto-inherit sigma_s from oracle if not explicitly set
@@ -477,7 +516,10 @@ class ValueAgentConfig(BaseAgentConfig):
         kwargs["sigma_s"] = sigma_s
 
         # Convert mean_wakeup_gap (duration string) → lambda_a (per-ns rate)
-        kwargs["lambda_a"] = 1.0 / str_to_ns(self.mean_wakeup_gap)
+        if self.lambda_a is not None:
+            kwargs["lambda_a"] = self.lambda_a
+        else:
+            kwargs["lambda_a"] = 1.0 / str_to_ns(self.mean_wakeup_gap)
 
         # sigma_n is agent-specific: default to r_bar / 100
         if kwargs.get("sigma_n") is None:

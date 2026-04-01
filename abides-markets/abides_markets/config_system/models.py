@@ -72,6 +72,22 @@ class SparseMeanRevertingOracleConfig(BaseModel):
         examples=["100000h", "50000h", "10000h"],
         json_schema_extra={"format": "duration"},
     )
+    kappa: float | None = Field(
+        default=None,
+        description=(
+            "Per-nanosecond OU mean-reversion rate (alternative to "
+            "mean_reversion_half_life).  When set, mean_reversion_half_life "
+            "must not be explicitly provided — the two are mutually exclusive."
+        ),
+    )
+    megashock_lambda_a: float | None = Field(
+        default=None,
+        description=(
+            "Per-nanosecond Poisson megashock arrival rate (alternative to "
+            "megashock_mean_interval).  When set, megashock_mean_interval "
+            "must not be explicitly provided — the two are mutually exclusive."
+        ),
+    )
     megashock_mean: float = Field(
         default=1000,
         description="Mean magnitude of megashock jumps (in cents).",
@@ -81,6 +97,30 @@ class SparseMeanRevertingOracleConfig(BaseModel):
         default=50_000,
         description="Variance of megashock magnitude distribution.",
     )
+
+    @model_validator(mode="after")
+    def _validate_no_dual_specification(self) -> SparseMeanRevertingOracleConfig:
+        """Reject configs that specify both the raw rate and the duration string."""
+        if (
+            self.kappa is not None
+            and "mean_reversion_half_life" in self.model_fields_set
+        ):
+            raise ValueError(
+                "Cannot set both 'kappa' and 'mean_reversion_half_life' — "
+                "they are mutually exclusive representations of the same "
+                "mean-reversion speed.  Use one or the other."
+            )
+        if (
+            self.megashock_lambda_a is not None
+            and "megashock_mean_interval" in self.model_fields_set
+        ):
+            raise ValueError(
+                "Cannot set both 'megashock_lambda_a' and "
+                "'megashock_mean_interval' — they are mutually exclusive "
+                "representations of the same megashock frequency.  "
+                "Use one or the other."
+            )
+        return self
 
 
 class MeanRevertingOracleConfig(BaseModel):

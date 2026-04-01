@@ -252,13 +252,21 @@ def _build_oracle(config, mkt_open, mkt_close, oracle_rng):
         symbols = {
             config.market.ticker: {
                 "r_bar": oc.r_bar,
-                "kappa": math.log(2) / str_to_ns(oc.mean_reversion_half_life),
+                "kappa": (
+                    oc.kappa
+                    if oc.kappa is not None
+                    else math.log(2) / str_to_ns(oc.mean_reversion_half_life)
+                ),
                 "sigma_s": oc.sigma_s,
                 "fund_vol": oc.fund_vol,
                 "megashock_lambda_a": (
-                    0
-                    if oc.megashock_mean_interval is None
-                    else 1.0 / str_to_ns(oc.megashock_mean_interval)
+                    oc.megashock_lambda_a
+                    if oc.megashock_lambda_a is not None
+                    else (
+                        0
+                        if oc.megashock_mean_interval is None
+                        else 1.0 / str_to_ns(oc.megashock_mean_interval)
+                    )
                 ),
                 "megashock_mean": oc.megashock_mean,
                 "megashock_var": oc.megashock_var,
@@ -297,7 +305,11 @@ def _get_oracle_params(
     """
     oc = config.market.oracle
     if isinstance(oc, SparseMeanRevertingOracleConfig):
-        kappa = math.log(2) / str_to_ns(oc.mean_reversion_half_life)
+        kappa = (
+            oc.kappa
+            if oc.kappa is not None
+            else math.log(2) / str_to_ns(oc.mean_reversion_half_life)
+        )
         # For ValueAgent auto-inheritance, convert the oracle's continuous-time
         # OU diffusion coefficient (fund_vol) into the per-nanosecond shock
         # *variance* that ValueAgent's discrete Bayesian update expects.
