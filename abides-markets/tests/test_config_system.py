@@ -510,6 +510,10 @@ class TestTemplates:
             ), f"{t['name']} has empty scenario_description"
             assert len(t["regime_tags"]) > 0, f"{t['name']} has empty regime_tags"
             assert all(isinstance(tag, str) for tag in t["regime_tags"])
+            assert (
+                "default_risk_guards" in t
+            ), f"{t['name']} missing default_risk_guards"
+            assert isinstance(t["default_risk_guards"], dict)
 
     def test_template_regime_tags_searchable(self):
         """Templates can be filtered by regime_tags for programmatic selection."""
@@ -527,6 +531,25 @@ class TestTemplates:
 
         overlays = [t["name"] for t in templates if "overlay" in t["regime_tags"]]
         assert set(overlays) == {"with_momentum", "with_execution"}
+
+    def test_template_default_risk_guards(self):
+        """default_risk_guards documents pre-configured risk parameters."""
+        templates = list_templates()
+        for t in templates:
+            guards = t["default_risk_guards"]
+            assert isinstance(guards, dict)
+            # Only known risk keys are allowed when guards are set
+            allowed = {
+                "position_limit",
+                "position_limit_clamp",
+                "max_drawdown",
+                "max_order_rate",
+                "order_rate_window",
+            }
+            assert set(guards.keys()) <= allowed, (
+                f"{t['name']} has unknown risk guard keys: "
+                f"{set(guards.keys()) - allowed}"
+            )
 
     def test_liquid_market_template(self):
         config = SimulationBuilder().from_template("liquid_market").seed(42).build()

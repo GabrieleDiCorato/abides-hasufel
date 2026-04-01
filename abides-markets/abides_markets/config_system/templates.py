@@ -22,6 +22,7 @@ class TemplateInfo:
     is_overlay: bool = False
     scenario_description: str = ""
     regime_tags: list[str] = field(default_factory=list)
+    default_risk_guards: dict[str, Any] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +539,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "moderate liquidity, and calm fundamental dynamics."
         ),
         regime_tags=["reference", "balanced", "moderate_liquidity", "low_vol"],
+        default_risk_guards={},
     ),
     "liquid_market": TemplateInfo(
         name="liquid_market",
@@ -548,6 +550,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "across all agent types."
         ),
         regime_tags=["liquid", "deep_book", "tight_spread", "balanced"],
+        default_risk_guards={},
     ),
     "thin_market": TemplateInfo(
         name="thin_market",
@@ -558,6 +561,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "wide spreads and sporadic fills."
         ),
         regime_tags=["thin", "illiquid", "wide_spread", "no_mm"],
+        default_risk_guards={},
     ),
     "with_momentum": TemplateInfo(
         name="with_momentum",
@@ -568,6 +572,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "Overlay adding momentum-following agents to amplify " "directional moves."
         ),
         regime_tags=["overlay", "momentum", "trend"],
+        default_risk_guards={},
     ),
     "with_execution": TemplateInfo(
         name="with_execution",
@@ -579,6 +584,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "volume-participation studies."
         ),
         regime_tags=["overlay", "execution", "pov"],
+        default_risk_guards={},
     ),
     "stable_day": TemplateInfo(
         name="stable_day",
@@ -594,6 +600,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "volatility and no megashocks."
         ),
         regime_tags=["stable", "low_vol", "calm", "full_day"],
+        default_risk_guards={},
     ),
     "volatile_day": TemplateInfo(
         name="volatile_day",
@@ -609,6 +616,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "testing strategy resilience."
         ),
         regime_tags=["volatile", "high_vol", "megashocks", "full_day"],
+        default_risk_guards={},
     ),
     "low_liquidity": TemplateInfo(
         name="low_liquidity",
@@ -624,6 +632,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "makers, producing wide spreads and significant slippage."
         ),
         regime_tags=["illiquid", "thin", "wide_spread", "no_mm", "full_day"],
+        default_risk_guards={},
     ),
     "trending_day": TemplateInfo(
         name="trending_day",
@@ -639,6 +648,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "producing sustained directional moves."
         ),
         regime_tags=["trending", "momentum", "weak_reversion", "full_day"],
+        default_risk_guards={},
     ),
     "stress_test": TemplateInfo(
         name="stress_test",
@@ -655,6 +665,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
             "large megashocks, and thin liquidity."
         ),
         regime_tags=["stress", "extreme_vol", "megashocks", "thin", "full_day"],
+        default_risk_guards={},
     ),
 }
 
@@ -674,6 +685,7 @@ def list_templates() -> list[dict[str, Any]]:
             "is_overlay": info.is_overlay,
             "scenario_description": info.scenario_description,
             "regime_tags": list(info.regime_tags),
+            "default_risk_guards": dict(info.default_risk_guards),
         }
         for info in _TEMPLATE_METADATA.values()
     ]
