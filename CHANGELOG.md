@@ -1,3 +1,62 @@
+2026-04 Release v2.5.3
+==================
+
+New Features
+------------
+
+* **Standalone microstructure metrics** — factored all metric computation out
+  of the simulation runner into standalone ``compute_*()`` functions in
+  ``abides_markets.simulation.metrics``.  External consumers can now compute
+  the canonical metric set from plain Python data without running a simulation.
+
+* **Tier 1 metrics** — ``compute_mean_spread`` (time-averaged quoted spread),
+  ``compute_effective_spread`` (avg cost of immediacy vs nearest L1 mid),
+  ``compute_volatility`` (annualised mid-price return std, 30+ obs threshold),
+  ``compute_sharpe_ratio`` (annualised risk-adjusted return from equity curve).
+
+* **Tier 2 metrics** — ``compute_avg_liquidity`` (mean resting qty at best
+  bid/ask), ``compute_lob_imbalance`` (LOB imbalance mean/std per Cont,
+  Kukanov & Stoikov 2014), ``compute_inventory_std`` (std of intraday
+  inventory from fills), ``compute_market_ott_ratio`` (market-wide
+  order-to-trade ratio, MiFID II RTS 9).
+
+* **Tier 3 metrics** — ``compute_vpin`` (Volume-Synchronized Probability of
+  Informed Trading per Easley et al. 2012, with Lee-Ready tick test and
+  equal-volume bucketing), ``compute_resilience`` (mean spread recovery time
+  after shock events per Foucault et al. 2013).
+
+* **Order-level fill rate** — ``compute_order_fill_rate`` computes
+  ``N_executed / N_submitted`` (Rohan §1.2 definition).  Documented the
+  semantic distinction from the existing quantity-based ``fill_rate_pct``
+  (``filled_qty / target_qty``).
+
+* **Agent category support** — ``AgentData`` now carries ``agent_category``
+  stamped from the registry at compile time.  ``SimulationResult`` gained
+  ``get_agents_by_category()`` for filtering agents by role.
+
+Config System
+-------------
+
+* **Raw physical parameters** — ``ValueAgentConfig`` now accepts ``kappa``
+  and ``lambda_a``; ``SparseMeanRevertingOracleConfig`` accepts ``kappa``
+  and ``megashock_lambda_a``.  The compiler propagates oracle parameters
+  correctly.
+
+* **Template metadata** — templates now carry ``scenario_description``,
+  ``regime_tags``, and ``default_risk_guards`` for richer introspection.
+
+Documentation
+-------------
+
+* Expanded custom agent implementation guide with two-approach structure
+  (direct subclass vs adapter pattern), import table, message type reference,
+  ``_EXCLUDE_FROM_KWARGS`` pattern, and ``AgentCreationContext`` fields.
+
+* Added Rohan metrics definition reference document
+  (``docs/metrics_definition.md``).
+
+---
+
 2026-04 Release v2.5.2
 ==================
 
