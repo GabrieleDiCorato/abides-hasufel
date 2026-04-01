@@ -61,9 +61,11 @@ from .metrics import (
     compute_market_ott_ratio,
     compute_mean_spread,
     compute_metrics,
+    compute_resilience,
     compute_sharpe_ratio,
     compute_trade_attribution,
     compute_volatility,
+    compute_vpin,
     compute_vwap,
 )
 from .profiles import ResultProfile
@@ -111,6 +113,8 @@ __all__ = [
     "compute_lob_imbalance",
     "compute_inventory_std",
     "compute_market_ott_ratio",
+    "compute_vpin",
+    "compute_resilience",
     # Result models
     "SimulationResult",
     "SimulationMetadata",

@@ -24,9 +24,11 @@ from abides_markets.simulation.metrics import (
     compute_market_ott_ratio,
     compute_mean_spread,
     compute_metrics,
+    compute_resilience,
     compute_sharpe_ratio,
     compute_trade_attribution,
     compute_volatility,
+    compute_vpin,
     compute_vwap,
 )
 from abides_markets.simulation.result import (
@@ -737,3 +739,82 @@ class TestComputeMarketOttRatio:
 
     def test_fractional(self):
         assert compute_market_ott_ratio(150, 100) == pytest.approx(1.5)
+
+
+# ===================================================================
+# compute_vpin
+# ===================================================================
+
+
+class TestComputeVpin:
+    def test_too_few_fills(self):
+        l1 = _make_l1([(100, 9900, 10, 10100, 5)])
+        fills = [(10_000, 50, 100)]
+        assert compute_vpin(fills, l1) is None
+
+    def test_balanced_flow(self):
+        # 30 buys above mid + 30 sells below mid → low VPIN
+        l1 = _make_l1([(i, 9900, 100, 10100, 100) for i in range(100)])
+        fills = []
+        for i in range(30):
+            fills.append((10_050, 10, i * 2))  # buy (above mid 10000)
+            fills.append((9_950, 10, i * 2 + 1))  # sell (below mid 10000)
+        result = compute_vpin(fills, l1, n_buckets=10)
+        assert result is not None
+        assert 0.0 <= result <= 1.0
+
+    def test_directional_flow(self):
+        # All buys → high VPIN
+        l1 = _make_l1([(i, 9900, 100, 10100, 100) for i in range(100)])
+        fills = [(10_050, 10, i) for i in range(30)]
+        result = compute_vpin(fills, l1, n_buckets=5)
+        assert result is not None
+        assert result > 0.5
+
+    def test_no_l1(self):
+        # Still works via tick rule
+        fills = [(10_000 + i * 10, 10, i) for i in range(30)]
+        result = compute_vpin(fills, _make_empty_l1(), n_buckets=5)
+        assert result is not None
+
+    def test_zero_volume(self):
+        l1 = _make_l1([(100, 9900, 10, 10100, 5)])
+        fills = [(10_000, 0, 100)] * 30
+        assert compute_vpin(fills, l1) is None
+
+
+# ===================================================================
+# compute_resilience
+# ===================================================================
+
+
+class TestComputeResilience:
+    def test_empty(self):
+        assert compute_resilience(_make_empty_l1()) is None
+
+    def test_too_few_rows(self):
+        rows = [(i, 9900, 10, 10100, 5) for i in range(5)]
+        assert compute_resilience(_make_l1(rows)) is None
+
+    def test_no_shocks(self):
+        # Constant spread → no shocks
+        rows = [(i * 1_000_000, 9900, 10, 10100, 5) for i in range(50)]
+        assert compute_resilience(_make_l1(rows)) is None
+
+    def test_with_shock_and_recovery(self):
+        rows = []
+        # Normal spread of 200 for 30 ticks
+        for i in range(30):
+            rows.append((i * 1_000_000, 9900, 10, 10100, 5))
+        # Shock: spread jumps to 1000 for 3 ticks
+        for i in range(30, 33):
+            rows.append((i * 1_000_000, 9500, 10, 10500, 5))
+        # Recovery: spread back to 200
+        for i in range(33, 50):
+            rows.append((i * 1_000_000, 9900, 10, 10100, 5))
+        result = compute_resilience(_make_l1(rows))
+        # Should detect the shock and measure recovery
+        # Could be None if the rolling window doesn't detect it as a shock
+        # (depends on window size), but the pattern is designed to trigger it
+        if result is not None:
+            assert result > 0

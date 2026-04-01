@@ -372,6 +372,206 @@ def compute_market_ott_ratio(
     return n_submissions / n_fills
 
 
+# ---------------------------------------------------------------------------
+# Microstructure metrics (Tier 3)
+# ---------------------------------------------------------------------------
+
+
+def compute_vpin(
+    fills: Sequence[tuple[int, int, int]],
+    l1: L1Snapshots,
+    *,
+    n_buckets: int = 50,
+    min_fills: int = 20,
+) -> float | None:
+    """Volume-Synchronized Probability of Informed Trading (Easley et al. 2012).
+
+    Parameters
+    ----------
+    fills:
+        Sequence of ``(fill_price_cents, quantity, fill_time_ns)`` tuples,
+        **sorted by time**.
+    l1:
+        L1 snapshot series for mid-price lookup.
+    n_buckets:
+        Number of equal-volume buckets (default 50).
+    min_fills:
+        Minimum number of fills required (default 20).
+
+    Returns ``None`` if fewer than *min_fills* fills or total volume is zero.
+
+    **Algorithm:**
+
+    1. Classify each fill as buy- or sell-initiated using Lee-Ready tick test.
+    2. Partition into equal-volume buckets.
+    3. VPIN = mean of per-bucket order imbalance.
+    """
+    if len(fills) < min_fills:
+        return None
+
+    # Build two-sided mid-price lookup.
+    mid_times: list[int] = []
+    mid_prices: list[float] = []
+    for i in range(len(l1.times_ns)):
+        bid = l1.bid_prices[i]
+        ask = l1.ask_prices[i]
+        if bid is not None and ask is not None:
+            mid_times.append(int(l1.times_ns[i]))
+            mid_prices.append((float(bid) + float(ask)) / 2.0)
+
+    mid_times_arr = np.array(mid_times, dtype=np.int64) if mid_times else np.array(
+        [], dtype=np.int64
+    )
+
+    # Lee-Ready classification.
+    total_volume = sum(qty for _, qty, _ in fills)
+    if total_volume == 0:
+        return None
+
+    classified: list[tuple[int, int]] = []  # (signed_qty, abs_qty)
+    prev_price: float | None = None
+    for fill_price, qty, fill_time in fills:
+        fp = float(fill_price)
+        sign = 0
+        # Try mid-price comparison first.
+        if len(mid_times_arr) > 0:
+            idx = int(np.searchsorted(mid_times_arr, fill_time, side="right")) - 1
+            if idx < 0:
+                idx = 0
+            mid = mid_prices[idx]
+            if fp > mid:
+                sign = 1  # buy
+            elif fp < mid:
+                sign = -1  # sell
+        # Tick rule fallback.
+        if sign == 0 and prev_price is not None:
+            if fp > prev_price:
+                sign = 1
+            elif fp < prev_price:
+                sign = -1
+        # If still ambiguous, default to buy.
+        if sign == 0:
+            sign = 1
+        classified.append((sign * qty, qty))
+        prev_price = fp
+
+    # Bucket by equal volume.
+    bucket_vol = total_volume / n_buckets
+    if bucket_vol <= 0:
+        return None
+
+    bucket_buy = 0
+    bucket_sell = 0
+    bucket_filled = 0
+    oi_values: list[float] = []
+
+    for signed_qty, abs_qty in classified:
+        remaining = abs_qty
+        while remaining > 0:
+            space = bucket_vol - bucket_filled
+            take = min(float(remaining), space)
+            if signed_qty > 0:
+                bucket_buy += take
+            else:
+                bucket_sell += take
+            bucket_filled += take
+            remaining -= int(take)
+            if bucket_filled >= bucket_vol - 1e-9:
+                bv = bucket_buy + bucket_sell
+                if bv > 0:
+                    oi_values.append(abs(bucket_buy - bucket_sell) / bv)
+                bucket_buy = 0
+                bucket_sell = 0
+                bucket_filled = 0
+
+    if not oi_values:
+        return None
+
+    return float(np.mean(oi_values))
+
+
+def compute_resilience(l1: L1Snapshots, *, window_frac: float = 0.1) -> float | None:
+    """Mean spread recovery time after shock events (Foucault et al. 2013).
+
+    Parameters
+    ----------
+    l1:
+        L1 snapshot series.
+    window_frac:
+        Rolling window as fraction of data length (default 10 %, capped at 100 ticks).
+
+    Returns ``None`` if no shock events are detected or no two-sided rows exist.
+    Units: nanoseconds.
+
+    **Algorithm:**
+
+    1. Compute spread series on two-sided rows.
+    2. Rolling mean and std (window = min(100, 10 % of data)).
+    3. Shock: spread > rolling_mean + 2 * rolling_std.
+    4. Recovery: time until spread ≤ rolling_mean + rolling_std.
+    5. Return mean recovery time.
+    """
+    if len(l1.times_ns) == 0:
+        return None
+
+    spreads: list[float] = []
+    times: list[int] = []
+    for i in range(len(l1.times_ns)):
+        bid = l1.bid_prices[i]
+        ask = l1.ask_prices[i]
+        if bid is not None and ask is not None:
+            spreads.append(float(ask) - float(bid))
+            times.append(int(l1.times_ns[i]))
+
+    n = len(spreads)
+    if n < 10:
+        return None
+
+    window = min(100, max(5, int(n * window_frac)))
+    spreads_arr = np.array(spreads)
+    times_arr = np.array(times, dtype=np.int64)
+
+    # Rolling mean and std (simple cumsum-based).
+    roll_mean = np.convolve(spreads_arr, np.ones(window) / window, mode="valid")
+    # Pad the beginning so indices align.
+    pad = n - len(roll_mean)
+    roll_mean = np.concatenate([np.full(pad, np.nan), roll_mean])
+
+    # Rolling std via Welford-like: std = sqrt(E[x^2] - E[x]^2).
+    sq = spreads_arr**2
+    roll_sq = np.convolve(sq, np.ones(window) / window, mode="valid")
+    roll_sq = np.concatenate([np.full(pad, np.nan), roll_sq])
+    roll_std = np.sqrt(np.maximum(roll_sq - roll_mean**2, 0.0))
+
+    recovery_times: list[float] = []
+    i = pad
+    while i < n:
+        if np.isnan(roll_mean[i]) or np.isnan(roll_std[i]):
+            i += 1
+            continue
+        threshold_shock = roll_mean[i] + 2.0 * roll_std[i]
+        if spreads_arr[i] > threshold_shock:
+            threshold_recovery = roll_mean[i] + roll_std[i]
+            shock_time = times_arr[i]
+            # Find recovery.
+            recovered = False
+            for j in range(i + 1, n):
+                if spreads_arr[j] <= threshold_recovery:
+                    recovery_times.append(float(times_arr[j] - shock_time))
+                    recovered = True
+                    i = j + 1
+                    break
+            if not recovered:
+                i += 1
+        else:
+            i += 1
+
+    if not recovery_times:
+        return None
+
+    return float(np.mean(recovery_times))
+
+
 def compute_l1_close(book_log2: list[dict[str, Any]]) -> L1Close:
     """Extract :class:`L1Close` from the last entry in *book_log2*.
 
