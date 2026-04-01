@@ -10,25 +10,18 @@ import pytest
 
 from abides_core.utils import str_to_ns
 from abides_markets.agents.noise_agent import NoiseAgent
-from abides_markets.config_system import (
-    SimulationBuilder,
-    compile as compile_config,
-    derive_seed,
-)
-from abides_markets.config_system.compiler import (
-    _derive_seed,
-    derive_seed as ds_direct,
-)
+from abides_markets.config_system import SimulationBuilder
+from abides_markets.config_system import compile as compile_config
+from abides_markets.config_system.compiler import _derive_seed, derive_seed
 from abides_markets.simulation import ResultProfile, SimulationResult, run_simulation
 from abides_markets.utils import config_add_agents
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 # rmsc04 default date is 2021-06-21 (Monday)
-_DATE_NS = int(1_624_233_600_000_000_000)  # 2021-06-21 00:00 UTC
+_DATE_NS = 1_624_233_600_000_000_000  # 2021-06-21 00:00 UTC
 _MKT_OPEN_NS = _DATE_NS + str_to_ns("09:30:00")
 
 
@@ -108,7 +101,9 @@ class TestDeriveSeed:
 
     def test_importable_from_config_system(self):
         """derive_seed is re-exported from the config_system package."""
-        assert ds_direct is derive_seed
+        from abides_markets.config_system import derive_seed as reexported
+
+        assert reexported is derive_seed
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +203,7 @@ class TestRuntimeAgents:
         old_latency = runtime["agent_latency_model"]
 
         agent = _make_noise_agent("LatCheck")
-        latency_rng = np.random.RandomState(
-            seed=derive_seed(42, "runtime_agents")
-        )
+        latency_rng = np.random.RandomState(seed=derive_seed(42, "runtime_agents"))
         config_add_agents(runtime, [agent], latency_rng)
 
         new_latency = runtime["agent_latency_model"]

@@ -27,6 +27,8 @@ class FinancialAgent(Agent):
     ) -> None:
         # Base class init.
         super().__init__(id, name, type, random_state)
+        # Stamped by compile() from the agent-registry category.
+        self.category: str = ""
 
     def dollarize(self, cents: Union[list[int], int]) -> Union[list[str], str]:
         """
