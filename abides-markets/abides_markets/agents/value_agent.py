@@ -1,4 +1,5 @@
 import logging
+import math
 
 import numpy as np
 
@@ -193,15 +194,30 @@ class ValueAgent(TradingAgent):
         # delta must be integer time steps since last wake
         delta = self.current_time - self.prev_wake_time
 
-        # Update r estimate for time advancement.
-        r_tprime = (1 - (1 - self.kappa) ** delta) * self.r_bar
-        r_tprime += ((1 - self.kappa) ** delta) * self.r_t
+        # Update r and sigma estimates for time advancement using numerically
+        # stable formulas.  The naive expressions (1 - (1-kappa)**delta) and
+        # (1 - (1-kappa)**2) suffer catastrophic cancellation when kappa is very
+        # small (e.g. the trending_day oracle uses a 365-day half-life, giving
+        # kappa ≈ 2.198e-17, which is below float64 machine epsilon so 1-kappa
+        # rounds to exactly 1.0 and the denominator becomes 0).
+        # Using log1p(-kappa) and expm1 avoids this entirely.
+        if self.kappa == 0.0:
+            # No mean reversion at all: belief about r doesn't decay, and
+            # variance accumulates linearly.  These are the limits as kappa→0.
+            r_tprime = float(self.r_t)
+            sigma_tprime = float(self.sigma_t) + float(delta) * self.sigma_s
+        else:
+            _log1mk = math.log1p(-self.kappa)  # log(1-kappa), stable for small kappa
+            _factor_d = math.exp(delta * _log1mk)        # (1-kappa)^delta
+            _factor_2d = math.exp(2 * delta * _log1mk)  # (1-kappa)^(2*delta)
 
-        # Update sigma estimate for time advancement.
-        sigma_tprime = ((1 - self.kappa) ** (2 * delta)) * self.sigma_t
-        sigma_tprime += (
-            (1 - (1 - self.kappa) ** (2 * delta)) / (1 - (1 - self.kappa) ** 2)
-        ) * self.sigma_s
+            # Update r estimate for time advancement.
+            r_tprime = -math.expm1(delta * _log1mk) * self.r_bar + _factor_d * self.r_t
+
+            # Update sigma estimate for time advancement.
+            _num = -math.expm1(2 * delta * _log1mk)  # 1 - (1-kappa)^(2*delta)
+            _den = -math.expm1(2 * _log1mk)          # 1 - (1-kappa)^2
+            sigma_tprime = _factor_2d * self.sigma_t + (_num / _den) * self.sigma_s
 
         # Apply the new observation, with "confidence" in the observation inversely proportional
         # to the observation noise, and "confidence" in the previous estimate inversely proportional
@@ -222,8 +238,14 @@ class ValueAgent(TradingAgent):
         #       this line of code (keeping the max() line above) to try it.
         # delta = min(delta, 1000000000 * 60 * 10)
 
-        r_T = (1 - (1 - self.kappa) ** delta) * self.r_bar
-        r_T += ((1 - self.kappa) ** delta) * self.r_t
+        if self.kappa == 0.0:
+            r_T = float(self.r_t)
+        else:
+            _log1mk = math.log1p(-self.kappa)
+            r_T = (
+                -math.expm1(delta * _log1mk) * self.r_bar
+                + math.exp(delta * _log1mk) * self.r_t
+            )
 
         # Our final fundamental estimate should be quantized to whole units of value.
         r_T = int(round(r_T))
