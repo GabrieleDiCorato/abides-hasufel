@@ -703,9 +703,7 @@ class TestTemplateRuntime:
         """Every template must produce at least some trades."""
         result = template_run_results[template_name]
         liq = result.markets["ABM"].liquidity
-        assert liq.total_exchanged_volume > 0, (
-            f"{template_name}: no trades occurred"
-        )
+        assert liq.total_exchanged_volume > 0, f"{template_name}: no trades occurred"
 
     @pytest.mark.parametrize(
         "template_name",
@@ -722,12 +720,12 @@ class TestTemplateRuntime:
         """Templates with market makers should maintain a two-sided book."""
         result = template_run_results[template_name]
         liq = result.markets["ABM"].liquidity
-        assert liq.pct_time_no_bid < 50, (
-            f"{template_name}: bid empty {liq.pct_time_no_bid:.1f}%"
-        )
-        assert liq.pct_time_no_ask < 50, (
-            f"{template_name}: ask empty {liq.pct_time_no_ask:.1f}%"
-        )
+        assert (
+            liq.pct_time_no_bid < 50
+        ), f"{template_name}: bid empty {liq.pct_time_no_bid:.1f}%"
+        assert (
+            liq.pct_time_no_ask < 50
+        ), f"{template_name}: ask empty {liq.pct_time_no_ask:.1f}%"
 
     def test_low_liquidity_has_wide_gaps(self, template_run_results):
         """low_liquidity should have noticeably wider gaps than liquid_market."""
@@ -738,8 +736,16 @@ class TestTemplateRuntime:
 
     def test_liquid_market_more_active(self, template_run_results):
         """liquid_market should generate more trade volume than thin_market."""
-        vol_liquid = template_run_results["liquid_market"].markets["ABM"].liquidity.total_exchanged_volume
-        vol_thin = template_run_results["thin_market"].markets["ABM"].liquidity.total_exchanged_volume
+        vol_liquid = (
+            template_run_results["liquid_market"]
+            .markets["ABM"]
+            .liquidity.total_exchanged_volume
+        )
+        vol_thin = (
+            template_run_results["thin_market"]
+            .markets["ABM"]
+            .liquidity.total_exchanged_volume
+        )
         assert vol_liquid > vol_thin
 
 
