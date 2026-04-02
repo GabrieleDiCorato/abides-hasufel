@@ -208,7 +208,7 @@ class ValueAgent(TradingAgent):
             sigma_tprime = float(self.sigma_t) + float(delta) * self.sigma_s
         else:
             _log1mk = math.log1p(-self.kappa)  # log(1-kappa), stable for small kappa
-            _factor_d = math.exp(delta * _log1mk)        # (1-kappa)^delta
+            _factor_d = math.exp(delta * _log1mk)  # (1-kappa)^delta
             _factor_2d = math.exp(2 * delta * _log1mk)  # (1-kappa)^(2*delta)
 
             # Update r estimate for time advancement.
@@ -216,7 +216,7 @@ class ValueAgent(TradingAgent):
 
             # Update sigma estimate for time advancement.
             _num = -math.expm1(2 * delta * _log1mk)  # 1 - (1-kappa)^(2*delta)
-            _den = -math.expm1(2 * _log1mk)          # 1 - (1-kappa)^2
+            _den = -math.expm1(2 * _log1mk)  # 1 - (1-kappa)^2
             sigma_tprime = _factor_2d * self.sigma_t + (_num / _den) * self.sigma_s
 
         # Apply the new observation, with "confidence" in the observation inversely proportional

@@ -85,7 +85,6 @@ class TestValueAgentSigmaTConvergence:
         assert sigma_t < sigma_n, "sigma_t should be less than sigma_n"
 
 
-
 # ---------------------------------------------------------------------------
 # ValueAgent numerical-stability regression: tiny kappa (long half-lives)
 # ---------------------------------------------------------------------------
@@ -112,9 +111,9 @@ class TestValueAgentSmallKappa:
         # Reproduce the exact kappa that caused the crash in the dashboard.
         kappa_365d = math.log(2) / str_to_ns("365d")
         # Confirm this is in the dangerous range (below float64 machine epsilon).
-        assert 1.0 - kappa_365d == 1.0, (
-            "Test premise failed: kappa should be below float64 precision threshold"
-        )
+        assert (
+            1.0 - kappa_365d == 1.0
+        ), "Test premise failed: kappa should be below float64 precision threshold"
 
         # Using log1p/expm1 must give a non-zero denominator.
         log1mk = math.log1p(-kappa_365d)
@@ -133,11 +132,9 @@ class TestValueAgentSmallKappa:
 
         kappa = math.log(2) / str_to_ns("365d")
         sigma_s = (1e-4) ** 2  # fund_vol=1e-4 as in trending_day
-        sigma_n = 1_000.0
         r_bar = 100_000
         r_t = float(r_bar)
         sigma_t = 0.0
-        mkt_open_ns = 0
         delta = 175_000_000_000  # 175 seconds in ns (typical wakeup gap)
 
         log1mk = math.log1p(-kappa)
@@ -155,9 +152,9 @@ class TestValueAgentSmallKappa:
 
         # The ratio num/den should approximate delta (in ns) for tiny kappa.
         ratio = num / den
-        assert abs(ratio - delta) / delta < 0.01, (
-            f"ratio {ratio:.3e} should be ≈ delta {delta:.3e} for tiny kappa"
-        )
+        assert (
+            abs(ratio - delta) / delta < 0.01
+        ), f"ratio {ratio:.3e} should be ≈ delta {delta:.3e} for tiny kappa"
 
     def test_trending_day_simulation_runs(self):
         """trending_day template must run without ZeroDivisionError.
