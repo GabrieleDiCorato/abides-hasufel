@@ -1,3 +1,22 @@
+2026-04 Release v2.5.7
+==================
+
+New Features
+------------
+
+* **Rich Simulation Metrics API** — Added ``compute_rich_metrics()`` as a
+  single-call entry point that produces agent-level analytics
+  (PnL, Sharpe, drawdown, fill rate, VWAP, inventory), market microstructure
+  indicators (LOB imbalance, resilience, OTT ratio), and optional per-fill
+  execution analysis (slippage, adverse selection at configurable windows).
+  New Pydantic models: ``RichSimulationMetrics``, ``RichAgentMetrics``,
+  ``MicrostructureMetrics``, ``FillRecord``.  Standalone helpers
+  ``compute_fill_slippage()`` and ``compute_adverse_selection()`` exposed for
+  ad-hoc use.  All fields degrade gracefully to ``None`` when the required
+  ``ResultProfile`` data is absent.
+
+---
+
 2026-04 Release v2.5.6
 ==================
 
