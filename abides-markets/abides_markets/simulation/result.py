@@ -26,7 +26,7 @@ SimulationResult
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -502,6 +502,55 @@ class AgentData(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# OrderLifecycle — per-order state transitions
+# ---------------------------------------------------------------------------
+
+
+class OrderLifecycle(BaseModel):
+    """Per-order lifecycle record reconstructed from agent log events.
+
+    Populated when ``ResultProfile.AGENT_LOGS`` is active.  Each record
+    tracks a single order from submission through its terminal state
+    (filled, partially filled, or cancelled).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    order_id: int
+    """Unique order identifier."""
+
+    agent_id: int
+    """Agent that submitted the order."""
+
+    submitted_at_ns: int
+    """Timestamp of the ORDER_SUBMITTED event (nanoseconds, Unix epoch)."""
+
+    status: Literal["filled", "partially_filled", "cancelled", "resting"]
+    """Terminal status of the order.
+
+    * ``"filled"`` — ``filled_qty == submitted_qty``
+    * ``"partially_filled"`` — ``0 < filled_qty < submitted_qty``
+    * ``"cancelled"`` — an ORDER_CANCELLED event was observed
+    * ``"resting"`` — submitted but no terminal event observed by end of sim
+    """
+
+    filled_qty: int
+    """Total quantity filled across all execution events."""
+
+    submitted_qty: int
+    """Quantity specified in the original ORDER_SUBMITTED event."""
+
+    resting_time_ns: int | None = None
+    """Elapsed time from submission to terminal state (nanoseconds).
+
+    ``None`` when the order is still ``"resting"`` at simulation end.
+    """
+
+    fill_events: list[tuple[int, int, int]] = []
+    """Per-fill details as ``(time_ns, price_cents, qty)`` tuples."""
+
+
+# ---------------------------------------------------------------------------
 # RichAgentMetrics — enriched per-agent analytics
 # ---------------------------------------------------------------------------
 
@@ -545,6 +594,12 @@ class RichAgentMetrics(BaseModel):
 
     inventory_std: float | None = None
     """Intraday inventory volatility (requires ``TRADE_ATTRIBUTION``)."""
+
+    order_lifecycles: list[OrderLifecycle] | None = None
+    """Per-order lifecycle records (requires ``AGENT_LOGS``).
+
+    ``None`` when ``ResultProfile.AGENT_LOGS`` is not active.
+    """
 
 
 # ---------------------------------------------------------------------------

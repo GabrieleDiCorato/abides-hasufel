@@ -84,6 +84,7 @@ from .result import (
     LiquidityMetrics,
     MarketSummary,
     MicrostructureMetrics,
+    OrderLifecycle,
     RichAgentMetrics,
     RichSimulationMetrics,
     SimulationMetadata,
@@ -141,6 +142,7 @@ __all__ = [
     "TradeAttribution",
     "MicrostructureMetrics",
     "RichAgentMetrics",
+    "OrderLifecycle",
     "FillRecord",
     "RichSimulationMetrics",
     # Profile
