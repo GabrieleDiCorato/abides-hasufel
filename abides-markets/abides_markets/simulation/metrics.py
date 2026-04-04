@@ -69,6 +69,7 @@ def _is_na(value: object) -> bool:
         # pd.NA raises TypeError on bool(pd.NA)
         return True
 
+
 # ---------------------------------------------------------------------------
 # Primitive metric helpers
 # ---------------------------------------------------------------------------
@@ -1222,7 +1223,11 @@ def compute_rich_metrics(
                         qty = int(row.get("quantity", 0))
                         t_ns = int(row.get("EventTime", 0))
                         fp_raw = row.get("fill_price")
-                        fp = int(fp_raw) if fp_raw is not None and not _is_na(fp_raw) else 0
+                        fp = (
+                            int(fp_raw)
+                            if fp_raw is not None and not _is_na(fp_raw)
+                            else 0
+                        )
                         trk["filled_qty"] += qty
                         trk["terminal_time_ns"] = t_ns
                         trk["fill_events"].append((t_ns, fp, qty))

@@ -7,6 +7,7 @@ plain Python data (no live agents or exchange objects required).
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from abides_markets.simulation.metrics import (
@@ -1252,10 +1253,8 @@ class TestComputeRichMetricsFills:
 # ===================================================================
 
 
-def _make_logs(rows: list[dict]) -> "pd.DataFrame":
+def _make_logs(rows: list[dict]) -> pd.DataFrame:
     """Build a log DataFrame from a list of row dicts."""
-    import pandas as pd
-
     df = pd.DataFrame(rows)
     for col in ("EventTime", "agent_id", "order_id", "quantity", "fill_price"):
         if col in df.columns:
@@ -1273,8 +1272,6 @@ class TestOrderLifecycles:
 
     def test_filled_order(self):
         """Fully filled order has status='filled' and correct resting_time_ns."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1320,8 +1317,6 @@ class TestOrderLifecycles:
 
     def test_cancelled_order(self):
         """Cancelled order with no fills has status='cancelled'."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1361,8 +1356,6 @@ class TestOrderLifecycles:
 
     def test_partially_filled_then_cancelled(self):
         """Order partially filled then cancelled has status='partially_filled'."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1414,8 +1407,6 @@ class TestOrderLifecycles:
 
     def test_resting_order(self):
         """Order with no terminal event has status='resting' and None resting_time."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1445,8 +1436,6 @@ class TestOrderLifecycles:
 
     def test_multiple_orders_per_agent(self):
         """Multiple orders for the same agent produce multiple lifecycle records."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1507,8 +1496,6 @@ class TestOrderLifecycles:
 
     def test_empty_list_when_no_orders(self):
         """Agent with no orders gets an empty lifecycle list (not None)."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1528,8 +1515,6 @@ class TestOrderLifecycles:
 
     def test_multiple_fills_same_order(self):
         """Order filled in two partial executions accumulates fill_events."""
-        import pandas as pd
-
         logs = _make_logs(
             [
                 {
@@ -1583,9 +1568,9 @@ class TestOrderLifecycles:
 
     def test_importable(self):
         """OrderLifecycle is importable from the simulation package."""
-        from abides_markets.simulation import OrderLifecycle as OL
+        from abides_markets.simulation import OrderLifecycle as OrderLifecycleAlias
 
-        assert OL is OrderLifecycle
+        assert OrderLifecycleAlias is OrderLifecycle
 
 
 # ===================================================================
