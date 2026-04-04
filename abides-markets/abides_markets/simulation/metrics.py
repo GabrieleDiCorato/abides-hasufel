@@ -51,6 +51,7 @@ from .result import (
     LiquidityMetrics,
     MarketSummary,
     MicrostructureMetrics,
+    OrderLifecycle,
     RichAgentMetrics,
     RichSimulationMetrics,
     TradeAttribution,
@@ -58,6 +59,16 @@ from .result import (
 
 # Nanoseconds per calendar year (365.25 days).
 _NS_PER_YEAR: int = int(365.25 * 24 * 3600 * 1_000_000_000)
+
+
+def _is_na(value: object) -> bool:
+    """Return True if *value* is a pandas NA / NaT / NaN sentinel."""
+    try:
+        return value is None or value != value  # NaN != NaN  # noqa: PLR0124
+    except (TypeError, ValueError):
+        # pd.NA raises TypeError on bool(pd.NA)
+        return True
+
 
 # ---------------------------------------------------------------------------
 # Primitive metric helpers
@@ -1172,6 +1183,10 @@ def compute_rich_metrics(
     total_submissions = 0
     total_executions = 0
     has_logs = result.logs is not None and ResultProfile.AGENT_LOGS in result.profile
+
+    # Per-order lifecycle tracking — keyed by order_id
+    _order_tracker: dict[int, dict] = {}
+
     if has_logs:
         assert result.logs is not None
         for _, row in result.logs.iterrows():
@@ -1183,9 +1198,81 @@ def compute_rich_metrics(
             if evt == "ORDER_SUBMITTED":
                 agent_submissions[aid] += 1
                 total_submissions += 1
+                oid = row.get("order_id")
+                if oid is not None:
+                    oid = int(oid)
+                    qty = int(row.get("quantity", 0))
+                    t_ns = int(row.get("EventTime", 0))
+                    _order_tracker[oid] = {
+                        "agent_id": aid,
+                        "submitted_at_ns": t_ns,
+                        "submitted_qty": qty,
+                        "filled_qty": 0,
+                        "cancelled": False,
+                        "terminal_time_ns": None,
+                        "fill_events": [],
+                    }
             elif evt == "ORDER_EXECUTED":
                 agent_executions[aid] += 1
                 total_executions += 1
+                oid = row.get("order_id")
+                if oid is not None:
+                    oid = int(oid)
+                    trk = _order_tracker.get(oid)
+                    if trk is not None:
+                        qty = int(row.get("quantity", 0))
+                        t_ns = int(row.get("EventTime", 0))
+                        fp_raw = row.get("fill_price")
+                        fp = (
+                            int(fp_raw)
+                            if fp_raw is not None and not _is_na(fp_raw)
+                            else 0
+                        )
+                        trk["filled_qty"] += qty
+                        trk["terminal_time_ns"] = t_ns
+                        trk["fill_events"].append((t_ns, fp, qty))
+            elif evt == "ORDER_CANCELLED":
+                oid = row.get("order_id")
+                if oid is not None:
+                    oid = int(oid)
+                    trk = _order_tracker.get(oid)
+                    if trk is not None:
+                        t_ns = int(row.get("EventTime", 0))
+                        trk["cancelled"] = True
+                        trk["terminal_time_ns"] = t_ns
+
+    # Build per-agent OrderLifecycle lists
+    agent_lifecycles: dict[int, list[OrderLifecycle]] = defaultdict(list)
+    for oid, trk in _order_tracker.items():
+        fq = trk["filled_qty"]
+        sq = trk["submitted_qty"]
+        cancelled = trk["cancelled"]
+        terminal_ns = trk["terminal_time_ns"]
+
+        if cancelled:
+            status = "partially_filled" if fq > 0 else "cancelled"
+        elif fq >= sq and sq > 0:
+            status = "filled"
+        elif fq > 0:
+            status = "partially_filled"
+        else:
+            status = "resting"
+
+        resting_time: int | None = None
+        if terminal_ns is not None:
+            resting_time = terminal_ns - trk["submitted_at_ns"]
+
+        lc = OrderLifecycle(
+            order_id=oid,
+            agent_id=trk["agent_id"],
+            submitted_at_ns=trk["submitted_at_ns"],
+            status=status,
+            filled_qty=fq,
+            submitted_qty=sq,
+            resting_time_ns=resting_time,
+            fill_events=trk["fill_events"],
+        )
+        agent_lifecycles[trk["agent_id"]].append(lc)
 
     # -- Per-agent fill index from trade attribution -------------------------
     # Each TradeAttribution creates fills for both passive and aggressive agent.
@@ -1277,6 +1364,11 @@ def compute_rich_metrics(
             s: shares for s, shares in agent.final_holdings.items() if s != "CASH"
         }
 
+        # Order lifecycles from logs
+        lifecycles: list[OrderLifecycle] | None = None
+        if has_logs:
+            lifecycles = agent_lifecycles.get(agent.agent_id, [])
+
         rich_agents.append(
             RichAgentMetrics(
                 agent_id=agent.agent_id,
@@ -1291,6 +1383,7 @@ def compute_rich_metrics(
                 trade_count=len(fills),
                 end_inventory=end_inv,
                 inventory_std=inv_std,
+                order_lifecycles=lifecycles,
             )
         )
 

@@ -7,6 +7,7 @@ plain Python data (no live agents or exchange objects required).
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from abides_markets.simulation.metrics import (
@@ -46,6 +47,7 @@ from abides_markets.simulation.result import (
     L2Snapshots,
     LiquidityMetrics,
     MarketSummary,
+    OrderLifecycle,
     RichSimulationMetrics,
     SimulationMetadata,
     SimulationResult,
@@ -1244,6 +1246,331 @@ class TestComputeRichMetricsFills:
         assert rich.fills is not None
         for f in rich.fills:
             assert f.slippage_bps is None
+
+
+# ===================================================================
+# compute_rich_metrics — order lifecycle tracking (AGENT_LOGS)
+# ===================================================================
+
+
+def _make_logs(rows: list[dict]) -> pd.DataFrame:
+    """Build a log DataFrame from a list of row dicts."""
+    df = pd.DataFrame(rows)
+    for col in ("EventTime", "agent_id", "order_id", "quantity", "fill_price"):
+        if col in df.columns:
+            df[col] = df[col].astype("Int64")
+    return df
+
+
+class TestOrderLifecycles:
+    def test_none_without_agent_logs(self):
+        """order_lifecycles is None when AGENT_LOGS profile is absent."""
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.SUMMARY, agents=[agent])
+        rich = compute_rich_metrics(result)
+        assert rich.agents[0].order_lifecycles is None
+
+    def test_filled_order(self):
+        """Fully filled order has status='filled' and correct resting_time_ns."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 100,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 2000,
+                    "EventType": "ORDER_EXECUTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 100,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": 10_000,
+                    "symbol": "TEST",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 1
+        lc = lcs[0]
+        assert lc.order_id == 100
+        assert lc.agent_id == 1
+        assert lc.status == "filled"
+        assert lc.filled_qty == 10
+        assert lc.submitted_qty == 10
+        assert lc.submitted_at_ns == 1000
+        assert lc.resting_time_ns == 1000
+        assert len(lc.fill_events) == 1
+        assert lc.fill_events[0] == (2000, 10_000, 10)
+
+    def test_cancelled_order(self):
+        """Cancelled order with no fills has status='cancelled'."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 200,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 5000,
+                    "EventType": "ORDER_CANCELLED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 200,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 1
+        lc = lcs[0]
+        assert lc.status == "cancelled"
+        assert lc.filled_qty == 0
+        assert lc.resting_time_ns == 4000
+
+    def test_partially_filled_then_cancelled(self):
+        """Order partially filled then cancelled has status='partially_filled'."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 300,
+                    "quantity": 20,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 2000,
+                    "EventType": "ORDER_EXECUTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 300,
+                    "quantity": 5,
+                    "side": "BID",
+                    "fill_price": 10_000,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 3000,
+                    "EventType": "ORDER_CANCELLED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 300,
+                    "quantity": 15,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 1
+        lc = lcs[0]
+        assert lc.status == "partially_filled"
+        assert lc.filled_qty == 5
+        assert lc.submitted_qty == 20
+        assert lc.resting_time_ns == 2000  # cancel time - submit time
+
+    def test_resting_order(self):
+        """Order with no terminal event has status='resting' and None resting_time."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 400,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 1
+        lc = lcs[0]
+        assert lc.status == "resting"
+        assert lc.filled_qty == 0
+        assert lc.resting_time_ns is None
+        assert lc.fill_events == []
+
+    def test_multiple_orders_per_agent(self):
+        """Multiple orders for the same agent produce multiple lifecycle records."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 500,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 1500,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 501,
+                    "quantity": 5,
+                    "side": "ASK",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 2000,
+                    "EventType": "ORDER_EXECUTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 500,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": 10_000,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 3000,
+                    "EventType": "ORDER_CANCELLED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 501,
+                    "quantity": 5,
+                    "side": "ASK",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 2
+        by_oid = {lc.order_id: lc for lc in lcs}
+        assert by_oid[500].status == "filled"
+        assert by_oid[501].status == "cancelled"
+
+    def test_empty_list_when_no_orders(self):
+        """Agent with no orders gets an empty lifecycle list (not None)."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "SOME_OTHER_EVENT",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert lcs == []
+
+    def test_multiple_fills_same_order(self):
+        """Order filled in two partial executions accumulates fill_events."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 600,
+                    "quantity": 20,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 2000,
+                    "EventType": "ORDER_EXECUTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 600,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": 9950,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 3000,
+                    "EventType": "ORDER_EXECUTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 600,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": 10_050,
+                    "symbol": "TEST",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 1
+        lc = lcs[0]
+        assert lc.status == "filled"
+        assert lc.filled_qty == 20
+        assert len(lc.fill_events) == 2
+        assert lc.fill_events[0] == (2000, 9950, 10)
+        assert lc.fill_events[1] == (3000, 10_050, 10)
+        assert lc.resting_time_ns == 2000  # last fill time - submit time
+
+    def test_importable(self):
+        """OrderLifecycle is importable from the simulation package."""
+        from abides_markets.simulation import OrderLifecycle as OrderLifecycleAlias
+
+        assert OrderLifecycleAlias is OrderLifecycle
 
 
 # ===================================================================
