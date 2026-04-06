@@ -11,8 +11,9 @@ framework. Metrics are organised into three groups: **agent performance**,
 
 ## 1. Agent Performance
 
-These metrics assess the standalone performance of the strategic agent.
-All fields live on `AgentMetrics`.
+These metrics assess the standalone performance of trading agents.
+Enriched per-agent metrics live on `RichAgentMetrics` (returned by `compute_rich_metrics()`);
+core PnL fields are always present on `AgentData` (returned by `run_simulation()`).
 
 ### 1.1 Profit & Loss (PnL)
 
@@ -26,11 +27,11 @@ Total PnL decomposes into realized and unrealized components.
 - **Total PnL**:
   $$PnL_{\text{total}} = PnL_{\text{realized}} + PnL_{\text{unrealized}}$$
 
-> `compute_agent_metrics()` auto-detects the strategic agent via
-> `AbidesOutput.get_strategic_agent_id()` (matching `agent.type == "StrategicAgent"`)
-> and reads `starting_cash` from the agent object.
+> `compute_agent_pnl()` computes mark-to-market PnL for each agent.
+> Call `compute_rich_metrics(result)` to access enriched metrics on `RichAgentMetrics`.
 
-**Fields:** `total_pnl`, `initial_cash`, `ending_cash`.
+**Fields on `AgentData`:** `pnl_cents`, `starting_cash_cents`, `mark_to_market_cents`.
+**Field on `RichAgentMetrics`:** `total_pnl_cents`.
 
 ---
 
@@ -54,7 +55,10 @@ Total PnL decomposes into realized and unrealized components.
   (join on `EventTime` ↔ `time`). Units: cents. Returns `None` if no two-sided
   L1 rows exist.
 
-**Fields:** `fill_rate`, `trade_count`, `traded_volume`, `effective_spread`.
+**Fields on `RichAgentMetrics`:** `fill_rate_pct` (requires `AGENT_LOGS`),
+`trade_count` (number of fill events; requires `TRADE_ATTRIBUTION`).
+`effective_spread` is available via the standalone function `compute_effective_spread(fills, l1)`
+and is not stored in any result model.
 
 ---
 
@@ -75,7 +79,7 @@ Total PnL decomposes into realized and unrealized components.
   High values indicate large, volatile positional exposure.
   Returns `None` if fewer than 2 fills.
 
-**Fields:** `sharpe_ratio`, `max_drawdown`, `inventory_std`.
+**Fields on `RichAgentMetrics`:** `sharpe_ratio`, `max_drawdown_cents`, `inventory_std`.
 
 ---
 
@@ -86,7 +90,10 @@ They are computed from the **L1 snapshot DataFrame** with columns:
 `time` (ns since midnight), `bid_price`, `bid_qty`, `ask_price`, `ask_qty`
 (prices in cents).
 
-All fields live on `MarketMetrics`.
+Stored microstructure metrics live on `MicrostructureMetrics` (under
+`MarketSummary.microstructure`, populated by `compute_rich_metrics()`). Metrics
+labelled "Standalone function" are not stored in any result model and must be
+called explicitly.
 
 ### NaN semantics
 
@@ -114,7 +121,8 @@ Returns `None` if fewer than 30 two-sided return observations. Using
 `pct_change` without `fillna` ensures one-sided states do not contribute
 artificial zero returns.
 
-**Field:** `volatility`.
+**Standalone function:** `compute_volatility(l1: L1Snapshots) → float | None`.
+Not stored in any result model.
 
 ---
 
@@ -132,7 +140,10 @@ All computed from two-sided rows.
 - **Average Ask Liquidity**: Same for the ask side.
   $$\bar{Q}_{\text{ask}} = \frac{1}{N} \sum_t Q_{\text{ask},t}$$
 
-**Fields:** `mean_spread`, `avg_bid_liquidity`, `avg_ask_liquidity`.
+**Standalone functions:** `compute_mean_spread(l1)`, `compute_avg_liquidity(l1)`.
+Not stored in any result model. For session-wide liquidity stats, see
+`MarketSummary.liquidity` (`total_exchanged_volume`, `pct_time_no_bid`,
+`pct_time_no_ask`, `vwap_cents`).
 
 ---
 
@@ -156,7 +167,7 @@ Computed on all rows where both `bid_qty` and `ask_qty` are non-zero.
 
 Returns `None` if no valid rows exist.
 
-**Fields:** `lob_imbalance_mean`, `lob_imbalance_std`.
+**Fields on `MicrostructureMetrics`:** `lob_imbalance_mean`, `lob_imbalance_std`.
 
 ---
 
@@ -185,7 +196,8 @@ order flow is driven by informed traders.
 
 Returns `None` if fewer than 20 fills.
 
-**Field:** `vpin`.
+**Standalone function:** `compute_vpin(fills, l1, *, n_buckets=50, min_fills=20) → float | None`.
+Not stored in any result model.
 
 ---
 
@@ -212,7 +224,7 @@ How quickly does the bid-ask spread recover after a shock
 
 Returns `None` if no shock events are detected.
 
-**Field:** `resilience_mean_ns` (units: nanoseconds).
+**Field on `MicrostructureMetrics`:** `resilience_mean_ns` (units: nanoseconds).
 
 ---
 
@@ -231,7 +243,7 @@ Counted across **all agents** in the simulation.
 
 Returns `None` if no fills occurred.
 
-**Field:** `market_ott_ratio`.
+**Field on `MicrostructureMetrics`:** `market_ott_ratio`. Requires `AGENT_LOGS` profile.
 
 ---
 
@@ -244,7 +256,9 @@ $$\Delta X\,(\%) = \frac{X_{\text{strategy}} - X_{\text{baseline}}}{X_{\text{bas
 
 Returns `None` if either value is `None` or if the baseline value is zero.
 
-All fields live on `MarketImpact`.
+These delta metrics are **not stored in any result model**. To compute them,
+run two simulations (strategy and baseline) and compare the `MicrostructureMetrics`
+and `RichAgentMetrics` objects returned by `compute_rich_metrics()` for each.
 
 | Field | Metric | Positive means the strategy... |
 |---|---|---|
@@ -261,14 +275,14 @@ All fields live on `MarketImpact`.
 
 ## 4. Comparative Evaluation
 
-The `ComparisonResult` object encapsulates strategy metrics, baseline metrics,
-and their deltas in a single object.
+Without a built-in `ComparisonResult` model, multi-run comparison is done manually
+by running two simulations and diffing their `compute_rich_metrics()` outputs.
 
 | Category | Key indicators | Actionable signal |
 |:---|:---|:---|
-| **Alpha generation** | `total_pnl`, `sharpe_ratio` | Is the strategy profitable on a risk-adjusted basis? |
-| **Execution quality** | `fill_rate`, `effective_spread`, `traded_volume` | Is the strategy efficiently accessing liquidity? |
-| **Inventory risk** | `max_drawdown`, `inventory_std` | Is the strategy taking on excessive positional risk? |
+| **Alpha generation** | `total_pnl_cents`, `sharpe_ratio` | Is the strategy profitable on a risk-adjusted basis? |
+| **Execution quality** | `fill_rate_pct`, `trade_count`, `compute_effective_spread()` | Is the strategy efficiently accessing liquidity? |
+| **Inventory risk** | `max_drawdown_cents`, `inventory_std` | Is the strategy taking on excessive positional risk? |
 | **Market quality** | `spread_delta_pct`, `volatility_delta_pct` | Is the strategy improving or degrading the book? |
 | **Microstructure** | `vpin_delta_pct`, `resilience_delta_pct`, `ott_ratio_delta_pct` | Is the strategy introducing toxicity or fragility? |
 
@@ -276,11 +290,11 @@ and their deltas in a single object.
 
 - *High PnL, high `volatility_delta_pct`*: strategy is profitable but
   destabilising the market.
-- *Low `fill_rate`, low PnL*: strategy is too passive; orders are not crossing
+- *Low `fill_rate_pct`, low PnL*: strategy is too passive; orders are not crossing
   the spread.
-- *High `vpin`*: aggressive directional flow — consider reducing order
+- *High `compute_vpin()` result*: aggressive directional flow — consider reducing order
   aggressiveness or size.
-- *High `inventory_std`, high `max_drawdown`*: strategy is taking on large
+- *High `inventory_std`, high `max_drawdown_cents`*: strategy is taking on large
   unhedged positions.
 - *Positive `resilience_delta_pct`*: strategy is slowing spread recovery —
   consider reducing order frequency or size.

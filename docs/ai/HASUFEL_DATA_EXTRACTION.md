@@ -236,5 +236,5 @@ for fill in (rich.fills or []):
           f"AS={fill.adverse_selection_bps}")
 ```
 
-See [ABIDES_METRICS_API.md](ABIDES_METRICS_API.md) for the full metric
+See [HASUFEL_METRICS_API.md](HASUFEL_METRICS_API.md) for the full metric
 catalogue and mathematical definitions.
