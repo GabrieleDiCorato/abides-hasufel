@@ -33,7 +33,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
@@ -1300,6 +1300,7 @@ def compute_rich_metrics(
         cancelled = trk["cancelled"]
         terminal_ns = trk["terminal_time_ns"]
 
+        status: Literal["filled", "partially_filled", "cancelled", "resting"]
         if cancelled:
             status = "partially_filled" if fq > 0 else "cancelled"
         elif fq >= sq and sq > 0:
