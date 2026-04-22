@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Hands-on evaluation of all ABIDES agents and features.
 
-Run as: uv run python version_testing/evaluate_all_agents.py
+Run as: uv run python abides-core/scripts/evaluate_all_agents.py
 """
 
 from __future__ import annotations

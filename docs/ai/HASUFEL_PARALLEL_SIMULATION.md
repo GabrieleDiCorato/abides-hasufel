@@ -11,7 +11,7 @@ ABIDES is a **discrete-event simulation** framework. Each simulation is driven b
 **Key facts:**
 - One `Kernel` = one simulation. The Kernel is single-threaded internally.
 - Each `Kernel`, each `Agent`, the `LatencyModel`, and each Oracle hold their own `np.random.RandomState` — all derived deterministically from a master seed via identity-based hashing (`SHA-256`). Each component's seed depends only on the master seed and the component's name — adding or removing agent groups never shifts other components' seeds.
-- There is **no built-in parallelism** within a simulation. All existing multi-run infrastructure (`version_testing/`) uses **process-based** parallelism (`p_tqdm.p_map`).
+- There is **no built-in parallelism** within a simulation. For multi-run workloads, use Python's `multiprocessing` or `concurrent.futures` with separate `run_simulation()` calls per process.
 
 ### RNG Hierarchy (Identity-Based Derivation)
 

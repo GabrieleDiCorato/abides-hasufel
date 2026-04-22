@@ -23,7 +23,6 @@ dependencies = [
 test = [
     "pytest>=9.0.2",
     "pytest-cov>=6.0.0",
-    "p-tqdm>=1.4.0",
 ]
 docs = [
     "sphinx>=8.0.0",
@@ -72,12 +71,11 @@ known-first-party = ["abides_core", "abides_markets", "abides_gym"]
 [tool.ruff.lint.per-file-ignores]
 "abides-core/tests/*" = ["S101"]
 "abides-markets/tests/*" = ["S101"]
-"version_testing/*" = ["E402", "N801"]
 "notebooks/*" = ["E402", "N801"]
 
 [tool.coverage.run]
 source = ["abides_core", "abides_markets", "abides_gym"]
-omit = ["*/tests/*", "*/version_testing/*"]
+omit = ["*/tests/*"]
 
 [tool.coverage.report]
 show_missing = true
