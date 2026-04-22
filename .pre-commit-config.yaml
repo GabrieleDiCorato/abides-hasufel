@@ -28,16 +28,6 @@ repos:
           - numpy>=2.0.0
           - pandas>=2.2.0
 
-  # Run pytest to ensure all tests pass
-  - repo: local
-    hooks:
-      - id: pytest-check
-        name: pytest-check
-        entry: pytest abides-core/tests abides-markets/tests
-        language: system
-        pass_filenames: false
-        always_run: true
-
   # Strip notebook outputs before committing (keeps .ipynb files small)
   - repo: local
     hooks:

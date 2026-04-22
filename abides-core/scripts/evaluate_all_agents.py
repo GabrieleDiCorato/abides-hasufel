@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import traceback
 
-# ===========================================================================
-# 1. Verify imports
-# ===========================================================================
-print("=" * 70)
-print("ABIDES — Full Feature Evaluation")
-print("=" * 70)
-
 from abides_markets.config_system import (
     SimulationBuilder,
     list_agent_types,
     list_templates,
 )
 from abides_markets.simulation import ResultProfile, run_simulation
+
+# ===========================================================================
+# 1. Verify imports
+# ===========================================================================
+print("=" * 70)
+print("ABIDES — Full Feature Evaluation")
+print("=" * 70)
 
 print("\n[1] Templates available:")
 for t in list_templates():
@@ -108,14 +108,15 @@ if agents_with_curves:
     # Show top 3 by max drawdown
     by_dd = sorted(
         agents_with_curves,
-        key=lambda a: a.equity_curve.max_drawdown_cents,
+        key=lambda a: a.equity_curve.max_drawdown_cents if a.equity_curve else 0,
         reverse=True,
     )
     print("  Top 3 drawdowns:")
-    for a in by_dd[:3]:
-        ec = a.equity_curve
+    for agent in by_dd[:3]:
+        ec = agent.equity_curve
+        assert ec is not None
         print(
-            f"    [{a.agent_id}] {a.agent_type}: max_dd=${ec.max_drawdown_cents/100:.2f}  "
+            f"    [{agent.agent_id}] {agent.agent_type}: max_dd=${ec.max_drawdown_cents/100:.2f}  "
             f"fills={len(ec.times_ns)}"
         )
 
@@ -141,6 +142,7 @@ try:
     exec_agents_c = [a for a in result_c.agents if a.execution_metrics is not None]
     for ea in exec_agents_c:
         em = ea.execution_metrics
+        assert em is not None
         print(f"  [{ea.agent_id}] {ea.agent_type}")
         print(
             f"    Target: {em.target_quantity}  Filled: {em.filled_quantity}  Rate: {em.fill_rate_pct:.1f}%"
@@ -192,6 +194,7 @@ try:
     exec_agents_d = [a for a in result_d.agents if a.execution_metrics is not None]
     for ea in exec_agents_d:
         em = ea.execution_metrics
+        assert em is not None
         print(f"  [{ea.agent_id}] {ea.agent_type}")
         print(
             f"    Target: {em.target_quantity}  Filled: {em.filled_quantity}  Rate: {em.fill_rate_pct:.1f}%"
@@ -223,8 +226,10 @@ try:
 
     mr_agents = [a for a in result_e.agents if a.agent_type == "MeanReversionAgent"]
     print(f"  Mean reversion agents: {len(mr_agents)}")
-    for a in mr_agents:
-        print(f"    [{a.agent_id}] PnL: ${a.pnl_cents/100:.2f} ({a.pnl_pct:+.2f}%)")
+    for agent in mr_agents:
+        print(
+            f"    [{agent.agent_id}] PnL: ${agent.pnl_cents/100:.2f} ({agent.pnl_pct:+.2f}%)"
+        )
 except Exception as e:
     print(f"  ERROR: {e}")
     traceback.print_exc()
@@ -248,11 +253,11 @@ try:
 
     mm_agents = [a for a in result_f.agents if "MarketMaker" in a.agent_type]
     print(f"  Market makers: {len(mm_agents)}")
-    for a in mm_agents:
-        sym = [s for s in a.final_holdings if s != "CASH"]
-        pos = {s: a.final_holdings[s] for s in sym}
+    for agent in mm_agents:
+        non_cash_syms = [s for s in agent.final_holdings if s != "CASH"]
+        pos = {s: agent.final_holdings[s] for s in non_cash_syms}
         print(
-            f"    [{a.agent_id}] {a.agent_type}: PnL=${a.pnl_cents/100:.2f}  "
+            f"    [{agent.agent_id}] {agent.agent_type}: PnL=${agent.pnl_cents/100:.2f}  "
             f"positions={pos}"
         )
 
@@ -327,6 +332,7 @@ try:
     exec_agents_i = [a for a in result_i.agents if a.execution_metrics is not None]
     for ea in sorted(exec_agents_i, key=lambda a: a.agent_type):
         em = ea.execution_metrics
+        assert em is not None
         avg = (
             f"${em.avg_fill_price_cents/100:.2f}" if em.avg_fill_price_cents else "N/A"
         )
