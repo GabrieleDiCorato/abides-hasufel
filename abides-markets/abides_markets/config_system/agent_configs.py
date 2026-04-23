@@ -291,12 +291,25 @@ class NoiseAgentConfig(BaseAgentConfig):
             "drawn from an exponential distribution with mean ``wake_up_freq``."
         ),
     )
+    order_size_cap: int = Field(
+        default=1000,
+        ge=1,
+        description=(
+            "Maximum order size in shares that the order-size model may produce. "
+            "Draws from the lognormal tail that exceed this value are clipped to "
+            "``order_size_cap``.  The default (1000) matches the largest "
+            "round-lot component and is appropriate for noise/background agents. "
+            "Lower values (e.g. 200) restrict the agent to smaller orders; "
+            "higher values allow occasional block-sized draws from the tail."
+        ),
+    )
 
     _EXCLUDE_FROM_KWARGS: frozenset[str] = _BASE_EXCLUDE | frozenset(
         {
             "noise_mkt_open_offset",
             "noise_mkt_close_time",
             "wake_up_freq",
+            "order_size_cap",
         }
     )
 
@@ -320,7 +333,7 @@ class NoiseAgentConfig(BaseAgentConfig):
         kwargs["wakeup_time"] = get_wake_time(
             noise_mkt_open, noise_mkt_close, agent_rng
         )
-        kwargs["order_size_model"] = OrderSizeModel()
+        kwargs["order_size_model"] = OrderSizeModel(max_size=self.order_size_cap)
         if self.multi_wake:
             kwargs["wake_up_freq"] = str_to_ns(self.wake_up_freq)
         kwargs["name"] = f"NoiseAgent {agent_id}"
@@ -425,6 +438,18 @@ class ValueAgentConfig(BaseAgentConfig):
             "noisier observations; 0 means perfect information."
         ),
     )
+    order_size_cap: int = Field(
+        default=1000,
+        ge=1,
+        description=(
+            "Maximum order size in shares that the order-size model may produce. "
+            "Draws from the lognormal tail that exceed this value are clipped to "
+            "``order_size_cap``.  The default (1000) matches the largest "
+            "round-lot component and is appropriate for informed/value agents. "
+            "Lower values restrict the agent to smaller orders; higher values "
+            "allow occasional block-sized draws from the tail."
+        ),
+    )
     depth_spread: int = Field(
         default=2,
         ge=1,
@@ -445,6 +470,7 @@ class ValueAgentConfig(BaseAgentConfig):
             "lambda_a",
             "mean_reversion_half_life",
             "mean_wakeup_gap",
+            "order_size_cap",
         }
     )
 
@@ -525,7 +551,7 @@ class ValueAgentConfig(BaseAgentConfig):
         if kwargs.get("sigma_n") is None:
             kwargs["sigma_n"] = r_bar / 100
 
-        kwargs["order_size_model"] = OrderSizeModel()
+        kwargs["order_size_model"] = OrderSizeModel(max_size=self.order_size_cap)
         kwargs["name"] = f"Value Agent {agent_id}"
         kwargs["type"] = "ValueAgent"
         return kwargs
@@ -556,6 +582,18 @@ class MomentumAgentConfig(BaseAgentConfig):
             "If True, wakeup intervals are Poisson-distributed around "
             "wake_up_freq (more realistic). If False, wakeups are "
             "exactly periodic."
+        ),
+    )
+    order_size_cap: int = Field(
+        default=1000,
+        ge=1,
+        description=(
+            "Maximum order size in shares that the order-size model may produce. "
+            "Note: this is distinct from ``max_size``, which is the agent's own "
+            "strategy-level position sizing ceiling.  ``order_size_cap`` clips "
+            "extreme draws from the lognormal tail of the order-size mixture "
+            "model; ``max_size`` sets the largest order the momentum strategy "
+            "will ever submit regardless of the model output."
         ),
     )
     short_window: int = Field(
@@ -591,7 +629,7 @@ class MomentumAgentConfig(BaseAgentConfig):
             kwargs, agent_id, agent_rng, context
         )
         kwargs["wake_up_freq"] = str_to_ns(self.wake_up_freq)
-        kwargs["order_size_model"] = OrderSizeModel()
+        kwargs["order_size_model"] = OrderSizeModel(max_size=self.order_size_cap)
         kwargs["name"] = f"MOMENTUM_AGENT_{agent_id}"
         kwargs["type"] = "MomentumAgent"
         return kwargs
@@ -620,6 +658,18 @@ class MeanReversionAgentConfig(BaseAgentConfig):
         description=(
             "If True, wakeup intervals are Poisson-distributed around "
             "wake_up_freq (more realistic). If False, exactly periodic."
+        ),
+    )
+    order_size_cap: int = Field(
+        default=1000,
+        ge=1,
+        description=(
+            "Maximum order size in shares that the order-size model may produce. "
+            "Note: this is distinct from ``max_size``, which is the agent's own "
+            "strategy-level position sizing ceiling.  ``order_size_cap`` clips "
+            "extreme draws from the lognormal tail of the order-size mixture "
+            "model; ``max_size`` sets the largest order the mean-reversion "
+            "strategy will ever submit regardless of the model output."
         ),
     )
     window: int = Field(
@@ -667,7 +717,7 @@ class MeanReversionAgentConfig(BaseAgentConfig):
             kwargs, agent_id, agent_rng, context
         )
         kwargs["wake_up_freq"] = str_to_ns(self.wake_up_freq)
-        kwargs["order_size_model"] = OrderSizeModel()
+        kwargs["order_size_model"] = OrderSizeModel(max_size=self.order_size_cap)
         kwargs["name"] = f"MEAN_REVERSION_AGENT_{agent_id}"
         kwargs["type"] = "MeanReversionAgent"
         return kwargs
