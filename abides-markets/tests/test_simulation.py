@@ -146,13 +146,13 @@ class TestL1DataFrameSchema:
     def test_extra_column_rejected(self):
         df = self._valid_df()
         df["extra"] = 1
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             L1DataFrameSchema.validate(df)
 
     def test_negative_time_rejected(self):
         df = self._valid_df()
         df.loc[0, "time_ns"] = -1
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             L1DataFrameSchema.validate(df)
 
 
@@ -174,25 +174,25 @@ class TestL2DataFrameSchema:
     def test_zero_price_rejected(self):
         df = self._valid_df()
         df.loc[0, "price_cents"] = 0
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             L2DataFrameSchema.validate(df)
 
     def test_zero_qty_rejected(self):
         df = self._valid_df()
         df.loc[1, "qty"] = 0
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             L2DataFrameSchema.validate(df)
 
     def test_invalid_side_rejected(self):
         df = self._valid_df()
         df.loc[0, "side"] = "unknown"
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             L2DataFrameSchema.validate(df)
 
     def test_extra_column_rejected(self):
         df = self._valid_df()
         df["extra"] = 1
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             L2DataFrameSchema.validate(df)
 
 
@@ -410,7 +410,7 @@ class TestL2SnapshotsReadOnly:
             bids=[[(0, 0)]],  # invalid — should fail schema
             asks=[[(10010, 150)]],
         )
-        with pytest.raises(pa.errors.SchemaError):
+        with pytest.raises((pa.errors.SchemaError, pa.errors.SchemaErrors)):
             snaps.as_dataframe()
 
 
