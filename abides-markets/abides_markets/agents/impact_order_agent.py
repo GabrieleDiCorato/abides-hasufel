@@ -187,9 +187,12 @@ class ImpactOrderAgent(TradingAgent):
     # wakeup()
     # ------------------------------------------------------------------
 
-    def wakeup(self, current_time: NanosecondTime) -> None:
-        # Guard: returns False when market hours are unknown or market is closed.
-        if not super().wakeup(current_time):
+    def wakeup(self, current_time: NanosecondTime) -> None:  # type: ignore[override]
+        # super().wakeup() returns bool (TradingAgent) but Agent declares -> None.
+        # We match Agent's contract here; the TradingAgent→Agent conflict is a
+        # pre-existing issue suppressed via mypy.ini for trading_agent.py.
+        can_trade: bool = super().wakeup(current_time)
+        if not can_trade:
             return
 
         if self.state == "DONE":
