@@ -29,7 +29,8 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Protocol, Sequence, runtime_checkable
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import pandas as pd
 

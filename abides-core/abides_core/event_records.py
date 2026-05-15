@@ -117,7 +117,7 @@ class EventRecord:
     seq: int
 
     @classmethod
-    def from_tuple(cls, t: tuple) -> "EventRecord":
+    def from_tuple(cls, t: tuple) -> EventRecord:
         """Unpack an event wire tuple into a typed record.
 
         Arguments:
@@ -148,7 +148,7 @@ class MetricRecord:
     seq: int
 
     @classmethod
-    def from_tuple(cls, t: tuple) -> "MetricRecord":
+    def from_tuple(cls, t: tuple) -> MetricRecord:
         """Unpack a metric wire tuple into a typed record.
 
         Arguments:
@@ -179,7 +179,7 @@ class BookSnapshotRecord:
     seq: int
 
     @classmethod
-    def from_tuple(cls, t: tuple) -> "BookSnapshotRecord":
+    def from_tuple(cls, t: tuple) -> BookSnapshotRecord:
         """Unpack a book-snapshot wire tuple into a typed record.
 
         Arguments:

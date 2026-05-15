@@ -1,16 +1,15 @@
-# ABIDES Logging — Comprehensive Analysis
+# ABIDES Logging — Architecture Reference
 
-**Status:** Analysis (not a plan). Findings only — no decisions encoded.
+**Status:** Architecture reference (Phase 2 implemented).
 **Scope:** Every form of "logging" present in `abides-core`, `abides-markets`,
 `abides-gym`. The standard Python `logging` module, the per-agent
 `Agent.logEvent()` system, the centralized `summary_log`, and how each
 flows through to disk and downstream consumers.
-**Audience:** A reviewer who needs the full picture before deciding what
-to change.
+**Audience:** A developer who needs the full picture before making changes.
 
 ---
 
-## 0. Executive summary — three independent systems, one folder
+## 0. Executive summary — three independent systems, one bus
 
 ABIDES has **three logging subsystems** that share the name "logging" but
 do completely different things and barely interact:
@@ -18,14 +17,11 @@ do completely different things and barely interact:
 | System | What it logs | Where it goes | Who reads it |
 |---|---|---|---|
 | **Python `logging`** | Lifecycle, periodic stats, debug traces | stdout (via `basicConfig`) | Operator watching the console |
-| **Per-agent event log** (`Agent.logEvent`) | Every business event the agent emits | In-memory `agent.log` list → `./log/<run_id>/<AgentName>.bz2` (BZ2-pickled DataFrame) | `parse_logs_df()` → `run_simulation()` result → notebooks, metrics |
-| **Summary log** (`Kernel.append_summary_log`) | A handful of "important" events (cash, holdings, valuation) | In-memory `kernel.summary_log` list → `./log/<run_id>/summary_log.bz2` | **Nobody in this fork.** Originally intended for "separate statistical summary programs" (see [§A](#a-original-intent-of-summary_log-archaeology)) that were never released. |
+| **Per-agent event log** (`Agent.logEvent`) | Every business event the agent emits | `EventBus` → registered `EventSink` implementations → `InMemorySink` (in-memory) and/or `BZ2PickleSink` (disk) | `InMemorySink.agent_log()`, `parse_logs_df()`, notebooks, metrics |
+| **Summary log** (`Kernel.append_summary_log`) | A handful of "important" events (cash, holdings, valuation) | In-memory `kernel.summary_log` list → `./log/<run_id>/summary_log.bz2` | **Nobody in this fork.** Originally intended for "separate statistical summary programs". |
 
-This split is invisible from configuration — `skip_log` controls the
-last two; `log_level` only controls the first. They are written into the
-same `./log/<run_id>/` directory but follow completely different
-lifecycles and purposes. Most of the friction this codebase has around
-"logging" comes from conflating them.
+Since **Phase 2**, the per-agent event log flows through the `EventBus`
+rather than being stored directly on `agent.log`. See [§4](#4-phase-2-event-bus-architecture).
 
 ---
 
@@ -647,3 +643,127 @@ The choice is out of scope for this analysis. What is in scope is the
 correction: **`summary_log` is not orphaned because it was
 ill-conceived. It is orphaned because the consumer half of the original
 contract was never open-sourced.**
+
+---
+
+## 4. Phase 2 — EventBus architecture
+
+Phase 2 replaced the direct `agent.log` list and the direct observer
+calls with a single-threaded, per-simulation `EventBus`. This section
+is the authoritative reference for the bus architecture.
+
+### 4.1 Key modules
+
+| Module | Purpose |
+|--------|---------|
+| `abides_core/event_bus.py` | `EventBus` — dispatch hub |
+| `abides_core/event_sinks.py` | `EventSink` Protocol + three shipped sinks |
+| `abides_core/event_records.py` | Wire field constants and typed record views |
+| `abides_core/event_payloads.py` | `PayloadSchema` registry + `EVENT_TYPE_SCHEMA` map |
+
+### 4.2 EventSink Protocol
+
+```python
+@runtime_checkable
+class EventSink(Protocol):
+    accept_events: bool
+    accept_metrics: bool
+    accept_book_snapshots: bool
+
+    def on_simulation_start(self, meta: dict) -> None: ...
+    def on_event(self, t: tuple) -> None: ...       # 6-field wire tuple
+    def on_metric(self, t: tuple) -> None: ...      # 6-field wire tuple
+    def on_book_snapshot(self, t: tuple) -> None: ... # 6-field wire tuple
+    def flush(self) -> None: ...
+    def on_simulation_end(self, meta: dict) -> None: ...
+```
+
+### 4.3 Wire tuple formats
+
+**Event wire tuple** (6 fields, index-ordered):
+
+| Index | Field | Type |
+|-------|-------|------|
+| 0 | `agent_id` | `int` |
+| 1 | `agent_type` | `str` |
+| 2 | `sim_time_ns` | `int` (nanoseconds) |
+| 3 | `event_type` | `str` |
+| 4 | `payload` | `Any` |
+| 5 | `seq` | `int` (monotonically increasing) |
+
+Constants: `WIRE_FIELDS_EVENT`, `WIRE_FIELDS_METRIC`, `WIRE_FIELDS_BOOK_SNAPSHOT`.
+Typed views: `EventRecord.from_tuple(t)`, `MetricRecord.from_tuple(t)`, `BookSnapshotRecord.from_tuple(t)`.
+
+### 4.4 Shipped sinks
+
+**`InMemorySink`** — registered by default when `event_sinks` is not
+explicitly passed to `Kernel`. Stores all three wire kinds as lists of
+tuples. Key API:
+- `agent_log(agent_id)` → `list[tuple[int, str, Any]]` — `(sim_time_ns, event_type, payload)` triples, matching the old `agent.log` format.
+- `events`, `metrics`, `book_snapshots` — raw wire tuple lists.
+- `to_dataframe()` → `pd.DataFrame` of all events.
+
+**`BZ2PickleSink`** — accepts events only. Writes
+`<agent_name>.bz2` files on `on_simulation_end()` in the legacy
+format: a DataFrame indexed by `EventTime` with columns `EventType` and
+`Event`. Respects `agent.log_to_file=False` — agents with the flag
+cleared produce no disk file. Constructed with `(log_writer, agents)`.
+
+**`MetricsObserverSink`** — accepts metrics only. On each `on_metric()`
+call, forwards `(agent_id, agent_type, key, value)` to each
+`KernelObserver` in the observer list. Replaces the old direct call
+from `agent.report_metric()`.
+
+### 4.5 Bus lifecycle
+
+```
+Kernel.__init__()          → EventBus() created; sinks registered.
+Kernel.initialize()        → bus.start(meta)
+                              • calls on_simulation_start on all sinks
+                              • drains pre-start queue (AGENT_TYPE events etc.)
+                              • rebinds publish_* to real or no-op methods
+Kernel.runner() per-tick   → bus.drain()   (after each message dispatch)
+Kernel.terminate()         → bus.shutdown(meta)
+                              • drain() + on_simulation_end on all sinks
+                              • rebinds to pre-start stubs (for gym reuse)
+```
+
+**Drain cadence:** Once per message dispatch in `runner()`, and once
+at `terminate()`. Events are **not** dispatched synchronously on
+`logEvent()`. If you read `InMemorySink` data outside the normal
+lifecycle (e.g. in tests that call only `initialize()`), call
+`kernel.event_bus.drain()` first.
+
+### 4.6 Pre-init bootstrap
+
+`Agent.__init__()` emits `logEvent("AGENT_TYPE", type)` before the
+kernel is attached. These events are buffered in `_pre_init_log`
+(a `list[tuple[str, Any]]`). At `kernel_initializing()`, the buffer
+is flushed into the bus with `sim_time_ns=0`. Because `bus.start()` has
+not been called yet, those events enter the pre-start queue and are
+drained automatically when `bus.start()` is called.
+
+### 4.7 Custom sinks
+
+Pass `event_sinks: list[EventSink]` to `Kernel(...)` to replace all
+default sinks. Pass `event_sinks=[]` to disable all sinks (no-op mode).
+Each sink is registered with `bus.register(sink)` and must implement
+the `EventSink` Protocol.
+
+### 4.8 Failure isolation
+
+Each sink dispatch is wrapped in `_call_sink()`. On exception:
+- The sink is added to `_failed_sinks` and removed from future dispatch.
+- The failure is logged at `ERROR`.
+- The simulation continues.
+- `bus.shutdown()` raises `RuntimeError` if any sinks failed;
+  `Kernel.terminate()` catches and logs this rather than re-raising
+  (conservative Phase 2 behaviour).
+
+### 4.9 Deprecated `agent.log` property
+
+Accessing `agent.log` after Phase 2 emits a `DeprecationWarning` and
+returns `InMemorySink.agent_log(agent.id)` (or `[]` if no sink is
+registered). Update callers to use
+`kernel.event_bus.in_memory_sink.agent_log(agent_id)` directly, or use
+`parse_logs_df()` which already reads from the sink.

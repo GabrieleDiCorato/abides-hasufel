@@ -1,6 +1,56 @@
 Unreleased
 ==========
 
+Event bus (Phase 2)
+-------------------
+
+- **Introduced ``EventBus`` and ``EventSink`` protocol.** Agent events
+  and metrics now flow through a single-threaded ``EventBus``
+  (``abides_core.event_bus``) rather than being stored directly on
+  ``agent.log`` or dispatched synchronously to observers.
+  ``EventSink`` is a ``runtime_checkable`` Protocol; any object that
+  implements it can be registered with ``Kernel(event_sinks=[...])``.
+
+- **Three shipped sinks.** All in ``abides_core.event_sinks``:
+
+  - ``InMemorySink`` — captures all events, metrics, and book snapshots
+    as lists of 6-field wire tuples. ``agent_log(agent_id)`` returns
+    ``(sim_time_ns, event_type, payload)`` triples matching the old
+    ``agent.log`` format. Registered by default.
+  - ``BZ2PickleSink`` — writes per-agent ``<name>.bz2`` files on
+    simulation end in the legacy ``(EventTime, EventType, Event)``
+    DataFrame format. Respects ``agent.log_to_file=False``.
+    Registered automatically when ``skip_log=False``.
+  - ``MetricsObserverSink`` — forwards each ``report_metric()`` call
+    to all registered ``KernelObserver`` instances. Registered
+    automatically when observers are present.
+
+- **Wire field constants and typed record views.** ``event_records.py``
+  exports ``WIRE_FIELDS_EVENT``, ``WIRE_FIELDS_METRIC``,
+  ``WIRE_FIELDS_BOOK_SNAPSHOT`` and dataclass views ``EventRecord``,
+  ``MetricRecord``, ``BookSnapshotRecord`` with ``from_tuple()``
+  classmethods.
+
+- **Payload schema registry.** ``event_payloads.py`` exports
+  ``PayloadSchema`` (frozen dataclass) instances for every shipped
+  event type and an ``EVENT_TYPE_SCHEMA: dict[str, PayloadSchema]``
+  lookup map.
+
+- **``Agent.logEvent()`` and ``Agent.report_metric()`` now publish to
+  the bus.** Events emitted before kernel attachment are buffered in
+  ``_pre_init_log`` and flushed at ``kernel_initializing()`` time
+  (appearing in the sink with ``sim_time_ns=0``).
+
+- **Deprecated ``Agent.log`` property.** Accessing ``agent.log``
+  emits a ``DeprecationWarning`` and returns
+  ``InMemorySink.agent_log(agent.id)`` for backward compatibility.
+  Update callers to use ``kernel.event_bus.in_memory_sink.agent_log()``
+  or ``parse_logs_df()``.
+
+- **Updated ``logging-architecture.md``.** Added §4 documenting the
+  bus lifecycle, wire formats, shipped sinks, drain cadence, pre-init
+  bootstrap, and failure-isolation behaviour.
+
 Documentation
 -------------
 
