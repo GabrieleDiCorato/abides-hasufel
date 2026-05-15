@@ -972,6 +972,16 @@ lint above.
 
 ### 3.11 Event vocabulary — final list (gating Phase 2)
 
+> **Status (Phase 0):** ✅ Inventory delivered as
+> [`docs/reference/event-vocabulary.md`](../reference/event-vocabulary.md).
+> Every shipped `logEvent`/`report_metric` producer is enumerated with
+> file:line, payload shape, known consumers, and a non-binding
+> "proposed schema" column. **No renames or deletions have happened.**
+> All consolidation candidates are flagged `[REVIEW]` per the
+> conservative-default rule (external library consumers may parse any
+> of these names). The table below remains the **target schema** for
+> Phase 2; the audit is the input it consumes.
+
 A grep over `abides-markets` shows `logEvent(` callsites spread across
 at least these files: `agent.py`, `kernel.py`, `trading_agent.py`,
 `exchange_agent.py`, `noise_agent.py`, `value_agent.py`,

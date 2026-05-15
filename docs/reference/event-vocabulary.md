@@ -1,0 +1,209 @@
+# Event vocabulary audit
+
+> **Status (Phase 0):** Inventory only. Every entry is dispositioned `keep`.
+> Suggested consolidations are marked `[REVIEW]` and require explicit
+> sign-off before any rename, merge, or deletion lands.
+>
+> **Conservative-default rule.** ABIDES is consumed as a library by
+> external researchers who parse pickled `agent.log` lists, raw
+> `parse_logs_df` output, and the `EventType` strings emitted to
+> `OrderLogsSchema`. Renaming or removing a public-facing event type is
+> a breaking change. This audit therefore renames nothing on its own; it
+> is a *map* of the current vocabulary, plus a list of candidates a
+> future phase can take to a deprecation cycle.
+
+This document is the deliverable for §3.11 of the
+[event-logging refactor plan](../project/event-logging-refactor-plan.md):
+a complete, source-anchored enumeration of every `Agent.logEvent(...)`
+and `Agent.report_metric(...)` call site shipped with ABIDES, grouped by
+producer category.
+
+## How to read the tables
+
+| Column | Meaning |
+|---|---|
+| `event_type` | Literal first arg to `logEvent()` (or metric name for `report_metric`). |
+| `producer (file:line)` | Workspace-relative path + 1-based line of the call. |
+| `freq` | Rough frequency tier per simulated day. `Σ` = once per agent per sim. `O` = per order/trade. `M` = per message. `W` = per wakeup. `T` = per market-data tick. |
+| `payload shape` | Type and structure of the third arg (the "event"). `dict[...]` lists keys; `str` shows the format string; `scalar` is anything else. |
+| `consumers` | Known reading sites in the workspace. |
+| `proposed schema` | Free-text suggestion for what a future, structured form of this event might look like. Non-binding. |
+| `disposition` | `keep` (the only allowed default) or `[REVIEW] <action>`. |
+
+Frequency tiers are *order of magnitude* rules of thumb against
+`rmsc04`-style sims; they are not measured. Use the `benchmarks/`
+scripts for actual numbers.
+
+## Known consumers (for the `consumers` column)
+
+* `parse_logs_df` — `abides-core/abides_core/utils.py`. The single
+  parsing primitive used by every downstream extractor. Reads
+  `EventTime` + `EventType` from every entry; passes `event_dict` keys
+  through to columns.
+* `SimulationResult.order_logs` — `abides-markets/abides_markets/simulation/result.py`.
+  Filters `parse_logs_df` output to `_ORDER_EVENT_TYPES`
+  (`abides-markets/abides_markets/simulation/schemas.py:122-131`).
+* `metrics._compute_per_agent_order_stats` —
+  `abides-markets/abides_markets/simulation/metrics.py:1244-1290`.
+  Branches on `EventType in {"ORDER_SUBMITTED","ORDER_EXECUTED","ORDER_CANCELLED"}`.
+* `tests` — multiple, e.g. `test_market_boundaries.py:471` reads
+  `ENDING_CASH`; `test_simulation.py:469-472` asserts the order
+  lifecycle event set; `test_metrics.py` uses synthetic event rows.
+* `abides-gym` — does not consume `EventType` strings; reads structured
+  state from `FinancialGymAgent` raw_state.
+* External users — by contract, can read `agent.log` directly. Treat
+  every entry as part of the public vocabulary.
+
+---
+
+## A. Core (`abides-core`)
+
+| event_type | producer (file:line) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `AGENT_TYPE` | [abides-core/abides_core/agent.py:101](../../abides-core/abides_core/agent.py#L101) | `Σ` | `str` (the agent's `type` attr) | `parse_logs_df` (becomes `ScalarEventValue` column); tests | `{"agent_type": str}` | keep | One row per agent at `kernel_starting`. Already redundant with the `agent_type` column `parse_logs_df` adds, but external readers may rely on the row. |
+
+`Agent.report_metric()` is called in core only by tests (no
+production producer in `abides-core/abides_core/`). Disposition: keep.
+
+---
+
+## B. Markets — `TradingAgent` lifecycle
+
+All in [abides-markets/abides_markets/agents/trading_agent.py](../../abides-markets/abides_markets/agents/trading_agent.py).
+
+| event_type | producer (line) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `STARTING_CASH` | [231](../../abides-markets/abides_markets/agents/trading_agent.py#L231) | `Σ` | `int` (cents) | tests; `parse_logs_df`; external | `{"starting_cash_cents": int}` | keep | Set in `kernel_starting`. |
+| `FINAL_HOLDINGS` | [249](../../abides-markets/abides_markets/agents/trading_agent.py#L249) | `Σ` | `str` (formatted) | external | `{"holdings": dict[str,int]}` | `[REVIEW]` change to dict | Currently a pre-formatted display string; loses structure for downstream parsing. |
+| `FINAL_CASH_POSITION` | [252](../../abides-markets/abides_markets/agents/trading_agent.py#L252) | `Σ` | `int` (cents) | external | `{"cash_cents": int}` | keep | |
+| `ENDING_CASH` | [257](../../abides-markets/abides_markets/agents/trading_agent.py#L257) | `Σ` | `int` (mark-to-market cents) | `test_market_boundaries.py:471,501`; external | `{"mark_to_market_cents": int}` | keep | Tests assert by name. |
+| `HOLDINGS_UPDATED` | [283, 1139, 1232, 1259, 1289](../../abides-markets/abides_markets/agents/trading_agent.py#L283) | `O` | `dict[str,int]` (deep-copied) | `parse_logs_df`; external | unchanged | `[REVIEW]` dedupe call sites | Five identical call sites. Same payload shape; could route through one helper. |
+| `MARK_TO_MARKET` | [1546](../../abides-markets/abides_markets/agents/trading_agent.py#L1546) | `Σ` | `str` (formatted) | external | `{"symbol": str, "shares": int, "price": int, "value": int}` | `[REVIEW]` change to dict | Per-symbol breakdown of the mark-to-market computation; currently a display string. |
+| `MARKED_TO_MARKET` | [1551](../../abides-markets/abides_markets/agents/trading_agent.py#L1551) | `Σ` | `int` (cents) | external | `{"mark_to_market_cents": int}` | keep | Note vs. `MARK_TO_MARKET` (per-symbol) — same root, easily confused. |
+| `MKT_CLOSED` | [1301](../../abides-markets/abides_markets/agents/trading_agent.py#L1301) | `Σ` | `None` | external | unchanged (marker event) | keep | Empty event becomes `EmptyEvent: True` row. |
+
+---
+
+## C. Markets — `TradingAgent` order lifecycle
+
+All in [abides-markets/abides_markets/agents/trading_agent.py](../../abides-markets/abides_markets/agents/trading_agent.py).
+Payload is `order.to_dict()` unless noted.
+
+| event_type | producer (lines) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `ORDER_SUBMITTED` | [819, 882, 968](../../abides-markets/abides_markets/agents/trading_agent.py#L819) | `O` | `dict` (`order.to_dict()`) | `metrics:1249`; `OrderLogsSchema`; tests; external | unchanged | `[REVIEW]` dedupe call sites | Three identical call sites across `place_limit_order` / `place_market_order` / partial paths. |
+| `ORDER_ACCEPTED` | [1173](../../abides-markets/abides_markets/agents/trading_agent.py#L1173) | `O` | `dict` | `OrderLogsSchema`; external | unchanged | keep | |
+| `ORDER_EXECUTED` | [1105](../../abides-markets/abides_markets/agents/trading_agent.py#L1105) | `O` | `dict` (`order.to_dict()` — typically a partial fill) | `metrics:1266`; `OrderLogsSchema`; tests; external | unchanged | keep | One row per fill. Hot path on noisy sims. |
+| `ORDER_CANCELLED` | [1191](../../abides-markets/abides_markets/agents/trading_agent.py#L1191) | `O` | `dict` | `metrics:1285`; `OrderLogsSchema`; tests; external | unchanged | keep | |
+| `PARTIAL_CANCELLED` | [1216](../../abides-markets/abides_markets/agents/trading_agent.py#L1216) | `O` | `dict` | `OrderLogsSchema`; external | unchanged | keep | |
+| `ORDER_MODIFIED` | [1247](../../abides-markets/abides_markets/agents/trading_agent.py#L1247) | `O` | `dict` | `OrderLogsSchema`; external | unchanged | keep | |
+| `ORDER_REPLACED` | [1274](../../abides-markets/abides_markets/agents/trading_agent.py#L1274) | `O` | `dict` (old order) | `OrderLogsSchema`; external | `[REVIEW]` add `new_order` payload | Currently logs only `old_order`; lossy for downstream replay. |
+| `CANCEL_SUBMITTED` | [994](../../abides-markets/abides_markets/agents/trading_agent.py#L994) | `O` | `dict` | external | unchanged | keep | Client-side counterpart to `ORDER_CANCELLED`. |
+| `CANCEL_PARTIAL_ORDER` | [1032](../../abides-markets/abides_markets/agents/trading_agent.py#L1032) | `O` | `dict` | external | `[REVIEW]` rename → `PARTIAL_CANCEL_SUBMITTED` for parity with `CANCEL_SUBMITTED` | Naming inconsistent with the rest of the lifecycle. |
+| `MODIFY_ORDER` | [1050](../../abides-markets/abides_markets/agents/trading_agent.py#L1050) | `O` | `dict` (new order) | external | `[REVIEW]` rename → `MODIFY_SUBMITTED` | Same inconsistency. |
+| `REPLACE_ORDER` | [1089](../../abides-markets/abides_markets/agents/trading_agent.py#L1089) | `O` | `dict` (new order) | external | `[REVIEW]` rename → `REPLACE_SUBMITTED` | Same inconsistency. |
+| `STOP_ORDER_SUBMITTED` | [922](../../abides-markets/abides_markets/agents/trading_agent.py#L922) | `O` | `dict` | external | unchanged | keep | |
+| `STOP_TRIGGERED` | [1317](../../abides-markets/abides_markets/agents/trading_agent.py#L1317) | `O` | `dict` | external | unchanged | keep | |
+| `CIRCUIT_BREAKER_TRIPPED` | [635, 654](../../abides-markets/abides_markets/agents/trading_agent.py#L635) | `Σ` (≤ once per agent) | `dict[{"reason": str, "loss"|"orders": int}]` | external | unchanged | keep | Two reasons (`max_drawdown`, `max_order_rate`) — already structured. |
+
+---
+
+## D. Markets — `TradingAgent` market-data echo
+
+All in [abides-markets/abides_markets/agents/trading_agent.py](../../abides-markets/abides_markets/agents/trading_agent.py),
+emitted from spread-response handler.
+
+| event_type | producer (line) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `BID_DEPTH` | [1384](../../abides-markets/abides_markets/agents/trading_agent.py#L1384) | `T` (per spread response) | `list[(price, qty)]` | external | `{"levels": list[[int,int]]}` | `[REVIEW]` consolidate with `ASK_DEPTH` and `IMBALANCE` into one `BOOK_SNAPSHOT` row | Three rows per spread response on a hot path. Major redundancy. |
+| `ASK_DEPTH` | [1385](../../abides-markets/abides_markets/agents/trading_agent.py#L1385) | `T` | `list[(price, qty)]` | external | as above | `[REVIEW]` see `BID_DEPTH` | |
+| `IMBALANCE` | [1386](../../abides-markets/abides_markets/agents/trading_agent.py#L1386) | `T` | `[bid_qty_sum, ask_qty_sum]` | external | as above | `[REVIEW]` see `BID_DEPTH` | Computable from `BID_DEPTH` + `ASK_DEPTH`; pure redundancy. |
+
+---
+
+## E. Markets — `ExchangeAgent`
+
+In [abides-markets/abides_markets/agents/exchange_agent.py](../../abides-markets/abides_markets/agents/exchange_agent.py).
+
+| event_type | producer (lines) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `<message.type()>` | [406, 414, 420](../../abides-markets/abides_markets/agents/exchange_agent.py#L406), [993](../../abides-markets/abides_markets/agents/exchange_agent.py#L993) | `M` (per inbound msg, gated on `exchange_log_orders`) | `dict` (`order.to_dict()`) or the message itself | external | `{"msg_type": str, "payload": dict}` | `[REVIEW]` settle dynamic vs. static `EventType` | The exchange writes `EventType = msg.type()` at runtime — the vocabulary is data-driven, which makes static enumeration impossible without crawling every `Message` subclass. Single largest source of vocabulary unpredictability. |
+| `STOP_ORDER_ACCEPTED` | [722](../../abides-markets/abides_markets/agents/exchange_agent.py#L722) | `O` (gated on `exchange_log_orders`) | `str` (`str(order)`) | external | `dict` (`order.to_dict()`) | `[REVIEW]` change to dict for parity with other accept events | The only fixed-name event the exchange emits via this path; payload shape disagrees with the rest of the lifecycle. |
+
+---
+
+## F. Markets — `OrderBook`
+
+In [abides-markets/abides_markets/order_book.py](../../abides-markets/abides_markets/order_book.py).
+The order book holds a back-reference to its owning exchange and routes
+events through `self.owner.logEvent()`.
+
+| event_type | producer (line) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `BEST_BID` | [212](../../abides-markets/abides_markets/order_book.py#L212) | `O` (after every order processed) | `str` `"{symbol},{price},{qty}"` | external | `{"symbol": str, "price": int, "qty": int}` | `[REVIEW]` change to dict | Hot path. CSV-in-string is parser-hostile and harder to schema. |
+| `BEST_ASK` | [218](../../abides-markets/abides_markets/order_book.py#L218) | `O` | `str` `"{symbol},{price},{qty}"` | external | as above | `[REVIEW]` see `BEST_BID` | |
+| `LAST_TRADE` | [234](../../abides-markets/abides_markets/order_book.py#L234) | per fill | `str` `"{trade_qty},${avg_price:0.4f}"` | external | `{"qty": int, "avg_price_cents": int}` | `[REVIEW]` change to dict; **drops dollar formatting** | Format includes `$` and 4 decimal places — pure display logic in the log row. |
+| `<order.tag>_POST_ONLY` | [289](../../abides-markets/abides_markets/order_book.py#L289) | `O` (post-only rejections only) | `dict[{"order_id": int}]` | external | unchanged | `[REVIEW]` settle dynamic prefix | Like the exchange's dynamic message-type case: the `EventType` string is built from `order.tag` at runtime. |
+
+---
+
+## G. Markets — Strategy & background agents
+
+| event_type | producer (file:line) | freq | payload shape | consumers | proposed schema | disposition | notes |
+|---|---|---|---|---|---|---|---|
+| `FINAL_VALUATION` | [noise_agent.py:124](../../abides-markets/abides_markets/agents/noise_agent.py#L124), [noise_agent.py:132](../../abides-markets/abides_markets/agents/noise_agent.py#L132), [value_agent.py:120](../../abides-markets/abides_markets/agents/value_agent.py#L120) | `Σ` | `int` or `float` | external | `{"surplus": float \| int}` | `[REVIEW]` unify payload type — currently `int` (cents) for one branch, `float` (frac) for the others | Three call sites disagree on the unit. Confusing for downstream comparison across agent types. |
+| `AMM_FLATTEN` | [adaptive_market_maker_agent.py:567](../../abides-markets/abides_markets/agents/market_makers/adaptive_market_maker_agent.py#L567) | `Σ` | `dict[{"symbol": str, "position_closed": int}]` | external | unchanged | keep | |
+| `EXECUTION_SUMMARY` | [base_execution_agent.py:133](../../abides-markets/abides_markets/agents/base_execution_agent.py#L133) | `Σ` | `dict[{"executed_quantity": int, "target_quantity": int, "remaining_quantity": int, "execution_rate": float}]` | external | unchanged | keep | |
+| `SLICE_DECISION` | [base_execution_agent.py:230](../../abides-markets/abides_markets/agents/base_execution_agent.py#L230) | `W` (per slice wakeup) | `dict[{"time": int, "order_size": int, "remaining_quantity": int, "direction": str}]` | external | unchanged | keep | |
+| `POV_SUMMARY` | [pov_execution_agent.py:122](../../abides-markets/abides_markets/agents/pov_execution_agent.py#L122) | `Σ` | `dict[{"effective_pov": float, "total_market_volume": int}]` | external | unchanged | keep | |
+
+---
+
+## H. `report_metric` producers
+
+`Agent.report_metric()` writes to a separate dict-of-lists keyed by
+metric name (not the per-agent `log` list). Producers are far rarer
+than `logEvent`.
+
+| metric | producer (file:line) | freq | payload | consumers | disposition | notes |
+|---|---|---|---|---|---|---|
+| `ending_value` | [trading_agent.py:264](../../abides-markets/abides_markets/agents/trading_agent.py#L264) | `Σ` | `int` (cents, `cash - starting_cash`) | `Kernel` summary log; tests | keep | Only production caller of `report_metric` in the shipped agents. |
+
+`abides-gym` does not call `report_metric` directly.
+
+---
+
+## Aggregate observations
+
+* **Conservative-default rule applied throughout.** No row is
+  dispositioned `delete`, `rename`, or `merge` outright. All
+  consolidation suggestions are `[REVIEW]` flags for a future phase
+  with explicit scope.
+* **Two structural patterns dominate the consolidation candidates:**
+  1. **String payloads where dicts would do.** `BEST_BID`, `BEST_ASK`,
+     `LAST_TRADE`, `FINAL_HOLDINGS`, `MARK_TO_MARKET`. All on hot
+     paths; all force consumers to re-parse a CSV-in-string. Migration
+     would be a typed-dict event with a deprecation cycle for the
+     string form.
+  2. **Multi-call redundancy at one logical site.** `BID_DEPTH` +
+     `ASK_DEPTH` + `IMBALANCE` (three rows per spread response);
+     `HOLDINGS_UPDATED` (five identical call sites);
+     `ORDER_SUBMITTED` (three call sites). Consolidation would route
+     through a helper but keep the on-disk vocabulary stable.
+* **Two dynamic-name producers** prevent fully static enumeration of
+  the `EventType` set:
+  * `ExchangeAgent` writes `msg.type()` at runtime.
+  * `OrderBook` writes `f"{order.tag}_POST_ONLY"` at runtime.
+  Any future schema-validation work needs to either enumerate every
+  `Message` subclass or accept that the vocabulary is open.
+* **Tests are a binding consumer.** `test_simulation.py:469-472`
+  asserts the exact order-lifecycle event set; `test_market_boundaries.py`
+  asserts `ENDING_CASH`. Renames would require coordinated test churn.
+
+## Cross-references
+
+* [docs/reference/logging-architecture.md](logging-architecture.md) —
+  the architectural shape of the log writer / parser pipeline this
+  vocabulary feeds into.
+* [docs/project/event-logging-refactor-plan.md](../project/event-logging-refactor-plan.md) — §3.11
+  is satisfied by this document.

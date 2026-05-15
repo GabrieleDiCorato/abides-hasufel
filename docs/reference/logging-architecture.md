@@ -118,6 +118,10 @@ gaps:
 This is the **real** log: the per-event business record that downstream
 analytics consume. Don't confuse it with system A.
 
+> **See also:** [`event-vocabulary.md`](event-vocabulary.md) — full
+> source-anchored inventory of every shipped `event_type`, payload
+> shape, and known consumer.
+
 ### 2.1 Method
 
 [agent.py L137-174](../../abides-core/abides_core/agent.py#L137):

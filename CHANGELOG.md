@@ -1,6 +1,28 @@
 Unreleased
 ==========
 
+Documentation
+-------------
+
+- **Event-vocabulary audit.** Added
+  ``docs/reference/event-vocabulary.md``: a complete, source-anchored
+  inventory of every shipped ``Agent.logEvent(...)`` and
+  ``Agent.report_metric(...)`` call site, grouped by producer category,
+  with payload shape, known consumers, and non-binding consolidation
+  suggestions. No public event names changed; consolidation candidates
+  are flagged ``[REVIEW]`` for a future deprecation cycle.
+  Cross-linked from ``docs/reference/logging-architecture.md``.
+
+Tooling
+-------
+
+- **One-shot benchmark scripts under ``benchmarks/``.** Added five
+  developer-facing scripts that produce JSON-line baselines for the
+  perf-sensitive paths called out by the event-logging refactor plan
+  (``parse_logs_df`` latency, headless / default-sinks / gym sim
+  throughput, peak RSS on a longer sim). Not wired into CI; intended
+  for use as before/after probes during refactor work.
+
 Logging & utility hardening
 ---------------------------
 
