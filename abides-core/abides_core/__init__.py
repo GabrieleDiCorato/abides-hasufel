@@ -3,6 +3,21 @@ NanosecondTime = int
 
 # noqa: E402 - imports must come after NanosecondTime definition
 from .agent import Agent  # noqa: E402
+from .event_bus import EventBus  # noqa: E402
+from .event_records import (  # noqa: E402
+    WIRE_FIELDS_BOOK_SNAPSHOT,
+    WIRE_FIELDS_EVENT,
+    WIRE_FIELDS_METRIC,
+    BookSnapshotRecord,
+    EventRecord,
+    MetricRecord,
+)
+from .event_sinks import (  # noqa: E402
+    BZ2PickleSink,
+    EventSink,
+    InMemorySink,
+    MetricsObserverSink,
+)
 from .kernel import Kernel  # noqa: E402
 from .latency_model import LatencyModel  # noqa: E402
 from .message import Message  # noqa: E402
@@ -12,12 +27,23 @@ from .run_result import KernelRunResult  # noqa: E402
 
 __all__ = [
     "Agent",
+    "BookSnapshotRecord",
+    "BZ2PickleSink",
     "DefaultMetricsObserver",
+    "EventBus",
+    "EventRecord",
+    "EventSink",
+    "InMemorySink",
     "Kernel",
     "KernelObserver",
     "KernelRunResult",
     "LatencyModel",
     "Message",
+    "MetricRecord",
+    "MetricsObserverSink",
     "NanosecondTime",
     "Oracle",
+    "WIRE_FIELDS_BOOK_SNAPSHOT",
+    "WIRE_FIELDS_EVENT",
+    "WIRE_FIELDS_METRIC",
 ]

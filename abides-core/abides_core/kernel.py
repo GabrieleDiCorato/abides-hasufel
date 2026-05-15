@@ -12,6 +12,8 @@ import pandas as pd
 
 from . import NanosecondTime
 from .agent import Agent
+from .event_bus import EventBus
+from .event_sinks import BZ2PickleSink, EventSink, InMemorySink, MetricsObserverSink
 from .latency_model import LatencyModel, UniformLatencyModel
 from .lifecycle import KernelState, assert_transition
 from .log_writer import BZ2PickleLogWriter, LogWriter, NullLogWriter
@@ -109,6 +111,7 @@ class Kernel:
         observers: Sequence[KernelObserver] = (),
         agent_computation_delays: np.ndarray | None = None,
         runner_hook: RunnerHook | None = None,
+        event_sinks: list[EventSink] | None = None,
     ) -> None:
         # Enforce the agents[i].id == i invariant before anything else uses
         # the parallel per-agent state arrays.
@@ -251,6 +254,22 @@ class Kernel:
         # staggering of sent messages.
         self.current_agent_additional_delay: int = 0
 
+        # Build the event bus and register default sinks.  Callers may pass
+        # ``event_sinks=[]`` to disable all sinks or a custom list to replace
+        # the defaults entirely.
+        self.event_bus = EventBus()
+        if event_sinks is None:
+            _default_sinks: list[EventSink] = [InMemorySink()]
+            if not skip_log:
+                _default_sinks.append(BZ2PickleSink(self._log_writer, self.agents))
+            if self._observers:
+                _default_sinks.append(MetricsObserverSink(self._observers))
+            for _sink in _default_sinks:
+                self.event_bus.register(_sink)
+        else:
+            for _sink in event_sinks:
+                self.event_bus.register(_sink)
+
         logger.debug("Kernel initialized")
 
     def run(self) -> KernelRunResult:
@@ -318,6 +337,11 @@ class Kernel:
         logger.debug("--- Agent.kernel_initializing() ---")
         for agent in self.agents:
             agent.kernel_initializing(self)
+
+        # Start the event bus after agents have flushed pre-init events into the
+        # pre-start queue.  bus.start() drains that queue to all sinks before
+        # the kernel_starting() loop begins.
+        self.event_bus.start(meta={"sim_id": self.log_dir})
 
         # Event notification for kernel start (agents may set up
         # communications or references to other agents, as all agents
@@ -473,6 +497,9 @@ class Kernel:
                     fmt_ts(int(self._agent_current_times[recipient_id])),
                 )
 
+            # Drain buffered events to sinks after each handler invocation.
+            self.event_bus.drain()
+
             # Catch kernel interruption signal (runner hook's raw state).
             if wakeup_result is not None:
                 return {"done": False, "result": wakeup_result}
@@ -530,6 +557,12 @@ class Kernel:
         logger.debug("\n--- Agent.kernel_terminating() ---")
         for agent in self.agents:
             agent.kernel_terminating()
+
+        # Drain remaining events and finalise all sinks (writes .bz2 files etc.).
+        try:
+            self.event_bus.shutdown(meta={"sim_id": self.log_dir})
+        except RuntimeError:
+            logger.exception("EventBus.shutdown() reported one or more sink failures.")
 
         elapsed_seconds = event_queue_wall_clock_elapsed.total_seconds()
         logger.info(

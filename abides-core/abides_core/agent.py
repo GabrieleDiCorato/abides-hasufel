@@ -1,4 +1,5 @@
 import logging
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
@@ -86,17 +87,10 @@ class Agent:
         # CANONICAL TIME.)
         self.current_time: NanosecondTime = 0
 
-        # Agents may choose to maintain a log.  During simulation,
-        # it should be stored as a list of dictionaries.  The expected
-        # keys by default are: EventTime, EventType, Event.  Other
-        # Columns may be added, but will then require specializing
-        # parsing and will increase output dataframe size.  If there
-        # is a non-empty log, it will be written to disk as a Dataframe
-        # at kernel termination.
-
-        # It might, or might not, make sense to formalize these log Events
-        # as a class, with enumerated EventTypes and so forth.
-        self.log: list[tuple[NanosecondTime, str, Any]] = []
+        # Pre-init event buffer: holds (event_type, payload) pairs published
+        # via logEvent() before the kernel attaches.  Flushed to the event
+        # bus in kernel_initializing() and then cleared.
+        self._pre_init_log: list[tuple[str, Any]] = []
 
         self.logEvent("AGENT_TYPE", type)
 
@@ -117,6 +111,13 @@ class Agent:
         """
 
         self.kernel = kernel
+
+        # Flush pre-init events (published during __init__ before the bus was
+        # available) into the bus's pre-start queue.  bus.start() will drain
+        # them to all sinks before the first runner() iteration.
+        for et, ev in self._pre_init_log:
+            self.kernel.event_bus.publish_event(self.id, self.type, 0, et, ev)
+        self._pre_init_log.clear()
 
         logger.debug(f"{self.name} exists!")
 
@@ -155,13 +156,9 @@ class Agent:
 
         No other agents are guaranteed to exist at this time.
         """
-
-        # If this agent has been maintaining a log, convert it to a Dataframe
-        # and request that the Kernel write it to disk before terminating.
-        if self.log and self.log_to_file:
-            df_log = pd.DataFrame(self.log, columns=("EventTime", "EventType", "Event"))
-            df_log.set_index("EventTime", inplace=True)
-            self.write_log(df_log)
+        # Events are now captured by the EventBus and written to disk by
+        # BZ2PickleSink.on_simulation_end().  Nothing to do in the base class.
+        pass
 
     ### Methods for internal use by agents (e.g. bookkeeping).
 
@@ -194,7 +191,13 @@ class Agent:
         if deepcopy_event:
             event = deepcopy(event)
 
-        self.log.append((self.current_time, event_type, event))
+        if isinstance(self.kernel, _UninitializedKernel):
+            # Kernel not yet attached — buffer for flush at kernel_initializing().
+            self._pre_init_log.append((event_type, event))
+        else:
+            self.kernel.event_bus.publish_event(
+                self.id, self.type, self.current_time, event_type, event
+            )
 
         if append_summary_log:
             self.kernel.append_summary_log(self.id, event_type, event)
@@ -357,8 +360,9 @@ class Agent:
             key: short metric name (e.g. ``"ending_value"``).
             value: numeric value, cast to ``float`` by each observer.
         """
-        for observer in self.kernel._observers:
-            observer.on_metric(self.id, self.type, key, float(value))
+        self.kernel.event_bus.publish_metric(
+            self.id, self.type, self.current_time, key, float(value)
+        )
 
     def write_log(self, df_log: pd.DataFrame, filename: str | None = None) -> None:
         """
@@ -382,6 +386,31 @@ class Agent:
         self.kernel.write_log(self.id, df_log, filename)
 
     ### Internal methods that should not be modified without a very good reason.
+
+    @property
+    def log(self) -> list[tuple["NanosecondTime", str, Any]]:
+        """Deprecated: access to the per-agent event log.
+
+        Returns a ``(sim_time_ns, event_type, payload)`` list sourced
+        from the :class:`~abides_core.event_sinks.InMemorySink`.  The
+        list is a new allocation on every access.
+
+        Migrate to :attr:`kernel.event_bus.in_memory_sink
+        <abides_core.event_bus.EventBus.in_memory_sink>` or
+        ``SimulationResult.logs`` instead.
+        """
+        warnings.warn(
+            "Agent.log is deprecated. Use kernel.event_bus.in_memory_sink "
+            "or SimulationResult.logs instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if isinstance(self.kernel, _UninitializedKernel):
+            return []
+        sink = self.kernel.event_bus.in_memory_sink
+        if sink is None:
+            return []
+        return sink.agent_log(self.id)
 
     def __lt__(self, other) -> bool:
         # Required by Python3 for this object to be placed in a priority queue.

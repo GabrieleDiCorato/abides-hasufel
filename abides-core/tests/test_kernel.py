@@ -412,6 +412,9 @@ class TestReportMetricAggregation:
         agents[1].report_metric("ending_value", 300)
         agents[0].report_metric("trades", 5)
 
+        # Bus is asynchronous — must drain before reading observer state.
+        kernel.event_bus.drain()
+
         metrics = observer.aggregates["StubAgent"]
         assert metrics["ending_value"] == {"sum": 400.0, "count": 2}
         assert metrics["trades"] == {"sum": 5.0, "count": 1}
@@ -938,3 +941,243 @@ class TestKernelGetComputeDelay:
         # Neighbours unchanged.
         assert kernel.get_agent_compute_delay(0) == 50
         assert kernel.get_agent_compute_delay(2) == 50
+
+
+# ---------------------------------------------------------------------------
+# EventBus integration — Phase 2 equivalence tests
+# ---------------------------------------------------------------------------
+
+
+class _LoggingAgent(Agent):
+    """Agent that emits a fixed set of named events across its lifecycle."""
+
+    # Canonical event sequence (excluding the AGENT_TYPE pre-init event)
+    EXPECTED_EVENTS = [
+        ("KERNEL_STARTED", "starting"),
+        ("WAKEUP_ONE", "first"),
+        ("WAKEUP_TWO", "second"),
+    ]
+
+    def __init__(self, id: int) -> None:
+        super().__init__(
+            id=id,
+            name=f"LoggingAgent_{id}",
+            type="LoggingAgent",
+            random_state=np.random.RandomState(seed=id + 100),
+            log_events=True,
+            log_to_file=False,  # disk-write disabled; InMemorySink still captures
+        )
+        self._wakeup_count = 0
+
+    def kernel_starting(self, start_time):
+        super().kernel_starting(start_time)
+        self.logEvent("KERNEL_STARTED", "starting")
+
+    def wakeup(self, current_time):
+        super().wakeup(current_time)
+        self._wakeup_count += 1
+        label = "first" if self._wakeup_count == 1 else "second"
+        tag = "WAKEUP_ONE" if self._wakeup_count == 1 else "WAKEUP_TWO"
+        self.logEvent(tag, label)
+        # Schedule one follow-up wakeup after the first.
+        if self._wakeup_count == 1:
+            self.set_wakeup(current_time + 1)
+
+
+class TestEventBusInMemorySinkCapture:
+    """InMemorySink must capture every logEvent() call with correct shape."""
+
+    def _run(self):
+        agent = _LoggingAgent(0)
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,  # no disk writes; InMemorySink is still registered
+            random_state=np.random.RandomState(seed=42),
+        )
+        kernel.run()
+        return kernel, agent
+
+    def test_sink_registered_by_default(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        assert sink is not None
+
+    def test_agent_log_contains_pre_init_event(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        agent_events = sink.agent_log(agent.id)
+        # AGENT_TYPE is emitted during __init__ (pre-init buffer path).
+        types = [e[1] for e in agent_events]
+        assert "AGENT_TYPE" in types
+
+    def test_agent_log_contains_all_expected_events(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        agent_events = sink.agent_log(agent.id)
+        event_types = [e[1] for e in agent_events]
+        for et, _ in _LoggingAgent.EXPECTED_EVENTS:
+            assert et in event_types, f"Missing event type: {et}"
+
+    def test_agent_log_payload_matches(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        agent_events = sink.agent_log(agent.id)
+        by_type = {e[1]: e[2] for e in agent_events}
+        for et, expected_payload in _LoggingAgent.EXPECTED_EVENTS:
+            assert by_type[et] == expected_payload, (
+                f"Payload mismatch for {et}: got {by_type[et]!r}, "
+                f"expected {expected_payload!r}"
+            )
+
+    def test_agent_log_shape_is_triple_list(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        agent_events = sink.agent_log(agent.id)
+        assert isinstance(agent_events, list)
+        for entry in agent_events:
+            assert len(entry) == 3
+            sim_time_ns, event_type, payload = entry
+            assert isinstance(sim_time_ns, int)
+            assert isinstance(event_type, str)
+
+    def test_wire_events_have_six_fields(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        for t in sink.events:
+            assert len(t) == 6, f"Expected 6-field wire tuple, got {len(t)}: {t}"
+
+    def test_seq_is_monotonically_increasing(self):
+        kernel, agent = self._run()
+        sink = kernel.event_bus.in_memory_sink
+        seqs = [t[5] for t in sink.events]
+        assert seqs == sorted(seqs)
+        assert len(seqs) == len(set(seqs))  # strictly monotonic (no duplicates)
+
+    def test_only_this_agents_events_in_agent_log(self):
+        """agent_log(id) must filter out events from other agents."""
+        agent0 = _LoggingAgent(0)
+        agent1 = _LoggingAgent(1)
+        kernel = Kernel(
+            agents=[agent0, agent1],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=7),
+        )
+        kernel.run()
+        sink = kernel.event_bus.in_memory_sink
+        log0 = sink.agent_log(agent0.id)
+        log1 = sink.agent_log(agent1.id)
+        # Each agent must appear in its own log and NOT in the other's.
+        assert len(log0) > 0 and len(log1) > 0
+        # IDs in the raw wire tuples confirm isolation.
+        ids_in_0 = {t[0] for t in sink.events if t[0] == agent0.id}
+        ids_in_1 = {t[0] for t in sink.events if t[0] == agent1.id}
+        assert ids_in_0 == {agent0.id}
+        assert ids_in_1 == {agent1.id}
+
+
+class TestEventBusBZ2PickleSink:
+    """BZ2PickleSink must write per-agent .bz2 files in the legacy format."""
+
+    def test_bz2_files_written_at_simulation_end(self, tmp_path):
+        from abides_core.log_writer import BZ2PickleLogWriter
+
+        agent = _LoggingAgent(0)
+        # Override to enable file writing.
+        agent.log_to_file = True
+        log_writer = BZ2PickleLogWriter(root=tmp_path, run_id="run1")
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=False,
+            log_writer=log_writer,
+            random_state=np.random.RandomState(seed=42),
+        )
+        kernel.run()
+        bz2_path = tmp_path / "run1" / f"{agent.name.replace(' ', '')}.bz2"
+        assert bz2_path.exists(), f"Expected {bz2_path} to exist"
+        df = pd.read_pickle(bz2_path, compression="bz2")
+        assert df.index.name == "EventTime"
+        assert list(df.columns) == ["EventType", "Event"]
+        assert "AGENT_TYPE" in df["EventType"].values
+
+    def test_log_to_file_false_produces_no_bz2(self, tmp_path):
+        from abides_core.log_writer import BZ2PickleLogWriter
+
+        agent = _LoggingAgent(0)
+        # log_to_file=False (set by _LoggingAgent) must suppress disk write.
+        log_writer = BZ2PickleLogWriter(root=tmp_path, run_id="run2")
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=False,
+            log_writer=log_writer,
+            random_state=np.random.RandomState(seed=42),
+        )
+        kernel.run()
+        run_dir = tmp_path / "run2"
+        agent_bz2 = run_dir / f"{agent.name.replace(' ', '')}.bz2"
+        assert not agent_bz2.exists(), (
+            f"Expected no .bz2 for agent with log_to_file=False, "
+            f"but found {agent_bz2}"
+        )
+
+
+class TestEventBusMetricsObserverSink:
+    """MetricsObserverSink must route report_metric() to KernelObserver."""
+
+    def test_metrics_forwarded_to_observer(self):
+        from abides_core.observers import DefaultMetricsObserver
+
+        class _MetricAgent(Agent):
+            def __init__(self, id: int) -> None:
+                super().__init__(
+                    id=id,
+                    name=f"MetricAgent_{id}",
+                    type="MetricAgent",
+                    random_state=np.random.RandomState(seed=id + 200),
+                    log_events=False,
+                )
+
+            def wakeup(self, current_time):
+                super().wakeup(current_time)
+                self.report_metric("profit", 42.0)
+
+        observer = DefaultMetricsObserver()
+        agent = _MetricAgent(0)
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=5),
+            observers=[observer],
+        )
+        kernel.run()
+        agg = observer.aggregates.get("MetricAgent", {})
+        assert "profit" in agg, f"Expected 'profit' in aggregates, got {agg}"
+        assert agg["profit"]["sum"] == 42.0
+        assert agg["profit"]["count"] == 1.0
+
+
+class TestEventBusNoOpRebind:
+    """With event_sinks=[], all publish_* calls are no-ops and no errors raised."""
+
+    def test_empty_sinks_simulation_completes(self):
+        agent = _LoggingAgent(0)
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=99),
+            event_sinks=[],  # explicit empty list disables all sinks
+        )
+        kernel.run()
+        # No in_memory_sink means agent.log returns [] (gracefully).
+        assert kernel.event_bus.in_memory_sink is None
