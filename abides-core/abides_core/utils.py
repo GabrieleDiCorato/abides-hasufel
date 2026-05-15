@@ -6,7 +6,6 @@ any simulator object (kernel, agent, etc).
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import inspect
 import os
@@ -156,33 +155,35 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
     Takes a list of agents from a finished ABIDES simulation, walks each
     agent's ``log`` attribute, and returns a single dataframe with the
     logs from all agents.  Intended for debugging / exploration.
+
+    Implementation note: rows are accumulated as a single flat list and
+    materialised once via :meth:`pandas.DataFrame.from_records`. This
+    avoids the per-agent intermediate ``DataFrame`` allocation and the
+    column-widening that the previous ``pd.concat`` path performed.
     """
-    dfs = []
+    rows: list[dict] = []
     for agent in agents:
-        messages = []
+        agent_id = agent.id
+        agent_type = agent.type
         for m in agent.log:
-            m = {
+            event = m[2]
+            if event is None:
+                event_dict = {"EmptyEvent": True}
+            elif isinstance(event, dict):
+                event_dict = event
+            else:
+                event_dict = {"ScalarEventValue": event}
+            row = {
                 "EventTime": m[0] if isinstance(m[0], (int, np.int64)) else 0,
                 "EventType": m[1],
-                "Event": m[2],
+                **event_dict,
             }
-            event = m.get("Event")
-            if event is None:
-                event = {"EmptyEvent": True}
-            elif not isinstance(event, dict):
-                event = {"ScalarEventValue": event}
-            else:
-                pass
-            with contextlib.suppress(KeyError):
-                del m["Event"]
-            m.update(event)
-            if m.get("agent_id") is None:
-                m["agent_id"] = agent.id
-            m["agent_type"] = agent.type
-            messages.append(m)
-        dfs.append(pd.DataFrame(messages))
+            if row.get("agent_id") is None:
+                row["agent_id"] = agent_id
+            row["agent_type"] = agent_type
+            rows.append(row)
 
-    return pd.concat(dfs)
+    return pd.DataFrame.from_records(rows)
 
 
 # caching utils: not used by abides but useful to have

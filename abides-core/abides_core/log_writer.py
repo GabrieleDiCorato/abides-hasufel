@@ -15,6 +15,7 @@ this module:
 
 from __future__ import annotations
 
+import contextlib
 import os
 from typing import Protocol
 
@@ -76,10 +77,27 @@ class BZ2PickleLogWriter:
     ) -> None:
         self._ensure_dir()
         file = f"{filename}.bz2" if filename else f"{agent_name.replace(' ', '')}.bz2"
-        df_log.to_pickle(os.path.join(self.output_dir, file), compression="bz2")
+        self._atomic_to_pickle(df_log, os.path.join(self.output_dir, file))
 
     def write_summary_log(self, df_log: pd.DataFrame) -> None:
         self._ensure_dir()
-        df_log.to_pickle(
-            os.path.join(self.output_dir, "summary_log.bz2"), compression="bz2"
-        )
+        self._atomic_to_pickle(df_log, os.path.join(self.output_dir, "summary_log.bz2"))
+
+    @staticmethod
+    def _atomic_to_pickle(df_log: pd.DataFrame, final_path: str) -> None:
+        """Pickle ``df_log`` to ``final_path`` atomically.
+
+        Writes to a sibling ``<final_path>.tmp`` file first, then
+        :func:`os.replace` swaps it into place. If serialisation fails
+        midway the temp file is removed and ``final_path`` is left
+        untouched, so partially-written ``.bz2`` files never appear on
+        disk to confuse downstream readers.
+        """
+        tmp_path = f"{final_path}.tmp"
+        try:
+            df_log.to_pickle(tmp_path, compression="bz2")
+            os.replace(tmp_path, final_path)
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(tmp_path)
+            raise

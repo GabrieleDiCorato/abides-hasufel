@@ -1,6 +1,18 @@
 Unreleased
 ==========
 
+Logging & utility hardening
+---------------------------
+
+- **Atomic on-disk log writes.** ``BZ2PickleLogWriter`` now serialises
+  pickled DataFrames to a sibling ``<file>.tmp`` and renames into
+  place via ``os.replace``. Crashes mid-write no longer leave
+  partially-written ``.bz2`` files that confuse downstream readers.
+- **Faster ``parse_logs_df``.** Replaced the per-agent intermediate
+  ``DataFrame`` + ``pd.concat`` build with a single
+  ``pd.DataFrame.from_records`` over the flat row list. Same output
+  shape; fewer allocations on large captures.
+
 abides-core v3 foundation refactor
 ----------------------------------
 
