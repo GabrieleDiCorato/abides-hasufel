@@ -856,7 +856,7 @@ class SimulationResult(BaseModel):
         Use :meth:`to_json` for a JSON string.  Your server can store / forward
         this dict without any ABIDES-internal knowledge.
         """
-        return json.loads(self.model_dump_json())  # type: ignore[no-any-return]
+        return json.loads(self.model_dump_json())
 
     def to_json(self) -> str:
         """Return a JSON string representation of this result."""
