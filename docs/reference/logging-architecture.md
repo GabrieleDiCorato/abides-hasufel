@@ -241,11 +241,12 @@ consumes the *parsed* DataFrame, not the raw logs.
   potentially millions of rows, then `to_pickle(compression="bz2")`.
   Both serial, both slow for large sims. No incremental flushing. No
   streaming format.
-- **`parse_logs_df` is `pd.concat([pd.DataFrame([row]) for row in ...])`
-  one row at a time** — O(N²) due to repeated concat. For a 7M-event
-  sim this is the wrong shape. Building once with `pd.DataFrame(rows)`
-  would be orders of magnitude faster. This is a real performance
-  smell, not theoretical.
+- **`parse_logs_df` builds one DataFrame per agent then concats** —
+  was O(N) but allocated an intermediate frame for every agent. Now
+  rebuilt around a single `pd.DataFrame.from_records` over the flat
+  row list, eliminating the per-agent allocation. The deeper Phase 3
+  win (constructing the DataFrame directly from `InMemorySink` column
+  arrays) is still pending.
 
 ### 2.7 Verdict on system B
 
@@ -255,7 +256,9 @@ real issues:
 
 1. **Format is fused into the kernel.** No way to swap pickle for
    parquet, no way to mock the writer for tests.
-2. **`parse_logs_df` is O(N²).** Hot for large sims.
+2. **`parse_logs_df` allocates an intermediate DataFrame per agent.**
+   Reduced in Phase 1 (single `from_records`); a deeper rewrite over
+   `InMemorySink` columnar arrays is the Phase 3 target.
 3. **`log_events` / `log_to_file` are per-instance**, awkward to set
    globally.
 
@@ -426,11 +429,10 @@ filesystem ([test_kernel.py L47, 54, 63, 83](../../abides-core/tests/test_kernel
 
 ### 7.2 Real performance issues
 
-- **`parse_logs_df` is O(N²)** because it concatenates one DataFrame
-  per row instead of building once. Hot path for any analysis on a
-  large simulation. Easy fix: build a list of dicts, then one
-  `pd.DataFrame(rows)`. (Out of scope for the kernel plan, but a
-  separate quick win.)
+- **`parse_logs_df` allocated one intermediate DataFrame per agent.**
+  Reduced in Phase 1 to a single `pd.DataFrame.from_records` over the
+  flat row list. The deeper rewrite over `InMemorySink` columnar
+  arrays is the Phase 3 target.
 - **`to_pickle(compression="bz2")`** is the slowest pickle path.
   Acceptable for a one-shot serialization but compounds when many
   agents log a lot.
