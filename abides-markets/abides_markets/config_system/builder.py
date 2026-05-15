@@ -236,7 +236,7 @@ class SimulationBuilder:
         """
         from abides_markets.config_system.registry import registry
 
-        config = SimulationConfig.model_validate(self._data)
+        config: SimulationConfig = SimulationConfig.model_validate(self._data)
 
         # Eager validation: validate agent params against registry config models
         for agent_name, group in config.agents.items():
