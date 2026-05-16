@@ -16,6 +16,11 @@ import numpy as np
 import pandas as pd
 
 from abides_core import NanosecondTime
+from abides_core.event_sinks import (
+    EventSink,
+    OrderBookHistoryMemorySink,
+    OrderBookSnapshotMemorySink,
+)
 from abides_core.utils import str_to_ns
 from abides_markets.agents import ExchangeAgent
 from abides_markets.config_system.agent_configs import AgentCreationContext
@@ -43,6 +48,16 @@ def derive_seed(master_seed: int, component: str, index: int = 0) -> int:
 
 # Backward-compatible alias for internal callers
 _derive_seed = derive_seed
+
+
+# Event-type allowlist for OrderBookHistoryMemorySink.  These are the
+# bare-string event types published by OrderBook on the EventBus (see
+# Phase 3a plan, D2 — "event-type namespacing").  Defined here so the
+# auto-registration path can hand a frozen allowlist to each history
+# sink without importing from the (not-yet-created) book_events module.
+_BOOK_EVENT_TYPES: frozenset[str] = frozenset(
+    {"LIMIT", "EXEC", "CANCEL", "CANCEL_PARTIAL", "MODIFY", "REPLACE"}
+)
 
 
 def compile(
@@ -74,6 +89,7 @@ def compile(
             "oracle": Oracle | None,
             "random_state_kernel": np.random.RandomState,
             "stdout_log_level": str,
+            "event_sinks": list[EventSink],  # auto-registered per-symbol book sinks
         }
     """
     # ── Resolve seed ──────────────────────────────────────────────
@@ -233,6 +249,30 @@ def compile(
         for agent_name, delay in name_overrides.items():
             agent_computation_delays[name_to_id[agent_name]] = delay
 
+    # ── Auto-register per-symbol book sinks ───────────────────────
+    # Walk the ExchangeAgent's symbols.  For every symbol with
+    # ``book_capture != "off"`` build one snapshot sink + one history
+    # sink.  These are *appended* to ``event_sinks``; user-supplied
+    # sinks (when the caller-side API surfaces them in future) survive.
+    # Skipping registration entirely when book_capture == "off" lets
+    # the publisher-side short-circuit (Phase 3a Step 6) bypass the bus
+    # path with zero overhead.
+    event_sinks: list[EventSink] = []
+    exchange_agent = agents[0]
+    if (
+        isinstance(exchange_agent, ExchangeAgent)
+        and exchange_agent.book_capture != "off"
+    ):
+        for symbol in exchange_agent.symbols:
+            event_sinks.append(
+                OrderBookSnapshotMemorySink(
+                    symbol=symbol, depth=exchange_agent.book_log_depth
+                )
+            )
+            event_sinks.append(
+                OrderBookHistoryMemorySink(symbol=symbol, event_types=_BOOK_EVENT_TYPES)
+            )
+
     runtime: dict[str, Any] = {
         "seed": seed,
         "start_time": kernel_start,
@@ -244,6 +284,7 @@ def compile(
         "oracle": oracle,
         "random_state_kernel": random_state_kernel,
         "stdout_log_level": config.simulation.log_level,
+        "event_sinks": event_sinks,
     }
 
     return runtime

@@ -1243,6 +1243,58 @@ class TestCompilerEdgeCases:
         assert runtime["agent_latency_model"] is not None
 
 
+class TestCompilerBookSinkAutoRegistration:
+    """``compile()`` auto-registers per-symbol book sinks in ``event_sinks``.
+
+    Behavior contract (Phase 3a, Step 4):
+      - One ``OrderBookSnapshotMemorySink`` and one
+        ``OrderBookHistoryMemorySink`` per symbol when
+        ``book_capture != "off"``.
+      - Empty ``event_sinks`` list when ``book_capture == "off"``.
+      - Sink's ``symbol`` matches the ExchangeAgent's symbol.
+    """
+
+    def test_default_registers_book_sinks(self):
+        from abides_core.event_sinks import (
+            OrderBookHistoryMemorySink,
+            OrderBookSnapshotMemorySink,
+        )
+
+        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        runtime = compile(config)
+
+        sinks = runtime["event_sinks"]
+        snap = [s for s in sinks if isinstance(s, OrderBookSnapshotMemorySink)]
+        hist = [s for s in sinks if isinstance(s, OrderBookHistoryMemorySink)]
+        assert len(snap) == 1
+        assert len(hist) == 1
+        # The ExchangeAgent's symbol must match.
+        exchange = runtime["agents"][0]
+        assert snap[0].symbol == exchange.symbols[0]
+        assert hist[0].symbol == exchange.symbols[0]
+        assert snap[0].depth == exchange.book_log_depth
+
+    def test_book_capture_off_skips_registration(self):
+        from abides_core.event_sinks import (
+            OrderBookHistoryMemorySink,
+            OrderBookSnapshotMemorySink,
+        )
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .exchange(book_capture="off")
+            .seed(42)
+            .build()
+        )
+        runtime = compile(config)
+        sinks = runtime["event_sinks"]
+        assert not any(
+            isinstance(s, OrderBookSnapshotMemorySink | OrderBookHistoryMemorySink)
+            for s in sinks
+        )
+
+
 # ---------------------------------------------------------------------------
 # Agent class registration tests
 # ---------------------------------------------------------------------------
