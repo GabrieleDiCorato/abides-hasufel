@@ -152,16 +152,68 @@ def ns_date(ns_datetime: NanosecondTime) -> NanosecondTime:
 
 def parse_logs_df(agents: list) -> pd.DataFrame:
     """
-    Takes a list of agents from a finished ABIDES simulation, walks each
-    agent's ``log`` attribute, and returns a single dataframe with the
-    logs from all agents.  Intended for debugging / exploration.
+    Takes a list of agents from a finished ABIDES simulation and returns
+    a single dataframe with the logs from all agents.  Intended for
+    debugging / exploration.
+
+    Fast path (default): when the first agent exposes a kernel with an
+    :class:`~abides_core.event_sinks.InMemorySink`, the entire event
+    list is consumed in a single pass — O(M) instead of O(N_agents × M).
+    The agent list is still used to surface ``agent_type`` for agents
+    that emitted zero events (currently unused but kept for parity).
+
+    Fallback path: for inputs that do not satisfy the fast-path contract
+    (e.g. duck-typed test/benchmark agents with their own ``.log``
+    attribute), this function iterates each agent's ``.log`` list as
+    before.  When the input is a real :class:`~abides_core.agent.Agent`,
+    the fallback path is **not** taken — the ``Agent.log`` property
+    would emit a :class:`DeprecationWarning` once per agent.
 
     Implementation note: rows are accumulated as a single flat list and
-    materialised once via :meth:`pandas.DataFrame.from_records`. This
-    avoids the per-agent intermediate ``DataFrame`` allocation and the
-    column-widening that the previous ``pd.concat`` path performed.
+    materialised once via :meth:`pandas.DataFrame.from_records`.
     """
+    # Late import to avoid a circular import at module load time.
+    from .agent import Agent
+
+    # ---- Fast path: pull from the kernel's InMemorySink in one pass ----
+    sink = None
+    for a in agents:
+        if isinstance(a, Agent):
+            kernel = getattr(a, "kernel", None)
+            event_bus = getattr(kernel, "event_bus", None)
+            if event_bus is not None:
+                sink = event_bus.in_memory_sink
+                break
+
     rows: list[dict] = []
+    if sink is not None:
+        id_to_type: dict[int, str] = {a.id: a.type for a in agents}
+        for t in sink.events:
+            # Wire layout: (agent_id, agent_type, sim_time_ns, event_type, payload, seq)
+            agent_id = t[0]
+            event_time = t[2]
+            event_type = t[3]
+            event = t[4]
+            if event is None:
+                event_dict: dict = {"EmptyEvent": True}
+            elif isinstance(event, dict):
+                event_dict = event
+            else:
+                event_dict = {"ScalarEventValue": event}
+            row = {
+                "EventTime": (
+                    event_time if isinstance(event_time, (int, np.int64)) else 0
+                ),
+                "EventType": event_type,
+                **event_dict,
+            }
+            if row.get("agent_id") is None:
+                row["agent_id"] = agent_id
+            row["agent_type"] = id_to_type.get(agent_id, t[1])
+            rows.append(row)
+        return pd.DataFrame.from_records(rows)
+
+    # ---- Fallback path: duck-typed agents with their own .log list ----
     for agent in agents:
         agent_id = agent.id
         agent_type = agent.type

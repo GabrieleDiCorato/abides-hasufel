@@ -20,7 +20,7 @@ from .log_writer import BZ2PickleLogWriter, LogWriter, NullLogWriter
 from .message import Message, MessageBatch, WakeupMsg
 from .observers import KernelObserver
 from .oracle import Oracle
-from .run_result import KernelRunResult
+from .run_result import KernelRunResult, SinkFailure
 from .runner_hook import RunnerHook
 from .utils import fmt_ts, str_to_ns
 
@@ -564,6 +564,17 @@ class Kernel:
         except RuntimeError:
             logger.exception("EventBus.shutdown() reported one or more sink failures.")
 
+        # Snapshot any sink failures so callers can detect partial telemetry
+        # loss without parsing logs (e.g. BZ2PickleSink hitting a full disk).
+        sink_failures = tuple(
+            SinkFailure(
+                sink_index=idx,
+                sink_type=type(self.event_bus._sinks[idx]).__name__,
+                exception_repr=repr(exc),
+            )
+            for idx, exc in self.event_bus._sink_failures
+        )
+
         elapsed_seconds = event_queue_wall_clock_elapsed.total_seconds()
         logger.info(
             f"Event Queue elapsed: {event_queue_wall_clock_elapsed}, messages: {stats.ttl_messages:,}, messages per second: {stats.ttl_messages / elapsed_seconds if elapsed_seconds > 0 else 0:0.1f}"
@@ -585,6 +596,7 @@ class Kernel:
             elapsed=event_queue_wall_clock_elapsed,
             slowest_agent_finish_time=int(self._agent_current_times.max()),
             messages_processed=stats.ttl_messages,
+            sink_failures=sink_failures,
         )
 
     def reset(self) -> None:

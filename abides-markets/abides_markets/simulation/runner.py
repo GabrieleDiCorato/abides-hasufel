@@ -428,15 +428,33 @@ def _extract_trades(order_book: Any) -> list[TradeAttribution]:
 
 
 def _extract_equity_curve(agent: TradingAgent) -> EquityCurve | None:
-    """Build an :class:`EquityCurve` from FILL_PNL events in agent.log.
+    """Build an :class:`EquityCurve` from FILL_PNL events for ``agent``.
+
+    Reads events directly from the kernel's
+    :class:`~abides_core.event_sinks.InMemorySink` to avoid triggering
+    the ``Agent.log`` deprecation warning on every call.  Falls back to
+    the legacy ``agent.log`` attribute when the kernel/sink is
+    unavailable (e.g. for duck-typed test fakes).
 
     Returns ``None`` if the agent has no FILL_PNL events.
     """
-    if not hasattr(agent, "log") or not agent.log:
+    # Try the fast / non-warning path first: sink + agent_id filter.
+    kernel = getattr(agent, "kernel", None)
+    event_bus = getattr(kernel, "event_bus", None)
+    sink = getattr(event_bus, "in_memory_sink", None)
+
+    if sink is not None:
+        entries: list[tuple[int, str, Any]] = sink.agent_log(agent.id)
+    elif hasattr(agent, "log") and agent.log:
+        entries = agent.log
+    else:
+        return None
+
+    if not entries:
         return None
 
     fill_events: list[tuple[int, int, int]] = []
-    for entry in agent.log:
+    for entry in entries:
         # entry = (timestamp_ns, event_type, event_data)
         if len(entry) < 3 or entry[1] != "FILL_PNL":
             continue

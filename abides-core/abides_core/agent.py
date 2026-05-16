@@ -89,10 +89,14 @@ class Agent:
 
         # Pre-init event buffer: holds (event_type, payload) pairs published
         # via logEvent() before the kernel attaches.  Flushed to the event
-        # bus in kernel_initializing() and then cleared.
+        # bus in kernel_initializing() and then cleared.  Subclasses that
+        # call logEvent() from their own __init__ rely on this buffer.
         self._pre_init_log: list[tuple[str, Any]] = []
 
-        self.logEvent("AGENT_TYPE", type)
+        # AGENT_TYPE is intentionally NOT emitted here — it is published
+        # from kernel_initializing() instead, so it is re-emitted on every
+        # gym-style restart (Kernel.terminate() + Kernel.initialize()).
+        # Emitting from __init__ would only fire on the first run.
 
     ### Flow of required kernel listening methods:
     ### init -> start -> (entire simulation) -> end -> terminate
@@ -111,6 +115,14 @@ class Agent:
         """
 
         self.kernel = kernel
+
+        # Publish the canonical AGENT_TYPE event from here (not __init__)
+        # so it is re-emitted on every gym-style restart.  Published before
+        # the pre-init queue flush so AGENT_TYPE is always the first event
+        # for each agent.
+        self.kernel.event_bus.publish_event(
+            self.id, self.type, 0, "AGENT_TYPE", self.type
+        )
 
         # Flush pre-init events (published during __init__ before the bus was
         # available) into the bus's pre-start queue.  bus.start() will drain

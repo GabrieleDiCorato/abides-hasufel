@@ -259,17 +259,24 @@ class BZ2PickleSink:
         agents: Sequence[Agent],
     ) -> None:
         self._log_writer = log_writer
-        self._id_to_name: dict[int, str] = {a.id: a.name for a in agents}
-        # Honour the per-agent log_to_file flag.  Agents with log_to_file=False
-        # publish events to InMemorySink (if registered) but not to disk.
-        self._write_to_file_ids: frozenset[int] = frozenset(
-            a.id for a in agents if a.log_to_file
-        )
+        # Retain the agents reference; ``log_to_file`` is read at
+        # on_simulation_start() time so post-construction changes to the
+        # flag are honoured (the legacy kernel_terminating() path read
+        # the flag lazily too).
+        self._agents: Sequence[Agent] = agents
+        self._id_to_name: dict[int, str] = {}
+        self._write_to_file_ids: frozenset[int] = frozenset()
         self._by_agent: dict[int, list[tuple]] = {}
 
     # ---- EventSink lifecycle --------------------------------------------------
 
     def on_simulation_start(self, meta: dict) -> None:
+        # Snapshot the agent name and log_to_file flag at start() time so
+        # any mutation between Kernel.__init__() and Kernel.initialize()
+        # is honoured.  Each restart (gym reset) re-reads the current
+        # values.
+        self._id_to_name = {a.id: a.name for a in self._agents}
+        self._write_to_file_ids = frozenset(a.id for a in self._agents if a.log_to_file)
         self._by_agent.clear()
 
     def on_event(self, t: tuple) -> None:
