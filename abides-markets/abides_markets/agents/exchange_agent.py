@@ -278,6 +278,34 @@ class ExchangeAgent(FinancialAgent):
             )
         return book_capture
 
+    def _get_history_sink(self, symbol: str):
+        """Locate the per-symbol OrderBookHistoryMemorySink on the EventBus.
+
+        Returns ``None`` if no sink is registered (e.g. ad-hoc test
+        kernel without the runtime wiring).  Used to read history
+        directly from the sink in hot paths and avoid the
+        ``OrderBook.history`` deprecation warning.
+        """
+        from abides_core.event_sinks import OrderBookHistoryMemorySink
+
+        for sink in self.kernel.event_bus._sinks:
+            if isinstance(sink, OrderBookHistoryMemorySink) and sink.symbol == symbol:
+                return sink
+        return None
+
+    def _get_snapshot_sink(self, symbol: str):
+        """Locate the per-symbol OrderBookSnapshotMemorySink on the EventBus.
+
+        Returns ``None`` if no sink is registered (``book_capture ==
+        "off"`` or an ad-hoc test kernel).
+        """
+        from abides_core.event_sinks import OrderBookSnapshotMemorySink
+
+        for sink in self.kernel.event_bus._sinks:
+            if isinstance(sink, OrderBookSnapshotMemorySink) and sink.symbol == symbol:
+                return sink
+        return None
+
     def _ensure_book_sinks_registered(self) -> None:
         """Add per-symbol order-book sinks to ``kernel.event_bus`` if missing.
 
@@ -655,12 +683,17 @@ class ExchangeAgent(FinancialAgent):
             logger.debug(
                 f"{self.name} received QUERY_ORDER_STREAM ({symbol}:{length}) request from agent {sender_id}"
             )
+            history_sink = self._get_history_sink(symbol)
+            if history_sink is None:
+                orders: list = []
+            else:
+                orders = list(history_sink.as_history_dicts()[1 : length + 1])
             self.send_message(
                 sender_id,
                 QueryOrderStreamResponseMsg(
                     symbol=symbol,
                     length=length,
-                    orders=self.order_books[symbol].history[1 : length + 1],
+                    orders=orders,
                     mkt_closed=current_time > self.mkt_close,
                 ),
             )
@@ -1050,10 +1083,10 @@ class ExchangeAgent(FinancialAgent):
         return messages
 
     def log_l2_style(self, symbol: str) -> tuple[list, list] | None:
-        book = self.order_books[symbol]
-        if not book.book_log2:
+        snap_sink = self._get_snapshot_sink(symbol)
+        if snap_sink is None or len(snap_sink) == 0:
             return None
-        tmp = book.book_log2
+        tmp = snap_sink.as_book_log2()
         times = []
         booktop = []
         for t in tmp:
@@ -1085,7 +1118,8 @@ class ExchangeAgent(FinancialAgent):
 
     def analyse_order_book(self, symbol: str):
         # will grow with time
-        book = self.order_books[symbol].book_log2
+        snap_sink = self._get_snapshot_sink(symbol)
+        book = list(snap_sink.as_book_log2()) if snap_sink is not None else []
         self.get_time_dropout(book, symbol)
 
     def get_time_dropout(self, book: list[dict[str, Any]], symbol: str):

@@ -41,7 +41,7 @@ class TestVWAPfromHistory:
     def test_single_trade(self):
         """One execution at 10000 cents, qty 100 → VWAP=10000."""
         book = _FakeBook(history=[{"type": "EXEC", "price": 10_000, "quantity": 100}])
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.vwap_cents == 10_000
 
     def test_two_trades_equal_weight(self):
@@ -52,7 +52,7 @@ class TestVWAPfromHistory:
                 {"type": "EXEC", "price": 10_200, "quantity": 100},
             ]
         )
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.vwap_cents == 10_100
 
     def test_two_trades_unequal_weight(self):
@@ -63,7 +63,7 @@ class TestVWAPfromHistory:
                 {"type": "EXEC", "price": 10_100, "quantity": 100},
             ]
         )
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         # total_value = 3_000_000 + 1_010_000 = 4_010_000
         # total_qty = 400
         # vwap = 4_010_000 // 400 = 10_025
@@ -78,7 +78,7 @@ class TestVWAPfromHistory:
                 {"type": "EXEC", "price": 10_000, "quantity": 2},
             ]
         )
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.vwap_cents == 10_000  # not 10001
 
     def test_no_exec_entries(self):
@@ -89,13 +89,13 @@ class TestVWAPfromHistory:
                 {"type": "CANCEL", "price": 10_000, "quantity": 100},
             ]
         )
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.vwap_cents is None
 
     def test_empty_history(self):
         """Empty history → VWAP is None."""
         book = _FakeBook(history=[])
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.vwap_cents is None
 
     def test_exec_with_none_price_skipped(self):
@@ -106,7 +106,7 @@ class TestVWAPfromHistory:
                 {"type": "EXEC", "price": 10_000, "quantity": 50},
             ]
         )
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.vwap_cents == 10_000  # only the valid entry
 
     def test_many_trades_numerical(self):
@@ -115,14 +115,14 @@ class TestVWAPfromHistory:
         prices = [100, 102, 98, 101, 99]
         history = [{"type": "EXEC", "price": p, "quantity": 10} for p in prices]
         book = _FakeBook(history=history)
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         expected = sum(prices) * 10 // (10 * len(prices))
         assert liq.vwap_cents == expected
 
     def test_last_trade_from_book(self):
         """last_trade_cents falls back to order_book.last_trade."""
         book = _FakeBook(history=[], last_trade=9_500)
-        liq = _extract_liquidity(_FakeExchange(), "TEST", book)
+        liq = _extract_liquidity(_FakeExchange(), "TEST", book, book.history)
         assert liq.last_trade_cents == 9_500
 
 

@@ -298,10 +298,10 @@ def _extract_result(
     markets: dict[str, MarketSummary] = {}
     for symbol in symbols:
         order_book = exchange.order_books[symbol]
-        book_log2 = order_book.book_log2
+        book_log2, history = _materialize_book_sinks(exchange, symbol)
 
         l1_close = _extract_l1_close(book_log2)
-        liquidity = _extract_liquidity(exchange, symbol, order_book)
+        liquidity = _extract_liquidity(exchange, symbol, order_book, history)
 
         l1_series: L1Snapshots | None = None
         l2_series: L2Snapshots | None = None
@@ -314,7 +314,7 @@ def _extract_result(
             l2_series = _extract_l2_series(book_log2)
 
         if ResultProfile.TRADE_ATTRIBUTION in profile:
-            trades = _extract_trades(order_book)
+            trades = _extract_trades(history)
 
         markets[symbol] = MarketSummary(
             symbol=symbol,
@@ -373,13 +373,53 @@ def _extract_result(
 # ---------------------------------------------------------------------------
 
 
+def _materialize_book_sinks(
+    exchange: ExchangeAgent, symbol: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Materialize per-symbol book data directly from the EventBus sinks.
+
+    Locates the matching :class:`OrderBookSnapshotMemorySink` and
+    :class:`OrderBookHistoryMemorySink` on ``exchange.kernel.event_bus``
+    by isinstance + symbol and returns ``(book_log2, history)`` in the
+    legacy shapes consumed by the extractors below.  Returns empty
+    lists when a sink is absent (e.g. ``book_capture == "off"`` skips
+    the snapshot sink).
+
+    This bypasses the deprecated ``OrderBook.book_log2`` /
+    ``OrderBook.history`` properties so the runner emits no
+    deprecation warnings during normal operation.
+    """
+    from abides_core.event_sinks import (
+        OrderBookHistoryMemorySink,
+        OrderBookSnapshotMemorySink,
+    )
+
+    kernel = getattr(exchange, "kernel", None)
+    bus = getattr(kernel, "event_bus", None) if kernel is not None else None
+    book_log2: list[dict[str, Any]] = []
+    history: list[dict[str, Any]] = []
+    if bus is None:
+        return book_log2, history
+    for sink in bus._sinks:
+        if getattr(sink, "symbol", None) != symbol:
+            continue
+        if isinstance(sink, OrderBookSnapshotMemorySink):
+            book_log2 = list(sink.as_book_log2())
+        elif isinstance(sink, OrderBookHistoryMemorySink):
+            history = list(sink.as_history_dicts())
+    return book_log2, history
+
+
 def _extract_l1_close(book_log2: list[dict]) -> L1Close:
     """Return an L1Close from the last entry in book_log2, or empty if no log."""
     return compute_l1_close(book_log2)
 
 
 def _extract_liquidity(
-    exchange: ExchangeAgent, symbol: str, order_book: Any
+    exchange: ExchangeAgent,
+    symbol: str,
+    order_book: Any,
+    history: list[dict[str, Any]],
 ) -> LiquidityMetrics:
     """Build LiquidityMetrics from MetricTracker and order book state."""
     has_trackers = (
@@ -403,10 +443,9 @@ def _extract_liquidity(
 
     # Build VWAP trade tuples from order book history (EXEC entries)
     vwap_trades: list[tuple[int, int]] = []
-    if hasattr(order_book, "history"):
-        for entry in order_book.history:
-            if entry.get("type") == "EXEC" and entry.get("price") is not None:
-                vwap_trades.append((int(entry["price"]), int(entry["quantity"])))
+    for entry in history:
+        if entry.get("type") == "EXEC" and entry.get("price") is not None:
+            vwap_trades.append((int(entry["price"]), int(entry["quantity"])))
 
     return compute_liquidity_metrics(
         vwap_trades,
@@ -417,13 +456,9 @@ def _extract_liquidity(
     )
 
 
-def _extract_trades(order_book: Any) -> list[TradeAttribution]:
+def _extract_trades(history: list[dict[str, Any]]) -> list[TradeAttribution]:
     """Build a list of :class:`TradeAttribution` from EXEC entries in order book history."""
-    if not hasattr(order_book, "history"):
-        return []
-    exec_entries = [
-        entry for entry in order_book.history if entry.get("type") == "EXEC"
-    ]
+    exec_entries = [entry for entry in history if entry.get("type") == "EXEC"]
     return compute_trade_attribution(exec_entries)
 
 
