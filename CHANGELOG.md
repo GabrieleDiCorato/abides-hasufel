@@ -1,6 +1,68 @@
 Unreleased
 ==========
 
+OrderBook capture on the EventBus (Phase 3a)
+--------------------------------------------
+
+- **New ``book_capture`` config field on ``ExchangeAgent``.**  Replaces
+  the per-instance ``book_logging`` boolean with a three-valued knob:
+  ``"off"`` (no snapshots; lowest overhead), ``"l1"`` (top-of-book
+  snapshots with publisher-side dedup), ``"l2"`` (full ``stream_history``
+  depth — the legacy ``book_logging=True`` behaviour).  Both the
+  publisher and the sink honour the same setting.  ``book_logging`` is
+  kept as a deprecation shim (``True → "l2"``, ``False → "off"``).
+- **OrderBook capture now flows through the EventBus.**  ``OrderBook``
+  no longer owns ``self.book_log2`` and ``self.history`` lists.  All
+  snapshot writes go through ``OrderBook._publish_snapshot`` →
+  ``EventBus.publish_book_snapshot``; all event writes go through
+  ``OrderBook._publish_event`` → ``EventBus.publish_event`` with typed
+  ``NamedTuple`` payloads from ``abides_markets.book_events``.
+- **Two new shipped sinks.**  ``OrderBookSnapshotMemorySink(symbol,
+  depth)`` and ``OrderBookHistoryMemorySink(symbol)`` in
+  ``abides_core.event_sinks``.  One pair is registered per symbol; the
+  snapshot sink is skipped when ``book_capture == "off"``.  Both
+  expose ``as_book_log2()`` / ``as_history_dicts()`` for code that
+  needs the legacy list-of-dicts shape.
+- **Publisher-side L1 dedup.**  In ``"l1"`` mode the order book caches
+  the last published ``(bid_price, bid_qty)`` and ``(ask_price,
+  ask_qty)`` and short-circuits the publish call when the top is
+  unchanged.  This is the headline perf win for L1-only consumers.
+- **Typed book event vocabulary.**  Six bare-string event types
+  (``LIMIT``, ``EXEC``, ``CANCEL``, ``CANCEL_PARTIAL``, ``MODIFY``,
+  ``REPLACE``) with ``NamedTuple`` payloads documented in
+  [docs/reference/event-vocabulary.md](docs/reference/event-vocabulary.md)
+  and [docs/reference/logging-architecture.md](docs/reference/logging-architecture.md)
+  §5.  ``symbol`` is the first payload field so a single history sink
+  can demultiplex a multi-symbol exchange.
+- **Runner and ExchangeAgent read from the sinks directly.**
+  ``runner._finalize_run`` materialises ``book_log2`` and ``history``
+  once per symbol from the per-symbol sinks; ``_extract_liquidity`` and
+  ``_extract_trades`` take an explicit ``history`` argument.
+  ``ExchangeAgent`` gained ``_get_history_sink`` /
+  ``_get_snapshot_sink`` helpers used by ``QueryOrderStreamMsg``,
+  ``log_l2_style``, and ``analyse_order_book``, so normal operation no
+  longer emits ``OrderBook.history`` / ``OrderBook.book_log2``
+  deprecation warnings.
+- **Deprecated ``OrderBook.book_log2`` and ``OrderBook.history``.**
+  Now ``@property`` shims that materialize on demand from the matching
+  per-symbol sink and emit ``DeprecationWarning`` once per instance.
+  The cache is invalidated when the sink length changes so repeated
+  reads remain correct.  When no kernel/bus is attached (standalone
+  unit-test setups) the properties fall back to in-process buffers on
+  the ``OrderBook`` so legacy fixtures keep working.
+- **Auto-registration.**  The compile path registers the per-symbol
+  book sinks on ``kernel.event_bus`` based on the exchange's
+  ``book_capture`` value.  ``ExchangeAgent.kernel_initializing`` also
+  self-registers any missing sinks before ``bus.start()`` so the
+  legacy ``build_config()`` dict-based construction path keeps
+  working.
+- **Reproducibility contract.**  With ``book_capture="l2"`` and a fixed
+  seed, ``SimulationResult.l1_close`` / ``l1_series`` / ``l2_series``
+  / ``trades`` / ``liquidity`` are byte-equivalent to a pre-Phase-3a
+  baseline (pickled at
+  ``abides-markets/tests/data/book_capture_baseline_l2.pkl``,
+  asserted by ``test_book_capture_reproducibility::test_l2_byte_equivalent``).
+
 Event bus (Phase 2 follow-up review)
 ------------------------------------
 

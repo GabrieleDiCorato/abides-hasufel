@@ -200,6 +200,33 @@ than `logEvent`.
   asserts the exact order-lifecycle event set; `test_market_boundaries.py`
   asserts `ENDING_CASH`. Renames would require coordinated test churn.
 
+## OrderBook events on the EventBus (Phase 3a)
+
+These six event types are published by `OrderBook` directly onto
+`EventBus` (not via `Agent.logEvent`), with `agent_id=exchange.id` and
+`agent_type="ExchangeAgent"` on the wire tuple.  Payloads are typed
+`NamedTuple` subclasses defined in
+[`abides_markets.book_events`](../../abides-markets/abides_markets/book_events.py).
+Trader attribution lives inside the payload (`agent_id`,
+`oppos_agent_id`).  `symbol` is the **first** payload field so a single
+history sink can demultiplex events from a multi-symbol exchange.
+
+| event_type | producer | freq | payload `NamedTuple` | consumers | disposition |
+|---|---|---|---|---|---|
+| `LIMIT` | [order_book.py — `handle_limit_order`](../../abides-markets/abides_markets/order_book.py) | `O` | `LimitPayload(symbol, order_id, agent_id, side, quantity, price)` | `OrderBookHistoryMemorySink`; `runner._extract_*` via sink; `ExchangeAgent._handle_query_order_stream` | keep |
+| `EXEC` | [order_book.py — match logic](../../abides-markets/abides_markets/order_book.py) | `O` | `ExecPayload(symbol, order_id, agent_id, oppos_order_id, oppos_agent_id, side, quantity, price)` | `OrderBookHistoryMemorySink`; `runner._extract_liquidity` / `_extract_trades` (VWAP and TradeAttribution) | keep |
+| `CANCEL` | [order_book.py — `cancel_order`](../../abides-markets/abides_markets/order_book.py) | `O` | `CancelPayload(symbol, order_id, tag, metadata)` | `OrderBookHistoryMemorySink`; `ExchangeAgent._handle_query_order_stream` | keep |
+| `CANCEL_PARTIAL` | [order_book.py — partial cancel path](../../abides-markets/abides_markets/order_book.py) | `O` | `CancelPartialPayload(symbol, order_id, quantity, tag, metadata)` | same as `CANCEL` | keep |
+| `MODIFY` | [order_book.py — `modify_order`](../../abides-markets/abides_markets/order_book.py) | `O` | `ModifyPayload(symbol, order_id, new_side, new_quantity)` | same as `CANCEL` | keep |
+| `REPLACE` | [order_book.py — `replace_order`](../../abides-markets/abides_markets/order_book.py) | `O` | `ReplacePayload(symbol, old_order_id, new_order_id, quantity, price)` | same as `CANCEL` | keep |
+
+Snapshot publishes use the separate `publish_book_snapshot` wire kind
+(not `publish_event`) and have no `event_type` string; they carry
+`(symbol, sim_time_ns, bids, asks, depth, seq)`.  See
+[logging-architecture.md §5](logging-architecture.md#5-phase-3a--orderbook-capture-on-the-eventbus)
+for the full producer / sink contract and the `book_capture` config
+field.
+
 ## Cross-references
 
 * [docs/reference/logging-architecture.md](logging-architecture.md) —

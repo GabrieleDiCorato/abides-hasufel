@@ -795,3 +795,144 @@ returns `InMemorySink.agent_log(agent.id)` (or `[]` if no sink is
 registered). Update callers to use
 `kernel.event_bus.in_memory_sink.agent_log(agent_id)` directly, or use
 `parse_logs_df()` which already reads from the sink.
+
+---
+
+## 5. Phase 3a — OrderBook capture on the EventBus
+
+Until Phase 3a, every `OrderBook` instance owned two per-instance Python
+lists: `book_log2` (snapshots of the L2 book after each mutation) and
+`history` (a dict per `LIMIT` / `EXEC` / `CANCEL` / `CANCEL_PARTIAL` /
+`MODIFY` / `REPLACE` event).  The runner read those lists directly to
+produce `SimulationResult.l1_series`, `l2_series`, `trades`, and
+`liquidity`.  This coupled storage policy to the producer and forced
+every consumer onto the same in-memory format.
+
+Phase 3a moves both flows onto the same `EventBus` used by Phase 2 for
+agent events and metrics.
+
+### 5.1 The `book_capture` config field
+
+`ExchangeAgent` now takes
+``book_capture: Literal["off","l1","l2"] | None``.  When `None`, it
+falls back to the legacy ``book_logging`` boolean (``True → "l2"``,
+``False → "off"``) so existing configs keep working.
+
+| Value | Snapshot publish behaviour | Snapshot sink registered? |
+|---|---|---|
+| `"off"` | `_publish_snapshot` returns immediately. No bus traffic. | No |
+| `"l1"` | Top-of-book only, with publisher-side dedup: skip publish when `(bid_top, ask_top)` is unchanged. | Yes (depth=1) |
+| `"l2"` | Full `stream_history` depth. Byte-equivalent to the legacy `book_logging=True` path. | Yes (depth=`stream_history`) |
+
+The history sink is **always** registered (regardless of
+`book_capture`) because `ExchangeAgent._handle_query_order_stream`
+answers `QueryOrderStreamMsg` from it; the legacy `book_logging` flag
+never gated history either.
+
+### 5.2 Two new sinks
+
+In `abides_core.event_sinks`:
+
+- **`OrderBookSnapshotMemorySink(symbol, depth)`** — `accept_book_snapshots = True`.
+  Filters incoming snapshots by `symbol`.  Stores parallel column
+  arrays (`times`, `bids`, `asks`).  Exposes
+  `as_book_log2() -> tuple[dict, ...]` in the legacy
+  `{"QuoteTime", "bids", "asks"}` shape for the deprecated
+  `OrderBook.book_log2` property and for code paths that need the
+  numpy arrays.
+
+- **`OrderBookHistoryMemorySink(symbol)`** — `accept_events = True`.
+  Filters by `event_type in BOOK_EVENT_TYPES` and by payload
+  `.symbol == symbol`.  Stores the payload `NamedTuple`s.  Exposes
+  `as_history_dicts() -> tuple[dict, ...]` in the legacy
+  `{"time", "type", **payload_fields}` shape (with `symbol` stripped,
+  since the legacy history list never carried it).
+
+One pair is registered per symbol; the compile path (and
+`ExchangeAgent.kernel_initializing` as a backstop for the legacy
+`build_config()` path) installs them on `kernel.event_bus`.
+
+### 5.3 Book event vocabulary and payload schema
+
+Six bare-string event types are published by `OrderBook`, defined in
+`abides_markets.book_events`:
+
+| `event_type` | `NamedTuple` payload | Fired at |
+|---|---|---|
+| `LIMIT` | `LimitPayload(symbol, order_id, agent_id, side, quantity, price)` | Every accepted limit order. |
+| `EXEC` | `ExecPayload(symbol, order_id, agent_id, oppos_order_id, oppos_agent_id, side, quantity, price)` | Each fill (one per side per match). |
+| `CANCEL` | `CancelPayload(symbol, order_id, tag, metadata)` | Full cancel. |
+| `CANCEL_PARTIAL` | `CancelPartialPayload(symbol, order_id, quantity, tag, metadata)` | Partial cancel. |
+| `MODIFY` | `ModifyPayload(symbol, order_id, new_side, new_quantity)` | In-place quantity / side modify. |
+| `REPLACE` | `ReplacePayload(symbol, old_order_id, new_order_id, quantity, price)` | Cancel-and-replace. |
+
+`symbol` is the **first** field of every payload so a single history
+sink can demultiplex events from a multi-symbol exchange.  Bare strings
+match the historical `history["type"]` literals — zero migration for
+consumers that switch from reading `OrderBook.history` to walking the
+sink.
+
+The `BOOK_EVENT_PAYLOAD_CLASSES` dict in `abides_markets.book_events`
+maps event types to their `NamedTuple` classes.
+
+### 5.4 Producer side
+
+`OrderBook` no longer owns capture state.  All snapshot writes flow
+through `OrderBook._publish_snapshot(t)`:
+
+```
+mode = exchange.book_capture
+if mode == "off": return
+if mode == "l1":
+    if (bid_top, ask_top) == cache: return     # publisher-side dedup
+    cache = (bid_top, ask_top)
+    bus.publish_book_snapshot(symbol, t, ((bid_p, bid_q),), ((ask_p, ask_q),), 1)
+else:  # "l2"
+    bus.publish_book_snapshot(symbol, t, l2_bids, l2_asks, stream_history)
+```
+
+All event writes flow through `OrderBook._publish_event(t, type_str,
+payload)`:
+
+```
+bus.publish_event(exchange.id, "ExchangeAgent", t, type_str, payload)
+```
+
+Agent attribution lives **inside** the payload (`agent_id`,
+`oppos_agent_id`); the producer field on the wire tuple is the
+exchange.  When no kernel/bus is attached (standalone unit tests
+constructing `OrderBook` against a stub agent), both methods append to
+internal fallback buffers that the deprecated properties read instead.
+
+### 5.5 Deprecated `OrderBook.book_log2` and `OrderBook.history`
+
+Both attributes are now `@property` shims.  Each:
+
+1. Walks `kernel.event_bus._sinks` to find the matching per-symbol
+   `OrderBookSnapshotMemorySink` / `OrderBookHistoryMemorySink`.
+2. Materializes the legacy list-of-dicts shape via `as_book_log2()` /
+   `as_history_dicts()`.
+3. Caches the result on the `OrderBook` instance; invalidates the
+   cache when the sink length changes (so the cached list stays live
+   across the whole simulation — `ExchangeAgent` re-reads
+   `history[1:length+1]` on every `QueryOrderStreamMsg`).
+4. Emits `DeprecationWarning` once per instance.
+
+When no kernel/bus is attached, the properties fall back to the
+in-process buffers populated by `_publish_snapshot` / `_publish_event`.
+
+New code should read directly from the sinks via
+`ExchangeAgent._get_snapshot_sink(symbol)` /
+`ExchangeAgent._get_history_sink(symbol)`, or via
+`SimulationResult.logs` once the relevant sink type is exposed there.
+
+### 5.6 Reproducibility contract
+
+With `book_capture="l2"` and a fixed seed, all
+`SimulationResult.markets[symbol]` fields are byte-equivalent to a
+pre-Phase-3a baseline pickled at
+`abides-markets/tests/data/book_capture_baseline_l2.pkl` (asserted by
+`test_book_capture_reproducibility::test_l2_byte_equivalent`).  With
+`book_capture="l1"`, the L1 series equals the L2 series after
+consecutive-duplicate removal (with the empty initial snapshot
+dropped), and the L2 series is empty.
