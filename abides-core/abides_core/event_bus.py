@@ -131,8 +131,11 @@ class EventBus:
         # Agent.__init__).  Drained at the beginning of start().
         self._pre_start_event_buf: list[tuple] = []
         self._pre_start_metric_buf: list[tuple] = []
+        self._pre_start_book_snapshot_buf: list[tuple] = []
 
-        # Monotonic sequence counter (per bus, across all kinds)
+        # Monotonic sequence counter.  Intentionally NOT reset across
+        # start() calls — sequence numbers remain globally monotonic
+        # over the bus's whole lifetime, including across gym resets.
         self._seq: int = 0
 
         # Failure tracking
@@ -144,11 +147,16 @@ class EventBus:
         self._metric_sinks: list[tuple[int, EventSink]] = []
         self._book_sinks: list[tuple[int, EventSink]] = []
 
+        # Cached reference to the first registered InMemorySink (P2).
+        # Populated in register(); avoids the O(n) scan in the
+        # in_memory_sink property used by the Agent.log shim.
+        self._cached_in_memory_sink: InMemorySink | None = None
+
         # Publish callables — rebound at start() time if no sinks accept a kind.
         # Before start() they go to the pre-start buffers via dedicated stubs.
         self.publish_event = self._pre_start_publish_event
         self.publish_metric = self._pre_start_publish_metric
-        self.publish_book_snapshot = _noop_publish_book_snapshot
+        self.publish_book_snapshot = self._pre_start_publish_book_snapshot
 
     # ---- Registration --------------------------------------------------------
 
@@ -166,7 +174,32 @@ class EventBus:
             raise RuntimeError(
                 "Cannot register sinks after EventBus.start() has been called."
             )
+        # H2: validate the sink satisfies the EventSink Protocol.  The
+        # @runtime_checkable Protocol verifies method presence but does
+        # not check the accept_* class attributes; check them explicitly
+        # so users get a clear error rather than an AttributeError at
+        # start() time.
+        if not isinstance(sink, EventSink):
+            raise TypeError(
+                f"Object of type {type(sink).__name__!r} does not satisfy "
+                "the EventSink Protocol (missing one or more required "
+                "methods: on_simulation_start, on_event, on_metric, "
+                "on_book_snapshot, flush, on_simulation_end)."
+            )
+        missing_flags = [
+            name
+            for name in ("accept_events", "accept_metrics", "accept_book_snapshots")
+            if not hasattr(sink, name)
+        ]
+        if missing_flags:
+            raise TypeError(
+                f"Sink of type {type(sink).__name__!r} is missing required "
+                f"class attribute(s): {', '.join(missing_flags)}."
+            )
         self._sinks.append(sink)
+        # P2: cache the first InMemorySink for fast in_memory_sink lookup.
+        if self._cached_in_memory_sink is None and isinstance(sink, InMemorySink):
+            self._cached_in_memory_sink = sink
 
     # ---- Pre-start stubs (before start() is called) --------------------------
 
@@ -198,6 +231,27 @@ class EventBus:
             (agent_id, agent_type, sim_time_ns, key, value, self._seq)
         )
 
+    def _pre_start_publish_book_snapshot(
+        self,
+        symbol: str,
+        sim_time_ns: int,
+        bids: tuple,
+        asks: tuple,
+        depth: int,
+    ) -> None:
+        """Buffer book snapshots published before start().
+
+        In practice no shipped producer publishes book snapshots before
+        ``start()`` (the order book lives in :class:`ExchangeAgent` and
+        only snapshots after market open).  This stub exists so the
+        three publish paths are symmetric and any future producer that
+        does emit early is not silently dropped.
+        """
+        self._seq += 1
+        self._pre_start_book_snapshot_buf.append(
+            (symbol, sim_time_ns, bids, asks, depth, self._seq)
+        )
+
     # ---- Lifecycle -----------------------------------------------------------
 
     def start(self, meta: dict | None = None) -> None:
@@ -215,7 +269,8 @@ class EventBus:
         if meta is None:
             meta = {}
 
-        # Reset runtime state (supports gym reuse)
+        # Reset runtime state (supports gym reuse).  Note ``_seq`` is
+        # intentionally NOT reset — see __init__ comment.
         self._started = True
         self._failed_sinks = set()
         self._sink_failures = []
@@ -255,11 +310,17 @@ class EventBus:
             self.publish_book_snapshot = _noop_publish_book_snapshot
 
         # Drain pre-start queues into the ring buffers and dispatch immediately
-        if self._pre_start_event_buf or self._pre_start_metric_buf:
+        if (
+            self._pre_start_event_buf
+            or self._pre_start_metric_buf
+            or self._pre_start_book_snapshot_buf
+        ):
             self._event_buf.extend(self._pre_start_event_buf)
             self._metric_buf.extend(self._pre_start_metric_buf)
+            self._book_snapshot_buf.extend(self._pre_start_book_snapshot_buf)
             self._pre_start_event_buf.clear()
             self._pre_start_metric_buf.clear()
+            self._pre_start_book_snapshot_buf.clear()
             self._drain_buffers()
 
     # ---- Real publishers (bound at start() when sinks are active) ------------
@@ -318,7 +379,16 @@ class EventBus:
         self._drain_buffers()
 
     def _drain_buffers(self) -> None:
-        """Inner drain — called when at least one buffer is non-empty."""
+        """Inner drain — called when at least one buffer is non-empty.
+
+        H1+P1 — per-batch failure isolation: one ``try/except`` wraps the
+        whole tuple loop for each sink.  If a sink raises on any tuple,
+        the sink is marked failed; the remaining tuples of the *current*
+        batch are dropped for that sink, and future batches skip the
+        sink entirely.  This avoids the per-tuple ``try/except`` overhead
+        of the previous implementation and prevents a permanently-broken
+        sink from being re-invoked for every remaining tuple in a batch.
+        """
         # Events
         if self._event_buf:
             buf = self._event_buf
@@ -326,8 +396,12 @@ class EventBus:
             for i, sink in self._event_sinks:
                 if i in self._failed_sinks:
                     continue
-                for t in buf:
-                    self._call_sink(i, sink.on_event, t)
+                on_event = sink.on_event
+                try:
+                    for t in buf:
+                        on_event(t)
+                except Exception as exc:
+                    self._mark_sink_failed(i, exc)
 
         # Metrics
         if self._metric_buf:
@@ -336,8 +410,12 @@ class EventBus:
             for i, sink in self._metric_sinks:
                 if i in self._failed_sinks:
                     continue
-                for t in buf:
-                    self._call_sink(i, sink.on_metric, t)
+                on_metric = sink.on_metric
+                try:
+                    for t in buf:
+                        on_metric(t)
+                except Exception as exc:
+                    self._mark_sink_failed(i, exc)
 
         # Book snapshots
         if self._book_snapshot_buf:
@@ -346,8 +424,12 @@ class EventBus:
             for i, sink in self._book_sinks:
                 if i in self._failed_sinks:
                     continue
-                for t in buf:
-                    self._call_sink(i, sink.on_book_snapshot, t)
+                on_book = sink.on_book_snapshot
+                try:
+                    for t in buf:
+                        on_book(t)
+                except Exception as exc:
+                    self._mark_sink_failed(i, exc)
 
     def flush(self) -> None:
         """Request all non-failed sinks to flush to their backing store.
@@ -389,7 +471,7 @@ class EventBus:
         # Rebind to pre-start stubs so the bus can be restarted (gym)
         self.publish_event = self._pre_start_publish_event
         self.publish_metric = self._pre_start_publish_metric
-        self.publish_book_snapshot = _noop_publish_book_snapshot
+        self.publish_book_snapshot = self._pre_start_publish_book_snapshot
 
         # Surface accumulated failures
         if self._sink_failures:
@@ -404,29 +486,44 @@ class EventBus:
 
     # ---- Internal helpers ----------------------------------------------------
 
-    def _call_sink(self, sink_index: int, method, *args: Any) -> None:
-        """Call ``method(*args)`` and catch any exception.
+    def _mark_sink_failed(self, sink_index: int, exc: BaseException) -> None:
+        """Record that a sink has failed and log the exception.
 
-        On the first exception from a sink the sink is added to
-        ``_failed_sinks`` (so subsequent calls are skipped) and the
-        exception is appended to ``_sink_failures`` for surface at
-        ``shutdown()``.
+        Idempotent: a sink is only added to ``_failed_sinks`` and its
+        exception only recorded the first time.  Subsequent calls are
+        no-ops (used by ``_call_sink`` when the same sink raises again
+        from a lifecycle hook).
         """
+        if sink_index in self._failed_sinks:
+            return
+        self._failed_sinks.add(sink_index)
+        self._sink_failures.append((sink_index, exc))
+        sink_type = type(self._sinks[sink_index]).__name__
+        logger.error(
+            "EventBus: sink[%d] (%s) raised an exception and has been "
+            "removed from the active dispatch set: %s",
+            sink_index,
+            sink_type,
+            exc,
+            exc_info=exc,
+        )
+
+    def _call_sink(self, sink_index: int, method, *args: Any) -> None:
+        """Call a sink **lifecycle** hook (``on_simulation_start``,
+        ``on_simulation_end``, ``flush``) with full exception isolation.
+
+        The per-tuple hot path (``on_event``/``on_metric``/``on_book_snapshot``)
+        does NOT go through this helper — it uses a single ``try/except``
+        around the whole batch in :meth:`_drain_buffers`.  On failure the
+        sink is marked failed via :meth:`_mark_sink_failed` and excluded
+        from future dispatch.
+        """
+        if sink_index in self._failed_sinks:
+            return
         try:
             method(*args)
         except Exception as exc:
-            if sink_index not in self._failed_sinks:
-                self._failed_sinks.add(sink_index)
-                self._sink_failures.append((sink_index, exc))
-                sink_type = type(self._sinks[sink_index]).__name__
-                logger.error(
-                    "EventBus: sink[%d] (%s) raised an exception and has been "
-                    "removed from the active dispatch set: %s",
-                    sink_index,
-                    sink_type,
-                    exc,
-                    exc_info=True,
-                )
+            self._mark_sink_failed(sink_index, exc)
 
     # ---- Convenience accessors -----------------------------------------------
 
@@ -434,12 +531,11 @@ class EventBus:
     def in_memory_sink(self) -> InMemorySink | None:
         """Return the first registered :class:`~abides_core.event_sinks.InMemorySink`, or ``None``.
 
-        Used by the ``Agent.log`` deprecation shim.
+        O(1) — the reference is cached at :meth:`register` time.
+        Used by the ``Agent.log`` deprecation shim and downstream
+        analytics helpers (``parse_logs_df``, ``_extract_equity_curve``).
         """
-        for sink in self._sinks:
-            if isinstance(sink, InMemorySink):
-                return sink
-        return None
+        return self._cached_in_memory_sink
 
     @property
     def started(self) -> bool:
