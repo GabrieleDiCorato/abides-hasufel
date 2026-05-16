@@ -151,6 +151,7 @@ def compile(
             symbols=[config.market.ticker],
             book_logging=exc.book_logging,
             book_log_depth=exc.book_log_depth,
+            book_capture=exc.book_capture,
             log_orders=exc.log_orders,
             pipeline_delay=exc.pipeline_delay,
             computation_delay=exc.computation_delay,

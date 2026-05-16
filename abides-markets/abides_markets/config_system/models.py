@@ -197,6 +197,18 @@ class ExchangeConfig(BaseModel):
             "Higher values capture deeper book state but use more memory."
         ),
     )
+    book_capture: Literal["off", "l1", "l2"] | None = Field(
+        default=None,
+        description=(
+            "Order-book capture mode.  'off' disables capture entirely.  "
+            "'l1' only publishes a snapshot when the top-of-book price/size "
+            "changes (cheapest; sufficient for L1 consumers).  'l2' "
+            "publishes the full depth-N L2 snapshot on every book mutation "
+            "(byte-equivalent to legacy book_logging=True).  When None "
+            "(default), falls back to the legacy 'book_logging' flag: "
+            "True -> 'l2', False -> 'off'."
+        ),
+    )
     stream_history_length: int = Field(
         default=500,
         ge=1,

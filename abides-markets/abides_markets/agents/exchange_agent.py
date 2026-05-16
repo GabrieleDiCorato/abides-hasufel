@@ -3,7 +3,7 @@ import warnings
 from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -56,6 +56,8 @@ from ..messages.query import (
 from ..order_book import OrderBook
 from ..orders import MarketOrder, Side, StopOrder
 from .financial_agent import FinancialAgent
+
+BookCapture = Literal["off", "l1", "l2"]
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +170,7 @@ class ExchangeAgent(FinancialAgent):
         random_state: np.random.RandomState | None = None,
         book_logging: bool = True,
         book_log_depth: int = 10,
+        book_capture: BookCapture | None = None,
         pipeline_delay: int = 40000,
         computation_delay: int = 1,
         stream_history: int = 0,
@@ -203,6 +206,12 @@ class ExchangeAgent(FinancialAgent):
 
         self.book_logging: bool = book_logging
         self.book_log_depth: int = book_log_depth
+        # Resolve book_capture from the explicit arg or fall back to the
+        # legacy book_logging mapping (True -> "l2", False -> "off").
+        # When both are passed, book_capture wins and we emit a warning.
+        self.book_capture: BookCapture = self._resolve_book_capture(
+            book_capture, book_logging
+        )
 
         # Log all order activity?
         self.log_orders: bool = log_orders
@@ -240,6 +249,34 @@ class ExchangeAgent(FinancialAgent):
         self.stop_orders: dict[str, list[tuple[StopOrder, int]]] = {
             symbol: [] for symbol in symbols
         }
+
+    @staticmethod
+    def _resolve_book_capture(
+        book_capture: BookCapture | None, book_logging: bool
+    ) -> BookCapture:
+        """Resolve the effective book_capture mode.
+
+        When ``book_capture`` is ``None`` (default), fall back to the legacy
+        ``book_logging`` flag: ``True`` -> ``"l2"`` (preserves byte-equivalent
+        behavior), ``False`` -> ``"off"``.  When ``book_capture`` is set
+        explicitly *and* differs from what ``book_logging`` would imply, emit
+        a ``DeprecationWarning`` and let ``book_capture`` win.
+        """
+        if book_capture is None:
+            return "l2" if book_logging else "off"
+        legacy_implied: BookCapture = "l2" if book_logging else "off"
+        if book_capture != legacy_implied:
+            import warnings
+
+            warnings.warn(
+                "ExchangeAgent received both 'book_capture' and a 'book_logging' "
+                f"value that imply different modes (book_capture={book_capture!r}, "
+                f"book_logging={book_logging!r} -> {legacy_implied!r}). "
+                "'book_capture' wins; pass only 'book_capture' to silence this warning.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+        return book_capture
 
     def kernel_initializing(self, kernel: "Kernel") -> None:
         """
