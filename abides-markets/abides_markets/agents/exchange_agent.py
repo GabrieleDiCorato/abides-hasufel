@@ -278,6 +278,47 @@ class ExchangeAgent(FinancialAgent):
             )
         return book_capture
 
+    def _ensure_book_sinks_registered(self) -> None:
+        """Add per-symbol order-book sinks to ``kernel.event_bus`` if missing.
+
+        Idempotent: scans existing sinks and only appends those that are
+        not already present for the same ``symbol``.  This is the fallback
+        wiring used by legacy ``build_config()`` dict configs and any
+        ad-hoc kernel constructions that bypass the declarative compiler.
+
+        The history sink is always registered (the exchange reads
+        ``OrderBook.history`` to answer ``QueryOrderStreamMsg`` — runtime
+        dependency).  The snapshot sink is registered only when
+        ``book_capture != "off"``.
+        """
+        from abides_core.event_sinks import (
+            OrderBookHistoryMemorySink,
+            OrderBookSnapshotMemorySink,
+        )
+        from abides_markets.config_system.compiler import _BOOK_EVENT_TYPES
+
+        bus = self.kernel.event_bus
+        existing_snap = {
+            s.symbol for s in bus._sinks if isinstance(s, OrderBookSnapshotMemorySink)
+        }
+        existing_hist = {
+            s.symbol for s in bus._sinks if isinstance(s, OrderBookHistoryMemorySink)
+        }
+        capture_snapshots = self.book_capture != "off"
+        for symbol in self.symbols:
+            if capture_snapshots and symbol not in existing_snap:
+                bus._sinks.append(
+                    OrderBookSnapshotMemorySink(
+                        symbol=symbol, depth=self.book_log_depth
+                    )
+                )
+            if symbol not in existing_hist:
+                bus._sinks.append(
+                    OrderBookHistoryMemorySink(
+                        symbol=symbol, event_types=_BOOK_EVENT_TYPES
+                    )
+                )
+
     def kernel_initializing(self, kernel: "Kernel") -> None:
         """
         The exchange agent overrides this to obtain a reference to an oracle.
@@ -296,6 +337,17 @@ class ExchangeAgent(FinancialAgent):
         super().kernel_initializing(kernel)
 
         self.oracle = self.kernel.oracle
+
+        # Self-register per-symbol order-book sinks on the EventBus if they
+        # are not already present.  The new ``compile()`` path registers
+        # them via the runtime; legacy ``build_config()`` dict-based paths
+        # (and ad-hoc kernel constructions) do not, so this guarantees
+        # ``OrderBook.book_log2`` / ``OrderBook.history`` have data
+        # regardless of how the simulation was assembled.  Called BEFORE
+        # ``event_bus.start()`` (which the Kernel invokes after all
+        # ``kernel_initializing`` calls have completed), so newly-added
+        # sinks are picked up by ``_set_active_sink_lists``.
+        self._ensure_book_sinks_registered()
 
         # Obtain opening prices (in integer cents).  These are not noisy right now.
         for symbol in self.order_books:

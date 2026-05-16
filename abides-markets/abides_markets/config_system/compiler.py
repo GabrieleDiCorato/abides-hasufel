@@ -250,25 +250,26 @@ def compile(
             agent_computation_delays[name_to_id[agent_name]] = delay
 
     # ── Auto-register per-symbol book sinks ───────────────────────
-    # Walk the ExchangeAgent's symbols.  For every symbol with
-    # ``book_capture != "off"`` build one snapshot sink + one history
-    # sink.  These are *appended* to ``event_sinks``; user-supplied
-    # sinks (when the caller-side API surfaces them in future) survive.
-    # Skipping registration entirely when book_capture == "off" lets
-    # the publisher-side short-circuit (Phase 3a Step 6) bypass the bus
-    # path with zero overhead.
+    # Walk the ExchangeAgent's symbols.  For every symbol register one
+    # ``OrderBookHistoryMemorySink`` (events feed the legacy
+    # ``OrderBook.history`` deprecated property, which the exchange
+    # agent reads to answer ``QueryOrderStreamMsg`` — this is a runtime
+    # dependency, not just analytics).  Additionally, when
+    # ``book_capture != "off"``, register one ``OrderBookSnapshotMemorySink``
+    # per symbol to capture book-depth snapshots.  These are *appended*
+    # to ``event_sinks``; user-supplied sinks (when the caller-side API
+    # surfaces them in future) survive.
     event_sinks: list[EventSink] = []
     exchange_agent = agents[0]
-    if (
-        isinstance(exchange_agent, ExchangeAgent)
-        and exchange_agent.book_capture != "off"
-    ):
+    if isinstance(exchange_agent, ExchangeAgent):
+        capture_snapshots = exchange_agent.book_capture != "off"
         for symbol in exchange_agent.symbols:
-            event_sinks.append(
-                OrderBookSnapshotMemorySink(
-                    symbol=symbol, depth=exchange_agent.book_log_depth
+            if capture_snapshots:
+                event_sinks.append(
+                    OrderBookSnapshotMemorySink(
+                        symbol=symbol, depth=exchange_agent.book_log_depth
+                    )
                 )
-            )
             event_sinks.append(
                 OrderBookHistoryMemorySink(symbol=symbol, event_types=_BOOK_EVENT_TYPES)
             )

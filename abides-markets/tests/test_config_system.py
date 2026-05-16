@@ -1246,12 +1246,13 @@ class TestCompilerEdgeCases:
 class TestCompilerBookSinkAutoRegistration:
     """``compile()`` auto-registers per-symbol book sinks in ``event_sinks``.
 
-    Behavior contract (Phase 3a, Step 4):
-      - One ``OrderBookSnapshotMemorySink`` and one
-        ``OrderBookHistoryMemorySink`` per symbol when
+    Behavior contract (Phase 3a):
+      - One ``OrderBookHistoryMemorySink`` per symbol is ALWAYS registered
+        (the exchange reads ``OrderBook.history`` to answer
+        ``QueryOrderStreamMsg`` — runtime dependency, not analytics).
+      - One ``OrderBookSnapshotMemorySink`` per symbol is registered when
         ``book_capture != "off"``.
-      - Empty ``event_sinks`` list when ``book_capture == "off"``.
-      - Sink's ``symbol`` matches the ExchangeAgent's symbol.
+      - Sinks' ``symbol`` matches the ExchangeAgent's symbol.
     """
 
     def test_default_registers_book_sinks(self):
@@ -1274,7 +1275,14 @@ class TestCompilerBookSinkAutoRegistration:
         assert hist[0].symbol == exchange.symbols[0]
         assert snap[0].depth == exchange.book_log_depth
 
-    def test_book_capture_off_skips_registration(self):
+    def test_book_capture_off_skips_snapshot_only(self):
+        """``book_capture="off"`` skips snapshots but keeps history sink.
+
+        The history sink is required regardless of capture mode — the
+        ExchangeAgent reads ``OrderBook.history`` to answer
+        ``QueryOrderStreamMsg`` (and that property reads from the sink
+        after Phase 3a).
+        """
         from abides_core.event_sinks import (
             OrderBookHistoryMemorySink,
             OrderBookSnapshotMemorySink,
@@ -1289,10 +1297,10 @@ class TestCompilerBookSinkAutoRegistration:
         )
         runtime = compile(config)
         sinks = runtime["event_sinks"]
-        assert not any(
-            isinstance(s, OrderBookSnapshotMemorySink | OrderBookHistoryMemorySink)
-            for s in sinks
-        )
+        snap = [s for s in sinks if isinstance(s, OrderBookSnapshotMemorySink)]
+        hist = [s for s in sinks if isinstance(s, OrderBookHistoryMemorySink)]
+        assert len(snap) == 0  # snapshot capture disabled
+        assert len(hist) == 1  # history sink always registered
 
 
 # ---------------------------------------------------------------------------

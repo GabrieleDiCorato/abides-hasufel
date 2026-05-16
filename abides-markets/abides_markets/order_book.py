@@ -13,6 +13,14 @@ import pandas as pd
 from abides_core import Agent, NanosecondTime
 from abides_core.utils import ns_date, str_to_ns
 
+from .book_events import (
+    CancelPartialPayload,
+    CancelPayload,
+    ExecPayload,
+    LimitPayload,
+    ModifyPayload,
+    ReplacePayload,
+)
 from .messages.orderbook import (
     OrderAcceptedMsg,
     OrderCancelledMsg,
@@ -62,17 +70,36 @@ class OrderBook:
         self.asks: list[PriceLevel] = []
         self.last_trade: int | None = None
 
-        # Create an empty list of dictionaries to log the full order book depth (price and volume) each time it changes.
-        self.book_log2: list[dict[str, Any]] = []
         self.quotes_seen: set[int] = set()
-
-        # Create an order history for the exchange to report to certain agent types.
-        self.history: list[dict[str, Any]] = []
 
         self.last_update_ts: NanosecondTime | None = self.owner.mkt_open
 
         self.buy_transactions: list[tuple[NanosecondTime, int]] = []
         self.sell_transactions: list[tuple[NanosecondTime, int]] = []
+
+        # Publisher-side L1 cache: cached (price, qty) tuples for the top of
+        # each book side.  Used by ``_publish_snapshot`` in ``"l1"`` mode to
+        # short-circuit publish calls when neither top has changed.  Set to a
+        # sentinel that compares unequal to any real top so the first publish
+        # always fires.
+        self._last_bid_top: tuple[int, int] | None = None
+        self._last_ask_top: tuple[int, int] | None = None
+
+        # Caches for the deprecated ``book_log2`` / ``history`` properties.
+        # Populated lazily on first access from the matching event sinks; the
+        # ``DeprecationWarning`` fires once per instance per property.
+        self._book_log2_cache: list[dict[str, Any]] | None = None
+        self._history_cache: list[dict[str, Any]] | None = None
+        self._book_log2_warned: bool = False
+        self._history_warned: bool = False
+
+        # Standalone-mode fallback buffers.  Used only when the OrderBook
+        # is constructed with an owner that has no kernel/event_bus
+        # attached (e.g. in unit tests that instantiate OrderBook against
+        # a stub agent).  When a kernel is present, all snapshots and
+        # events flow through the EventBus and these stay ``None``.
+        self._fallback_book_log2: list[dict[str, Any]] | None = None
+        self._fallback_history: list[dict[str, Any]] | None = None
 
     # ------------------------------------------------------------------
     # Helpers: O(log N) price-level lookup via bisect
@@ -348,20 +375,20 @@ class OrderBook:
                     (self.owner.current_time, matched_order.quantity)
                 )
 
-            self.history.append(
-                dict(
-                    time=self.owner.current_time,
-                    type="EXEC",
+            self._publish_event(
+                self.owner.current_time,
+                "EXEC",
+                ExecPayload(
+                    symbol=self.symbol,
                     order_id=matched_order.order_id,
                     agent_id=matched_order.agent_id,
                     oppos_order_id=order.order_id,
                     oppos_agent_id=order.agent_id,
-                    side=(
-                        "SELL" if order.side.is_bid() else "BUY"
-                    ),  # by def exec if from point of view of passive order being exec
+                    # POV of the passive order being executed.
+                    side="SELL" if order.side.is_bid() else "BUY",
                     quantity=matched_order.quantity,
                     price=matched_order.fill_price,
-                )
+                ),
             )
 
             filled_order = deepcopy(order)
@@ -386,9 +413,7 @@ class OrderBook:
             )
             self.owner.send_message(order.agent_id, OrderExecutedMsg(filled_order))
 
-            if self.owner.book_logging:
-                # append current OB state to book_log2
-                self.append_book_log2()
+            self._publish_snapshot(self.owner.current_time)
 
             # Return (only the executed portion of) the matched order.
             return matched_order
@@ -444,21 +469,19 @@ class OrderBook:
             book.insert(idx, PriceLevel([(order, metadata or {})]))
 
         if not quiet:
-            self.history.append(
-                dict(
-                    time=self.owner.current_time,
-                    type="LIMIT",
+            self._publish_event(
+                self.owner.current_time,
+                "LIMIT",
+                LimitPayload(
+                    symbol=self.symbol,
                     order_id=order.order_id,
                     agent_id=order.agent_id,
                     side=order.side.value,
                     quantity=order.quantity,
                     price=order.limit_price,
-                )
+                ),
             )
-
-        if (self.owner.book_logging) and (not quiet):
-            # append current OB state to book_log2
-            self.append_book_log2()
+            self._publish_snapshot(self.owner.current_time)
 
     def cancel_order(
         self,
@@ -517,16 +540,17 @@ class OrderBook:
                 self.cancel_order(metadata["ptc_other_half"], quiet=True)
 
             if not quiet:
-                self.history.append(
-                    dict(
-                        time=self.owner.current_time,
-                        type="CANCEL",
+                self._publish_event(
+                    self.owner.current_time,
+                    "CANCEL",
+                    CancelPayload(
+                        symbol=self.symbol,
                         order_id=cancelled_order.order_id,
                         tag=tag,
                         metadata=(
                             cancellation_metadata if tag == "auctionFill" else None
                         ),
-                    )
+                    ),
                 )
 
                 self.owner.send_message(
@@ -535,8 +559,8 @@ class OrderBook:
 
             self.last_update_ts = self.owner.current_time
 
-            if (self.owner.book_logging) and (not quiet):
-                self.append_book_log2()
+            if not quiet:
+                self._publish_snapshot(self.owner.current_time)
 
             return True
 
@@ -562,14 +586,15 @@ class OrderBook:
         price_level = book[idx]
 
         if price_level.update_order_quantity(order.order_id, new_order.quantity):
-            self.history.append(
-                dict(
-                    time=self.owner.current_time,
-                    type="MODIFY",
+            self._publish_event(
+                self.owner.current_time,
+                "MODIFY",
+                ModifyPayload(
+                    symbol=self.symbol,
                     order_id=order.order_id,
                     new_side=order.side.value,
                     new_quantity=new_order.quantity,
-                )
+                ),
             )
 
             logger.debug("MODIFIED: order {}", order)
@@ -582,9 +607,7 @@ class OrderBook:
 
             self.last_update_ts = self.owner.current_time
 
-            if self.owner.book_logging:
-                # append current OB state to book_log2
-                self.append_book_log2()
+            self._publish_snapshot(self.owner.current_time)
 
     def partial_cancel_order(
         self,
@@ -614,15 +637,16 @@ class OrderBook:
         price_level = book[idx]
 
         if price_level.update_order_quantity(order.order_id, new_order.quantity):
-            self.history.append(
-                dict(
-                    time=self.owner.current_time,
-                    type="CANCEL_PARTIAL",
+            self._publish_event(
+                self.owner.current_time,
+                "CANCEL_PARTIAL",
+                CancelPartialPayload(
+                    symbol=self.symbol,
                     order_id=order.order_id,
                     quantity=quantity,
                     tag=tag,
                     metadata=(cancellation_metadata if tag == "auctionFill" else None),
-                )
+                ),
             )
 
             logger.debug("CANCEL_PARTIAL: order {}", order)
@@ -635,8 +659,7 @@ class OrderBook:
 
             self.last_update_ts = self.owner.current_time
 
-            if self.owner.book_logging:
-                self.append_book_log2()
+            self._publish_snapshot(self.owner.current_time)
 
     def replace_order(
         self,
@@ -658,15 +681,16 @@ class OrderBook:
         """
 
         if self.cancel_order(old_order, quiet=True):
-            self.history.append(
-                dict(
-                    time=self.owner.current_time,
-                    type="REPLACE",
+            self._publish_event(
+                self.owner.current_time,
+                "REPLACE",
+                ReplacePayload(
+                    symbol=self.symbol,
                     old_order_id=old_order.order_id,
                     new_order_id=new_order.order_id,
                     quantity=new_order.quantity,
                     price=new_order.limit_price,
-                )
+                ),
             )
 
             self.handle_limit_order(new_order, quiet=True)
@@ -677,18 +701,185 @@ class OrderBook:
 
             self.owner.send_message(agent_id, OrderReplacedMsg(old_order, new_order))
 
-        if self.owner.book_logging:
-            # append current OB state to book_log2
-            self.append_book_log2()
+        self._publish_snapshot(self.owner.current_time)
 
-    def append_book_log2(self):
-        row = {
-            "QuoteTime": self.owner.current_time,
-            "bids": np.array(self.get_l2_bid_data(depth=self.owner.book_log_depth)),
-            "asks": np.array(self.get_l2_ask_data(depth=self.owner.book_log_depth)),
-        }
-        # if (row["bids"][0][0]>=row["asks"][0][0]): print("WARNING: THIS IS A REAL PROBLEM: an order book contains bids and asks at the same quote price!")
-        self.book_log2.append(row)
+    def _publish_snapshot(self, t: NanosecondTime) -> None:
+        """Publish a book snapshot to the EventBus, respecting ``book_capture`` mode.
+
+        ``"off"``  → no-op (zero overhead, never touches the bus).
+        ``"l1"``   → publish only the top of each side; short-circuit when
+                     neither top has changed since the last publish (this is
+                     the publisher-side L1 dedup).  Depth is ``1``.
+        ``"l2"``   → publish the full depth captured by
+                     ``owner.book_log_depth``.
+
+        Bids/asks are passed as tuples of ``(price, qty)`` tuples — the
+        receiving sink stores them as-is and the deprecated
+        ``book_log2`` property converts to ``numpy.ndarray`` on
+        materialization, preserving the legacy shape.
+        """
+        mode = getattr(self.owner, "book_capture", "off")
+        if mode == "off":
+            return
+        kernel = getattr(self.owner, "kernel", None)
+        bus = getattr(kernel, "event_bus", None) if kernel is not None else None
+        if mode == "l1":
+            bid_top = self.get_l1_bid_data()
+            ask_top = self.get_l1_ask_data()
+            if bid_top == self._last_bid_top and ask_top == self._last_ask_top:
+                return
+            self._last_bid_top = bid_top
+            self._last_ask_top = ask_top
+            bids = (bid_top,) if bid_top is not None else ()
+            asks = (ask_top,) if ask_top is not None else ()
+            if bus is None:
+                if self._fallback_book_log2 is None:
+                    self._fallback_book_log2 = []
+                self._fallback_book_log2.append(
+                    {
+                        "QuoteTime": t,
+                        "bids": np.array(bids),
+                        "asks": np.array(asks),
+                    }
+                )
+            else:
+                bus.publish_book_snapshot(self.symbol, t, bids, asks, 1)
+        else:  # "l2"
+            depth = self.owner.book_log_depth
+            bids = tuple(map(tuple, self.get_l2_bid_data(depth=depth)))
+            asks = tuple(map(tuple, self.get_l2_ask_data(depth=depth)))
+            if bus is None:
+                if self._fallback_book_log2 is None:
+                    self._fallback_book_log2 = []
+                self._fallback_book_log2.append(
+                    {
+                        "QuoteTime": t,
+                        "bids": np.array(bids),
+                        "asks": np.array(asks),
+                    }
+                )
+            else:
+                bus.publish_book_snapshot(self.symbol, t, bids, asks, depth)
+
+    def _publish_event(self, t: NanosecondTime, event_type: str, payload: Any) -> None:
+        """Publish a typed order-book event payload to the EventBus.
+
+        The history sink is registered unconditionally by the compiler
+        (the exchange agent reads ``OrderBook.history`` to answer
+        ``QueryOrderStreamMsg``).  When no sink accepts events the bus
+        rebinds ``publish_event`` to a no-op at start time.  When no
+        kernel/bus is attached (e.g. standalone OrderBook unit tests
+        with a fake owner), publishing is silently skipped.
+        """
+        kernel = getattr(self.owner, "kernel", None)
+        bus = getattr(kernel, "event_bus", None) if kernel is not None else None
+        if bus is None:
+            if self._fallback_history is None:
+                self._fallback_history = []
+            payload_dict = (
+                payload._asdict() if hasattr(payload, "_asdict") else dict(payload)
+            )
+            payload_dict.pop("symbol", None)
+            entry: dict[str, Any] = {"time": t, "type": event_type}
+            entry.update(payload_dict)
+            self._fallback_history.append(entry)
+            return
+        bus.publish_event(
+            self.owner.id,
+            "ExchangeAgent",
+            t,
+            event_type,
+            payload,
+        )
+
+    # ------------------------------------------------------------------
+    # Deprecated cached views on EventBus-captured book data
+    # ------------------------------------------------------------------
+    def _find_sink(self, sink_cls: type) -> Any | None:
+        """Locate the per-symbol sink of *sink_cls* on the kernel's bus.
+
+        Returns ``None`` when the kernel/bus is not yet attached (e.g.
+        during construction before ``kernel.initialize_agents``) or when
+        no matching sink is registered (e.g. ``book_capture == "off"``
+        for the snapshot sink).
+        """
+        bus_owner = getattr(self.owner, "kernel", None)
+        if bus_owner is None:
+            return None
+        bus = getattr(bus_owner, "event_bus", None)
+        if bus is None:
+            return None
+        for sink in bus._sinks:
+            if (
+                isinstance(sink, sink_cls)
+                and getattr(sink, "symbol", None) == self.symbol
+            ):
+                return sink
+        return None
+
+    @property
+    def book_log2(self) -> list[dict[str, Any]]:
+        """Deprecated: legacy view of book snapshots.
+
+        Materialises from the per-symbol ``OrderBookSnapshotMemorySink``.
+        Returns an empty list when ``book_capture == "off"`` (the
+        snapshot sink is not registered in that case).  The cache is
+        invalidated whenever the sink length changes, so the property
+        remains live across repeated reads inside the simulation.
+        """
+        if not self._book_log2_warned:
+            warnings.warn(
+                "OrderBook.book_log2 is deprecated; read snapshots from the "
+                "matching OrderBookSnapshotMemorySink (kernel.event_bus._sinks) "
+                "or via SimulationResult.markets.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._book_log2_warned = True
+        from abides_core.event_sinks import OrderBookSnapshotMemorySink
+
+        sink = self._find_sink(OrderBookSnapshotMemorySink)
+        if sink is None:
+            if self._fallback_book_log2 is not None:
+                return list(self._fallback_book_log2)
+            return []
+        if self._book_log2_cache is None or len(self._book_log2_cache) != len(sink):
+            self._book_log2_cache = list(sink.as_book_log2())
+        return self._book_log2_cache
+
+    @property
+    def history(self) -> list[dict[str, Any]]:
+        """Deprecated: legacy view of order-book event history.
+
+        Materialises from the per-symbol ``OrderBookHistoryMemorySink``.
+        Returns a *list* (not tuple) for backward compatibility with
+        callers that slice or index it (e.g. the exchange agent slices
+        ``history[1 : length + 1]`` when answering
+        ``QueryOrderStreamMsg``).  The cache is invalidated whenever the
+        sink length changes, so the property remains live across
+        repeated reads inside the simulation.  The returned list is a
+        fresh allocation on rebuild — callers must not mutate it
+        expecting persistence.
+        """
+        if not self._history_warned:
+            warnings.warn(
+                "OrderBook.history is deprecated; read events from the matching "
+                "OrderBookHistoryMemorySink (kernel.event_bus._sinks) or via "
+                "SimulationResult.logs.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self._history_warned = True
+        from abides_core.event_sinks import OrderBookHistoryMemorySink
+
+        sink = self._find_sink(OrderBookHistoryMemorySink)
+        if sink is None:
+            if self._fallback_history is not None:
+                return self._fallback_history
+            return []
+        if self._history_cache is None or len(self._history_cache) != len(sink):
+            self._history_cache = list(sink.as_history_dicts())
+        return self._history_cache
 
     def get_l1_bid_data(self) -> tuple[int, int] | None:
         """Returns the current best bid price and of the book and the volume at this price."""

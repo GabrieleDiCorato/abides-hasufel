@@ -28,10 +28,7 @@ _BASELINE_PATH = Path(__file__).parent / "data" / "book_capture_baseline_l2.pkl"
 
 def _build_config(book_capture: str | None) -> Any:
     builder = (
-        SimulationBuilder()
-        .from_template("rmsc04")
-        .market(end_time="09:32:00")
-        .seed(42)
+        SimulationBuilder().from_template("rmsc04").market(end_time="09:32:00").seed(42)
     )
     if book_capture is not None:
         # Pass only book_capture; leaving book_logging at its default avoids
@@ -68,7 +65,7 @@ def _load_baseline() -> dict:
             "Regenerate with tests/data/_capture_book_baseline.py."
         )
     with _BASELINE_PATH.open("rb") as fh:
-        return pickle.load(fh)
+        return pickle.load(fh)  # type: ignore[no-any-return]
 
 
 def _compress_l1(series: dict | None) -> list[tuple[int | None, int | None]]:
@@ -94,9 +91,9 @@ def test_l2_byte_equivalent() -> None:
 
     assert set(actual) == set(baseline), "symbol set drifted"
     for symbol in baseline:
-        assert actual[symbol] == baseline[symbol], (
-            f"market data mismatch for {symbol!r}"
-        )
+        assert (
+            actual[symbol] == baseline[symbol]
+        ), f"market data mismatch for {symbol!r}"
 
 
 @pytest.mark.xfail(
@@ -120,15 +117,15 @@ def test_l1_subset_of_l2() -> None:
     for symbol, expected in baseline.items():
         got = actual[symbol]
         # l2_series must be empty / absent in l1 mode.
-        assert got["l2_series"] is None or not got["l2_series"]["times_ns"], (
-            f"l2_series should be empty in l1 mode for {symbol!r}"
-        )
+        assert (
+            got["l2_series"] is None or not got["l2_series"]["times_ns"]
+        ), f"l2_series should be empty in l1 mode for {symbol!r}"
         # l1_close (final bid/ask) is mode-invariant.
-        assert got["l1_close"] == expected["l1_close"], (
-            f"l1_close mismatch for {symbol!r}"
-        )
+        assert (
+            got["l1_close"] == expected["l1_close"]
+        ), f"l1_close mismatch for {symbol!r}"
         # l1_series in l1 mode equals the l2-baseline l1_series with
         # consecutive duplicates removed.
-        assert _compress_l1(got["l1_series"]) == _compress_l1(expected["l1_series"]), (
-            f"l1_series compression mismatch for {symbol!r}"
-        )
+        assert _compress_l1(got["l1_series"]) == _compress_l1(
+            expected["l1_series"]
+        ), f"l1_series compression mismatch for {symbol!r}"
