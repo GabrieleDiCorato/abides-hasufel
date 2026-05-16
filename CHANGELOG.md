@@ -1,6 +1,51 @@
 Unreleased
 ==========
 
+Event bus (Phase 2 follow-up review)
+------------------------------------
+
+- **``AGENT_TYPE`` is now re-emitted on every kernel attach.** Previously
+  the event was published once from ``Agent.__init__`` via the pre-init
+  buffer, so a second ``Kernel`` constructed with the same agent (the
+  gym-reset pattern) would silently lose its ``AGENT_TYPE`` row.  The
+  event is now emitted from ``Agent.kernel_initializing()`` and fires on
+  every kernel attach.
+- **``parse_logs_df`` now reads ``InMemorySink`` in a single pass.**  The
+  previous implementation iterated ``agent.log`` per agent, triggering
+  the ``Agent.log`` ``DeprecationWarning`` once per agent and
+  re-scanning the full event list ``O(N_agents)`` times.  The fast path
+  fetches the sink once and groups events by ``agent_id`` in one pass.
+  A duck-typed fallback iterates ``agent.log`` only when no kernel is
+  reachable (kept for benchmarks and ad-hoc test fakes).
+- **``_extract_equity_curve`` reads the sink directly.**  Runs no longer
+  emit one ``DeprecationWarning`` per ``TradingAgent`` at termination.
+- **Sink failures are surfaced on ``KernelRunResult``.**  New
+  ``KernelRunResult.sink_failures`` field (tuple of
+  ``SinkFailure(sink_index, sink_type, exception_repr)``) lets
+  programmatic callers detect partial telemetry loss (e.g.
+  ``BZ2PickleSink`` hitting a full disk) without parsing logs.
+- **Per-batch sink failure isolation.**  ``EventBus._drain_buffers``
+  now wraps a single ``try/except`` around the whole tuple loop for
+  each sink instead of per tuple.  A failing sink is marked dead and
+  fully skipped on subsequent batches — the previous version still
+  paid a per-tuple ``try/except`` cost for a sink it knew was broken.
+- **``EventBus.register()`` validates the ``EventSink`` Protocol.**
+  Non-conforming sinks now raise ``TypeError`` at registration time
+  (with the missing-method list) rather than at ``start()`` time with
+  an ``AttributeError``.  The ``accept_*`` class attributes are also
+  checked explicitly.
+- **``publish_book_snapshot`` honours the pre-start buffer.**  Calls
+  made before ``EventBus.start()`` are now queued and delivered on
+  start, matching the existing behaviour of ``publish_event`` and
+  ``publish_metric``.
+- **``BZ2PickleSink`` reads ``log_to_file`` at ``on_simulation_start``.**
+  The legacy kernel path checked ``agent.log_to_file`` lazily at
+  termination.  The sink now matches that contract instead of freezing
+  the flag at construction time.
+- **``EventBus.in_memory_sink`` is now O(1).**  The first
+  ``InMemorySink`` is cached at ``register()`` time rather than
+  re-scanned on every property access.
+
 Event bus (Phase 2)
 -------------------
 

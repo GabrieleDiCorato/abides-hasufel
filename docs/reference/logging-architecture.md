@@ -734,31 +734,59 @@ at `terminate()`. Events are **not** dispatched synchronously on
 lifecycle (e.g. in tests that call only `initialize()`), call
 `kernel.event_bus.drain()` first.
 
-### 4.6 Pre-init bootstrap
+### 4.6 Pre-init bootstrap and `AGENT_TYPE`
 
-`Agent.__init__()` emits `logEvent("AGENT_TYPE", type)` before the
-kernel is attached. These events are buffered in `_pre_init_log`
-(a `list[tuple[str, Any]]`). At `kernel_initializing()`, the buffer
-is flushed into the bus with `sim_time_ns=0`. Because `bus.start()` has
-not been called yet, those events enter the pre-start queue and are
-drained automatically when `bus.start()` is called.
+`Agent.__init__()` does **not** publish `AGENT_TYPE`.  It only allocates
+an empty `_pre_init_log` buffer for any subclass that calls
+``logEvent()`` from its own ``__init__``.  Each call to
+``Agent.kernel_initializing()`` publishes a fresh
+``AGENT_TYPE`` event to the bus it has just attached to, then flushes
+the pre-init buffer.  This guarantees ``AGENT_TYPE`` is re-emitted on
+every kernel attach (the gym-reset pattern of constructing a new
+``Kernel`` with the same agent).  All bootstrap events carry
+``sim_time_ns=0``.
+
+Because ``bus.start()`` has not been called yet, these events enter the
+pre-start queue and are drained automatically when ``bus.start()`` is
+called.  The pre-start queue exists for all three wire kinds
+(``publish_event``, ``publish_metric``, ``publish_book_snapshot``), so
+book snapshots published before ``start()`` (e.g. by an oracle warm-up
+step) are also delivered.
 
 ### 4.7 Custom sinks
 
 Pass `event_sinks: list[EventSink]` to `Kernel(...)` to replace all
 default sinks. Pass `event_sinks=[]` to disable all sinks (no-op mode).
 Each sink is registered with `bus.register(sink)` and must implement
-the `EventSink` Protocol.
+the `EventSink` Protocol.  ``register()`` validates the Protocol at
+registration time and raises ``TypeError`` with a missing-method list
+if the object does not conform; the ``accept_*`` class attributes are
+checked explicitly.
 
 ### 4.8 Failure isolation
 
-Each sink dispatch is wrapped in `_call_sink()`. On exception:
-- The sink is added to `_failed_sinks` and removed from future dispatch.
-- The failure is logged at `ERROR`.
-- The simulation continues.
-- `bus.shutdown()` raises `RuntimeError` if any sinks failed;
-  `Kernel.terminate()` catches and logs this rather than re-raising
-  (conservative Phase 2 behaviour).
+A single ``try/except`` wraps the whole tuple loop for each sink in
+``_drain_buffers()``.  On exception:
+
+- The sink is added to ``_failed_sinks`` and the failure tuple is
+  appended to ``_sink_failures`` once (subsequent batches for the same
+  sink are skipped entirely).
+- The remaining tuples of the *current* batch are dropped for that
+  sink only.
+- Other sinks see the full batch.
+- The exception is logged at ``ERROR`` with ``exc_info``.
+- ``bus.shutdown()`` raises ``RuntimeError`` summarising all failed
+  sinks; ``Kernel.terminate()`` catches and logs this rather than
+  re-raising (conservative Phase 2 behaviour).
+- The failures are also surfaced programmatically on
+  ``KernelRunResult.sink_failures`` as a tuple of ``SinkFailure``
+  records (``sink_index``, ``sink_type``, ``exception_repr``).  Callers
+  that want to fail the run on any sink failure can check this field
+  after ``kernel.run()``.
+
+The per-batch (rather than per-tuple) wrapping avoids the overhead of
+millions of ``try/except`` frames in the hot dispatch path and prevents
+a known-broken sink from being re-invoked for every remaining tuple.
 
 ### 4.9 Deprecated `agent.log` property
 

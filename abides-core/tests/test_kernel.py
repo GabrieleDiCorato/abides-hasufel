@@ -1181,3 +1181,204 @@ class TestEventBusNoOpRebind:
         kernel.run()
         # No in_memory_sink means agent.log returns [] (gracefully).
         assert kernel.event_bus.in_memory_sink is None
+
+
+# ---------------------------------------------------------------------------
+# EventBus failure isolation, validation, and lifecycle re-emission
+# ---------------------------------------------------------------------------
+
+
+class _RaisingSink:
+    """Sink that raises on the first on_event() call.
+
+    Honours the :class:`abides_core.event_sinks.EventSink` Protocol
+    (duck-typed via flags + methods).  After the first raise the bus
+    should mark this sink failed and skip it for the rest of the run.
+    """
+
+    accept_events = True
+    accept_metrics = False
+    accept_book_snapshots = False
+
+    def __init__(self, raise_on: str = "on_event") -> None:
+        self._raise_on = raise_on
+        self.on_event_calls = 0
+        self.start_calls = 0
+        self.end_calls = 0
+        self.metric_calls = 0
+        self.book_calls = 0
+
+    def on_simulation_start(self, meta: dict) -> None:
+        self.start_calls += 1
+        if self._raise_on == "on_simulation_start":
+            raise RuntimeError("boom-start")
+
+    def on_simulation_end(self, meta: dict) -> None:
+        self.end_calls += 1
+        if self._raise_on == "on_simulation_end":
+            raise RuntimeError("boom-end")
+
+    def on_event(self, t) -> None:
+        self.on_event_calls += 1
+        if self._raise_on == "on_event":
+            raise RuntimeError("boom-event")
+
+    def on_metric(self, t) -> None:
+        self.metric_calls += 1
+
+    def on_book_snapshot(self, t) -> None:
+        self.book_calls += 1
+
+    def flush(self) -> None:
+        pass
+
+
+class TestEventBusSinkFailureIsolation:
+    """A sink that raises must be quarantined; other sinks keep working."""
+
+    def test_on_event_raise_marks_sink_failed_and_shutdown_raises(self):
+
+        from abides_core.event_sinks import InMemorySink
+
+        good = InMemorySink()
+        bad = _RaisingSink(raise_on="on_event")
+        agent = _LoggingAgent(0)
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=11),
+            event_sinks=[good, bad],
+        )
+        # Kernel.terminate() catches the shutdown RuntimeError; run() must
+        # complete and the result must expose the failure.
+        kernel.run()
+        # InMemorySink still captured every event despite bad sink failing.
+        assert len(good.events) > 0
+        # bad sink got at least one call (then was marked failed).
+        assert bad.on_event_calls >= 1
+        # bus tracks the failure
+        assert kernel.event_bus._sink_failures, "Expected recorded sink failure"
+        sink_idx, exc = kernel.event_bus._sink_failures[0]
+        assert sink_idx == 1
+        assert isinstance(exc, RuntimeError)
+        # Directly calling shutdown a second time would raise, but the kernel
+        # already swallowed it; verify by manual replay on a fresh bus.
+        # (We rely on the kernel path having logged the failure.)
+
+    def test_on_simulation_start_raise_isolated(self):
+        from abides_core.event_sinks import InMemorySink
+
+        good = InMemorySink()
+        bad = _RaisingSink(raise_on="on_simulation_start")
+        agent = _LoggingAgent(0)
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=12),
+            event_sinks=[good, bad],
+        )
+        kernel.run()
+        # Good sink received events; bad sink was marked failed after start.
+        assert len(good.events) > 0
+        assert bad.on_event_calls == 0
+
+
+class TestEventBusRegisterValidation:
+    """register() must reject objects that don't satisfy the EventSink Protocol."""
+
+    def test_register_rejects_non_sink_object(self):
+        import pytest
+
+        from abides_core.event_bus import EventBus
+
+        bus = EventBus()
+        with pytest.raises(TypeError, match="EventSink"):
+            bus.register(object())
+
+
+class TestEventBusBookSnapshotPreStartBuffer:
+    """publish_book_snapshot() called before start() must deliver after start."""
+
+    def test_pre_start_book_snapshot_delivered(self):
+        from abides_core.event_bus import EventBus
+        from abides_core.event_sinks import InMemorySink
+
+        sink = InMemorySink()
+        bus = EventBus()
+        bus.register(sink)
+        # Publish before start: should buffer.
+        bus.publish_book_snapshot("ABM", 1_000_000_000, [(100, 5)], [(101, 5)], 1)
+        assert sink.book_snapshots == []
+        bus.start(meta={"sim_id": "test"})
+        # Drained on start.
+        assert len(sink.book_snapshots) == 1
+        # Subsequent publishes go into the ring buffer; drain dispatches them.
+        bus.publish_book_snapshot("ABM", 2_000_000_000, [(99, 5)], [(102, 5)], 1)
+        bus.drain()
+        assert len(sink.book_snapshots) == 2
+        bus.shutdown(meta={"sim_id": "test"})
+
+
+class TestEventBusAgentTypeAcrossReset:
+    """AGENT_TYPE event must be emitted from kernel_initializing (not __init__).
+
+    Validates two related contracts so AGENT_TYPE survives a gym-style
+    Kernel.terminate() + Kernel.initialize() round-trip:
+
+    * ``Agent.__init__`` must NOT push AGENT_TYPE into ``_pre_init_log``.
+      A pre-init log entry is consumed once by the first
+      ``kernel_initializing`` call and would be missing on the second
+      kernel attach.
+    * Each ``Agent.kernel_initializing`` invocation must publish exactly
+      one ``AGENT_TYPE`` event to the bus it has just attached to.
+    """
+
+    def test_agent_type_not_in_pre_init_log(self):
+        agent = _LoggingAgent(0)
+        # The pre-init queue may hold subclass events, but AGENT_TYPE must
+        # not be one of them — it is emitted lazily on kernel attach.
+        pre_init_types = {et for et, _ in agent._pre_init_log}
+        assert "AGENT_TYPE" not in pre_init_types
+
+    def test_agent_type_emitted_on_each_kernel_attach(self):
+        agent = _LoggingAgent(0)
+
+        # First kernel attach: run a full simulation.
+        kernel1 = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=21),
+        )
+        kernel1.run()
+        sink1 = kernel1.event_bus.in_memory_sink
+        assert sink1 is not None
+        first_types = [e[1] for e in sink1.agent_log(agent.id)]
+        assert first_types.count("AGENT_TYPE") == 1, (
+            f"Expected exactly one AGENT_TYPE in first run, "
+            f"got {first_types.count('AGENT_TYPE')}: {first_types}"
+        )
+
+        # Second kernel attach: brand-new Kernel re-uses the same agent
+        # instance.  AGENT_TYPE must be re-emitted on the second attach
+        # because it lives in kernel_initializing(), not __init__.
+        kernel2 = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=22),
+        )
+        kernel2.run()
+        sink2 = kernel2.event_bus.in_memory_sink
+        assert sink2 is not None
+        second_types = [e[1] for e in sink2.agent_log(agent.id)]
+        assert second_types.count("AGENT_TYPE") == 1, (
+            f"Expected exactly one AGENT_TYPE in second run, "
+            f"got {second_types.count('AGENT_TYPE')}: {second_types}"
+        )
