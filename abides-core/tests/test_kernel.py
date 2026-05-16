@@ -1382,3 +1382,49 @@ class TestEventBusAgentTypeAcrossReset:
             f"Expected exactly one AGENT_TYPE in second run, "
             f"got {second_types.count('AGENT_TYPE')}: {second_types}"
         )
+
+
+class TestEventSinksRuntimePlumbing:
+    """``event_sinks`` must flow through ``_kernel_from_runtime`` to the Kernel.
+
+    Guards the whitelist in :func:`abides_core.abides._kernel_from_runtime`
+    so caller-supplied sinks survive the compile→run boundary.
+    """
+
+    def test_event_sinks_forwarded_from_runtime(self):
+        from abides_core.abides import _kernel_from_runtime
+        from abides_core.event_sinks import InMemorySink
+
+        custom = InMemorySink()
+        runtime = {
+            "start_time": str_to_ns("09:30:00"),
+            "stop_time": str_to_ns("16:00:00"),
+            "agents": [],
+            "skip_log": True,
+            "event_sinks": [custom],
+        }
+        kernel = _kernel_from_runtime(
+            runtime,
+            random_state=np.random.RandomState(seed=7),
+        )
+        # The supplied sink must be present on the bus.
+        assert custom in kernel.event_bus._sinks
+
+    def test_unknown_runtime_keys_silently_dropped(self):
+        """Whitelist behavior — extra keys are tolerated (not forwarded)."""
+        from abides_core.abides import _kernel_from_runtime
+
+        runtime = {
+            "start_time": str_to_ns("09:30:00"),
+            "stop_time": str_to_ns("16:00:00"),
+            "agents": [],
+            "skip_log": True,
+            "seed": 42,  # not in whitelist; must not raise
+            "stdout_log_level": "INFO",  # not in whitelist; must not raise
+        }
+        # Should construct without raising.
+        kernel = _kernel_from_runtime(
+            runtime,
+            random_state=np.random.RandomState(seed=7),
+        )
+        assert kernel is not None

@@ -44,6 +44,7 @@ def _kernel_from_runtime(
         "oracle",
         "observers",
         "skip_log",
+        "event_sinks",
     }
     kwargs = {k: v for k, v in runtime.items() if k in kernel_keys}
     return Kernel(
