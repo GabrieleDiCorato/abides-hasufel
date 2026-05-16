@@ -372,6 +372,163 @@ class MetricsObserverSink:
 
 
 # ---------------------------------------------------------------------------
+# Order-book sinks
+# ---------------------------------------------------------------------------
+
+
+class OrderBookSnapshotMemorySink:
+    """In-memory collector for per-symbol book-snapshot tuples.
+
+    Filters incoming ``(symbol, sim_time_ns, bids, asks, depth, seq)``
+    tuples by ``symbol`` and stores parallel columnar arrays.  Exposes
+    :meth:`as_book_log2` to materialize the legacy ``OrderBook.book_log2``
+    shape (tuple of ``{"QuoteTime", "bids", "asks"}`` dicts) for backward
+    compatibility with extractors that still expect that format.
+
+    Arguments:
+        symbol: Symbol this sink listens for.  Snapshots for other
+            symbols are dropped.
+        depth: Documented capture depth (not enforced; the publisher
+            controls how many levels are sent).
+    """
+
+    accept_events: bool = False
+    accept_metrics: bool = False
+    accept_book_snapshots: bool = True
+
+    def __init__(self, symbol: str, depth: int) -> None:
+        self.symbol: str = symbol
+        self.depth: int = depth
+        self._times: list[NanosecondTime] = []
+        self._bids: list[Sequence[tuple[int, int]]] = []
+        self._asks: list[Sequence[tuple[int, int]]] = []
+
+    def on_simulation_start(self, meta: dict) -> None:
+        return
+
+    def on_event(
+        self, t: tuple
+    ) -> None:  # pragma: no cover — disabled by accept_events
+        return
+
+    def on_metric(
+        self, t: tuple
+    ) -> None:  # pragma: no cover — disabled by accept_metrics
+        return
+
+    def on_book_snapshot(self, t: tuple) -> None:
+        symbol, sim_time_ns, bids, asks, _depth, _seq = t
+        if symbol != self.symbol:
+            return
+        self._times.append(sim_time_ns)
+        self._bids.append(bids)
+        self._asks.append(asks)
+
+    def flush(self) -> None:
+        return
+
+    def on_simulation_end(self, meta: dict) -> None:
+        return
+
+    def __len__(self) -> int:
+        return len(self._times)
+
+    def as_book_log2(self) -> tuple[dict[str, Any], ...]:
+        """Materialize the legacy ``OrderBook.book_log2`` shape.
+
+        Returns a tuple of ``{"QuoteTime", "bids", "asks"}`` dicts where
+        ``bids`` and ``asks`` are :class:`numpy.ndarray` instances
+        (matching the historical type).  The returned tuple is a fresh
+        allocation; mutating it does not affect sink state.
+        """
+        import numpy as np
+
+        return tuple(
+            {"QuoteTime": t, "bids": np.array(b), "asks": np.array(a)}
+            for t, b, a in zip(self._times, self._bids, self._asks, strict=True)
+        )
+
+
+class OrderBookHistoryMemorySink:
+    """In-memory collector for per-symbol order-book event history.
+
+    Filters incoming event tuples by ``event_type`` (against a fixed
+    allowlist) and by ``payload.symbol`` (book event payloads carry
+    ``symbol`` as a NamedTuple field so multi-symbol exchanges can be
+    demultiplexed).  Stores the raw wire tuples for cheap iteration.
+
+    Arguments:
+        symbol: Symbol this sink listens for.  Events whose payload
+            ``.symbol`` does not match are dropped.
+        event_types: Allowlist of event-type strings (e.g.
+            ``frozenset({"LIMIT", "EXEC", "CANCEL"})``).  Events of other
+            types are dropped at filter time.
+    """
+
+    accept_events: bool = True
+    accept_metrics: bool = False
+    accept_book_snapshots: bool = False
+
+    def __init__(self, symbol: str, event_types: frozenset[str]) -> None:
+        self.symbol: str = symbol
+        self.event_types: frozenset[str] = event_types
+        self._tuples: list[tuple] = []
+
+    def on_simulation_start(self, meta: dict) -> None:
+        return
+
+    def on_event(self, t: tuple) -> None:
+        _agent_id, _agent_type, _sim_time_ns, event_type, payload, _seq = t
+        if event_type not in self.event_types:
+            return
+        if getattr(payload, "symbol", None) != self.symbol:
+            return
+        self._tuples.append(t)
+
+    def on_metric(
+        self, t: tuple
+    ) -> None:  # pragma: no cover — disabled by accept_metrics
+        return
+
+    def on_book_snapshot(
+        self, t: tuple
+    ) -> None:  # pragma: no cover — disabled by accept_book_snapshots
+        return
+
+    def flush(self) -> None:
+        return
+
+    def on_simulation_end(self, meta: dict) -> None:
+        return
+
+    def __len__(self) -> int:
+        return len(self._tuples)
+
+    def entries(self) -> tuple[tuple, ...]:
+        """Return all captured wire tuples (filtered by symbol + event types)."""
+        return tuple(self._tuples)
+
+    def as_history_dicts(self) -> tuple[dict[str, Any], ...]:
+        """Materialize the legacy ``OrderBook.history`` shape.
+
+        Each entry is a dict with ``time`` and ``type`` keys followed by
+        the payload's NamedTuple fields (``symbol`` is dropped to match
+        the historical shape exactly).  The returned tuple is a fresh
+        allocation.
+        """
+        out: list[dict[str, Any]] = []
+        for _aid, _atype, sim_time_ns, event_type, payload, _seq in self._tuples:
+            d: dict[str, Any] = {"time": sim_time_ns, "type": event_type}
+            payload_dict = (
+                payload._asdict() if hasattr(payload, "_asdict") else dict(payload)
+            )
+            payload_dict.pop("symbol", None)
+            d.update(payload_dict)
+            out.append(d)
+        return tuple(out)
+
+
+# ---------------------------------------------------------------------------
 # Deprecation helper used by the Agent.log shim
 # ---------------------------------------------------------------------------
 

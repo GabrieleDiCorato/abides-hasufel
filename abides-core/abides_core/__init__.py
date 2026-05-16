@@ -17,6 +17,8 @@ from .event_sinks import (  # noqa: E402
     EventSink,
     InMemorySink,
     MetricsObserverSink,
+    OrderBookHistoryMemorySink,
+    OrderBookSnapshotMemorySink,
 )
 from .kernel import Kernel  # noqa: E402
 from .latency_model import LatencyModel  # noqa: E402
@@ -43,6 +45,8 @@ __all__ = [
     "MetricsObserverSink",
     "NanosecondTime",
     "Oracle",
+    "OrderBookHistoryMemorySink",
+    "OrderBookSnapshotMemorySink",
     "WIRE_FIELDS_BOOK_SNAPSHOT",
     "WIRE_FIELDS_EVENT",
     "WIRE_FIELDS_METRIC",
