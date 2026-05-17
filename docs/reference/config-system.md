@@ -5,7 +5,7 @@ market simulations. It replaces (or complements) the procedural `build_config()`
 functions with declarative Pydantic models, YAML/JSON serialization, and
 composable templates.
 
-> **Interactive tutorial:** See [`notebooks/demo_Config_System.ipynb`](../notebooks/demo_Config_System.ipynb)
+> **Interactive tutorial:** See [`notebooks/demo_Config_System.ipynb`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/notebooks/demo_Config_System.ipynb)
 > for a hands-on walkthrough of every feature below.
 
 ---

@@ -3,7 +3,7 @@
 How releases of `abides-ng` (and eventually `abides-ng[gym]`) are produced and
 published. This document is the operational reference for the
 release workflow at
-[.github/workflows/release.yml](../../.github/workflows/release.yml).
+[.github/workflows/release.yml](https://github.com/GabrieleDiCorato/abides-ng/blob/main/.github/workflows/release.yml).
 
 ## Distribution overview
 

@@ -59,9 +59,7 @@ test = [
     "pytest-cov>=6.0.0",
 ]
 docs = [
-    "sphinx>=8.0.0",
-    "sphinx-autodoc-typehints>=2.5.0",
-    "sphinx-book-theme>=1.1.0",
+    "mkdocs-material>=9.5.0",
 ]
 
 [project.urls]
@@ -69,7 +67,7 @@ Homepage = "https://github.com/GabrieleDiCorato/abides-ng"
 Repository = "https://github.com/GabrieleDiCorato/abides-ng"
 Issues = "https://github.com/GabrieleDiCorato/abides-ng/issues"
 Changelog = "https://github.com/GabrieleDiCorato/abides-ng/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/GabrieleDiCorato/abides-ng/tree/main/docs"
+Documentation = "https://gabrieledicorato.github.io/abides-ng/"
 
 [build-system]
 requires = ["hatchling"]

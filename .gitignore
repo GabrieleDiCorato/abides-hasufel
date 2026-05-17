@@ -68,9 +68,13 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
-docs/_build/
-docs/export/
+# MkDocs build output
+site/
+
+# Ephemeral build/command log files
+build_errors.txt
+build_log.txt
+warnings.txt
 
 # PyBuilder
 .pybuilder/

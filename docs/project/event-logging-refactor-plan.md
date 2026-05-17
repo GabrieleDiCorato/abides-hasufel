@@ -31,7 +31,7 @@ Three real problems today:
    Carlo, and `abides-gym` training loops alike.
 2. **End-of-run cost is high.** `to_pickle(compression="bz2")` is the
    slowest pickle path in pandas. `parse_logs_df`
-   ([abides-core/abides_core/utils.py L154-L186](../../abides-core/abides_core/utils.py#L154-L186))
+   ([abides-core/abides_core/utils.py L154-L186](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py#L154-L186))
    is *not* O(N²) per row — it builds one `DataFrame` per agent and
    concats over `num_agents` frames — but it is still expensive: the
    per-row `dict()` reshape and column-widening at
@@ -82,7 +82,7 @@ zero-body function with the **exact positional signature** of the real
 allocation, no attribute load on the producer, no truthiness test.
 `markets_environment` already mutes `book_logging` and
 `exchange_log_orders` by hand
-([abides-gym/abides_gym/envs/markets_environment.py L54-L55](../../abides-gym/abides_gym/envs/markets_environment.py#L54-L55))
+([abides-gym/abides_gym/envs/markets_environment.py L54-L55](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-gym/abides_gym/envs/markets_environment.py#L54-L55))
 for exactly this reason; the new path generalizes that pattern to all
 record kinds and removes the per-publish branch entirely.
 
@@ -208,10 +208,10 @@ enforce them where possible.
   collection owned by a producer. Permitted payload shapes are:
   scalars (`int`/`float`/`str`/`bool`/enum value), tuples of scalars,
   and lists/tuples of tuples-of-scalars. Today
-  [abides-markets/abides_markets/agents/exchange_agent.py L420](../../abides-markets/abides_markets/agents/exchange_agent.py#L420)
+  [abides-markets/abides_markets/agents/exchange_agent.py L420](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L420)
   (the catch-all `else` branch:
   `self.logEvent(message.type(), message)`) and
-  [exchange_agent.py L993](../../abides-markets/abides_markets/agents/exchange_agent.py#L993)
+  [exchange_agent.py L993](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L993)
   publish raw `Message` objects — these pin sender, recipient, the
   order they wrap, and (for some message types) book snapshots, for
   the lifetime of the agent log. The `to_dict()` callsites at lines
@@ -228,10 +228,10 @@ enforce them where possible.
   not human-readable strings. Today `BEST_BID` / `BEST_ASK` /
   `LAST_TRADE` / `STOP_ORDER_ACCEPTED` allocate f-strings or `str(x)`
   on the hot path
-  ([order_book.py L213](../../abides-markets/abides_markets/order_book.py#L213),
-  [L219](../../abides-markets/abides_markets/order_book.py#L219),
-  [L234](../../abides-markets/abides_markets/order_book.py#L234);
-  [exchange_agent.py L722](../../abides-markets/abides_markets/agents/exchange_agent.py#L722)).
+  ([order_book.py L213](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py#L213),
+  [L219](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py#L219),
+  [L234](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py#L234);
+  [exchange_agent.py L722](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L722)).
   Replaced by tuple schemas (`QUOTE`, etc.; see §3.9). The
   schema-validator unit test (§3.9) AST-walks every callsite of
   `bus.publish_event`, `bus.publish_metric`, `bus.publish_book_snapshot`,
@@ -751,7 +751,7 @@ def to_dict(self) -> dict[str, Any]:
 ```
 
 `deepcopy(self)` invokes the subclass `__deepcopy__` (e.g.
-[orders.py L162-L186](../../abides-markets/abides_markets/orders.py#L162-L186)
+[orders.py L162-L186](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/orders.py#L162-L186)
 for `LimitOrder`), which constructs a fresh `LimitOrder` instance plus
 a `deepcopy(self.tag)` when `tag` is non-trivial. So every `ORDER_*`
 event today allocates, in the steady-state `tag=None` case:
@@ -785,7 +785,7 @@ bus.publish_event(self.id, "TradingAgent", t,
 
 `HOLDINGS_UPDATED` today fires from five sites in
 `abides-markets/abides_markets/agents/trading_agent.py` ([lines 283,
-1139, 1232, 1259, 1289](../../abides-markets/abides_markets/agents/trading_agent.py#L283)),
+1139, 1232, 1259, 1289](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L283)),
 each with `deepcopy_event=True` against the *entire* `self.holdings`
 dict. That cost scales with portfolio breadth — fine for toy
 single-symbol configs, expensive the moment a strategy spans many
@@ -814,7 +814,7 @@ even one tuple allocation per event.
 
 **Enums are stored as `int8`, not as Python enum objects.** `Order.side`
 is `Side` and `LimitOrder.time_in_force` is `TimeInForce`
-([orders.py L14, L25](../../abides-markets/abides_markets/orders.py#L14)).
+([orders.py L14, L25](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/orders.py#L14)).
 Parquet has no native enum type and pickled enums are not portable
 across schema versions. **Both enums are converted to `IntEnum` with
 stable integer values** (`Side.BID = 1`, `Side.ASK = 2`,
@@ -909,7 +909,7 @@ payload schemas to allow independent evolution.
 | Per-publish enum encoding cost | n/a | 0 (IntEnum slot read) |
 | Schema lookups on hot path | 0 | 0 (debug mode only) |
 | Reified payload objects per event | 0 (dict counts as raw) | 0 |
-| Live references retained in payload | unbounded for the **two** raw-`Message` callsites at [exchange_agent.py L420](../../abides-markets/abides_markets/agents/exchange_agent.py#L420) (catch-all `else`) and [L993](../../abides-markets/abides_markets/agents/exchange_agent.py#L993) (stop-trigger handling); the `to_dict()` callsites at L406 and L414 are unaffected | none (§2 invariant, debug-checked recursively) |
+| Live references retained in payload | unbounded for the **two** raw-`Message` callsites at [exchange_agent.py L420](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L420) (catch-all `else`) and [L993](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L993) (stop-trigger handling); the `to_dict()` callsites at L406 and L414 are unaffected | none (§2 invariant, debug-checked recursively) |
 
 The schema registry is **pure metadata**, allocated once at module
 import, with no per-event cost. Consumers gain a versioned, typed,
@@ -992,11 +992,11 @@ full file list.
 
 Payload shapes for semantically related events are inconsistent — for
 example `STOP_ORDER_ACCEPTED` publishes `str(order)`
-([exchange_agent.py L722](../../abides-markets/abides_markets/agents/exchange_agent.py#L722))
+([exchange_agent.py L722](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L722))
 while `STOP_ORDER_SUBMITTED` publishes `order.to_dict()`. The order
 book also emits a `<tag>_POST_ONLY` event with a `{order_id: int}`
 dict payload
-([order_book.py L289](../../abides-markets/abides_markets/order_book.py#L289)).
+([order_book.py L289](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py#L289)).
 
 The schema registry in §3.9 needs one row per surviving event type,
 and Phase 2 cannot ship until that table is finalized. This refactor
@@ -1025,7 +1025,7 @@ in the files listed above. Standardization rules:
   `QUOTE` schema. No f-string payloads survive.
 - Every `*_CASH` / `MARK_TO_MARKET` / `FINAL_VALUATION` event uses
   `CASH` schema. The `MARK_TO_MARKET` callsite at
-  [trading_agent.py L1547](../../abides-markets/abides_markets/agents/trading_agent.py#L1547)
+  [trading_agent.py L1547](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1547)
   already publishes a structured dict (not an f-string); it is
   re-shaped to the `CASH` tuple plus an optional human-readable
   summary at `INFO` log level.
@@ -1066,7 +1066,7 @@ This is a high-level map, not a final code review.
     fallback shim. The AST validator in §3.9 fails the build on any
     such residual call after Phase 2.
   - `Agent.log_events`
-    ([abides-core/abides_core/agent.py L67](../../abides-core/abides_core/agent.py#L67))
+    ([abides-core/abides_core/agent.py L67](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L67))
     becomes a **deprecated no-op** in Phase 4. Subsumed by sink-side
     declarative filters (`accept_event_types`) and the §3.4 no-op
     rebind. Configs that set it get a `DeprecationWarning` pointing
@@ -1077,7 +1077,7 @@ This is a high-level map, not a final code review.
     and the legacy `if self.log_events:` check — strictly worse than
     today.
   - **Note on the `log_to_file` interaction.** Today
-    [agent.py L73](../../abides-core/abides_core/agent.py#L73)
+    [agent.py L73](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L73)
     sets `self.log_to_file = log_to_file & log_events`, so disabling
     `log_events` also suppresses file emission. After the refactor
     that interaction collapses naturally (no sinks accept → no file
@@ -1097,7 +1097,7 @@ This is a high-level map, not a final code review.
     address:
 
     1. The `tag` field is documented at
-       [orders.py L74](../../abides-markets/abides_markets/orders.py#L74)
+       [orders.py L74](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/orders.py#L74)
        as a place callers attach arbitrary metadata. Tests, notebooks,
        and out-of-tree strategies may attach attributes other than
        `tag` directly to `Order` instances; slotting breaks that.
@@ -1105,7 +1105,7 @@ This is a high-level map, not a final code review.
        attachers are migrated to use `tag`. Out-of-tree breakage is
        documented in `CHANGELOG.md` for Phase 2.
     2. `Order.__eq__` at
-       [orders.py L106](../../abides-markets/abides_markets/orders.py#L106)
+       [orders.py L106](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/orders.py#L106)
        compares `self.__dict__ == other.__dict__`. Slotted instances
        have no `__dict__`. The Phase 2 PR rewrites `__eq__` to
        compare the slot tuple; a regression test asserts equivalence
@@ -1191,7 +1191,7 @@ This is a high-level map, not a final code review.
 - `abides_markets/abides_markets/order_book.py`
   - Each existing `if self.owner.book_logging: self.append_book_log2()`
     site (six callsites in the order book at
-    [L389-L391, L459-L461, L538-L539, L585-L587, L638-L639, L680-L682](../../abides-markets/abides_markets/order_book.py#L389))
+    [L389-L391, L459-L461, L538-L539, L585-L587, L638-L639, L680-L682](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py#L389))
     becomes a single
     `bus.publish_book_snapshot(symbol, sim_time_ns, bids, asks, depth)`,
     where `bids` and `asks` are immutable tuples-of-tuples produced
@@ -1225,18 +1225,18 @@ This is a high-level map, not a final code review.
     becomes a **deprecated no-op** in Phase 4 (subsumed by the
     snapshot sink's `accept_book_symbols`); removed in Phase 5+2.
   - Replace the **two raw-`Message`-publish callsites** —
-    [exchange_agent.py L420](../../abides-markets/abides_markets/agents/exchange_agent.py#L420)
+    [exchange_agent.py L420](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L420)
     (the catch-all `else` branch:
     `self.logEvent(message.type(), message)`) and
-    [L993](../../abides-markets/abides_markets/agents/exchange_agent.py#L993)
+    [L993](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L993)
     (stop-trigger handling) — with payload tuples derived from each
     message's public fields. These are the actual leak sites; today
     they pin sender, recipient, the wrapped `Order`, and (for some
     message types) book snapshots for the lifetime of the per-agent
     log — the most likely root cause of long-sim OOM. The
     `to_dict()`-based callsites at
-    [L406](../../abides-markets/abides_markets/agents/exchange_agent.py#L406)
-    and [L414](../../abides-markets/abides_markets/agents/exchange_agent.py#L414)
+    [L406](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L406)
+    and [L414](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L414)
     already publish dicts (not raw `Message` objects); they migrate
     to `to_payload_tuple()` for the per-event allocation win in
     §3.9, not as part of this leak fix. Each surviving event gets a
@@ -1250,7 +1250,7 @@ This is a high-level map, not a final code review.
     arrays via a single `pd.DataFrame({col: arr, ...})` call
     (Phase 1 — independent of the rest). Note the current signature
     is `parse_logs_df(agents: list)`
-    ([abides-core/abides_core/utils.py L154](../../abides-core/abides_core/utils.py#L154)).
+    ([abides-core/abides_core/utils.py L154](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py#L154)).
   - `SimulationResult.logs` is sourced from `InMemorySink` instead
     of walking the per-agent `agent.log` lists.
   - `_extract_l1_close`, `_extract_l1_series`, `_extract_l2_series`
@@ -1388,7 +1388,7 @@ are tied to these named benchmarks.
 ### Phase 1 — Quick wins (no architecture)
 
 - **Vectorize `parse_logs_df` materialization.** Today
-  ([abides-core/abides_core/utils.py L154-L186](../../abides-core/abides_core/utils.py#L154-L186))
+  ([abides-core/abides_core/utils.py L154-L186](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py#L154-L186))
   it builds one DataFrame per agent (each via
   `pd.DataFrame(messages)`), and concatenates them in a single
   `pd.concat` call. The Phase 1 win comes from collecting the flat
@@ -1402,7 +1402,7 @@ are tied to these named benchmarks.
 - Add `try/except` + temp-file-then-rename around all terminal
   `LogWriter` calls.
 - Honour `skip_log` in `Kernel.write_summary_log`. Today the method
-  ([abides-core/abides_core/kernel.py L853-L855](../../abides-core/abides_core/kernel.py#L853-L855))
+  ([abides-core/abides_core/kernel.py L853-L855](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L853-L855))
   unconditionally calls `self.log_writer.write_summary_log(...)`,
   bypassing the `skip_log` flag honoured elsewhere; the fix is a
   one-line guard before the call.

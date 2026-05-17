@@ -571,4 +571,4 @@ Start with unit tests for rapid iteration, then add one integration test to conf
 - [`llm-gotchas.md`](./llm-gotchas.md) — all `None`/`KeyError` traps, safe patterns
 - [`data-extraction.md`](./data-extraction.md) — parsing simulation logs and L1/L2 book history
 - [`parallel-simulation.md`](./parallel-simulation.md) — multiprocessing, RNG hierarchy, log layout
-- [`notebooks/demo_Config_System.ipynb`](../notebooks/demo_Config_System.ipynb) — interactive walkthrough of the config system
+- [`notebooks/demo_Config_System.ipynb`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/notebooks/demo_Config_System.ipynb) — interactive walkthrough of the config system

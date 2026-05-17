@@ -30,8 +30,8 @@ OrderBook capture on the EventBus (Phase 3a)
 - **Typed book event vocabulary.**  Six bare-string event types
   (``LIMIT``, ``EXEC``, ``CANCEL``, ``CANCEL_PARTIAL``, ``MODIFY``,
   ``REPLACE``) with ``NamedTuple`` payloads documented in
-  [docs/reference/event-vocabulary.md](docs/reference/event-vocabulary.md)
-  and [docs/reference/logging-architecture.md](docs/reference/logging-architecture.md)
+  [docs/reference/event-vocabulary.md](https://github.com/GabrieleDiCorato/abides-ng/blob/main/docs/reference/event-vocabulary.md)
+  and [docs/reference/logging-architecture.md](https://github.com/GabrieleDiCorato/abides-ng/blob/main/docs/reference/logging-architecture.md)
   §5.  ``symbol`` is the first payload field so a single history sink
   can demultiplex a multi-symbol exchange.
 - **Runner and ExchangeAgent read from the sinks directly.**

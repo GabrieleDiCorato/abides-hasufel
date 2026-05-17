@@ -1,0 +1,67 @@
+site_name: ABIDES-NG
+site_description: Agent-Based Interactive Discrete Event Simulation for financial markets research
+site_url: https://gabrieledicorato.github.io/abides-ng/
+repo_url: https://github.com/GabrieleDiCorato/abides-ng
+repo_name: GabrieleDiCorato/abides-ng
+edit_uri: edit/main/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - Reference:
+    - Config System: reference/config-system.md
+    - Custom Agent Guide: reference/custom-agent-guide.md
+    - Kernel Architecture: reference/kernel-architecture.md
+    - Logging Architecture: reference/logging-architecture.md
+    - Event Vocabulary: reference/event-vocabulary.md
+    - Data Extraction: reference/data-extraction.md
+    - Parallel Simulation: reference/parallel-simulation.md
+    - Metrics API: reference/metrics-api.md
+    - Metrics Algorithms: reference/metrics-algorithms.md
+    - LLM Integration Guide: reference/llm-gotchas.md
+  - Project:
+    - Roadmap: project/roadmap.md
+    - Release Process: project/release-process.md
+    - Reproducibility: project/reproducibility.md
+    - One-Pager: project/one-pager.md
+    - Event Logging Refactor: project/event-logging-refactor-plan.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - pymdownx.snippets:
+      base_path: ["."]
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
