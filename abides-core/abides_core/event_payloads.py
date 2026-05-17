@@ -288,6 +288,21 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     "OrderPartialCancelledMsg": ORDER_EVENT,
     "OrderModifiedMsg": ORDER_EVENT,
     "OrderReplacedMsg": ORDER_EVENT,
+    # --- ExchangeAgent non-order message echoes (Phase 2b Step 5) ---
+    # These are query/subscription requests echoed by ExchangeAgent.
+    # No structured payload is attached; the event is a bare receipt
+    # under the EMPTY schema (sender_id is recorded by the sink).
+    "QueryLastTradeMsg": EMPTY,
+    "QuerySpreadMsg": EMPTY,
+    "QueryOrderStreamMsg": EMPTY,
+    "QueryTransactedVolMsg": EMPTY,
+    "MarketHoursRequestMsg": EMPTY,
+    "MarketClosePriceRequestMsg": EMPTY,
+    "L1SubReqMsg": EMPTY,
+    "L2SubReqMsg": EMPTY,
+    "L3SubReqMsg": EMPTY,
+    "TransactedVolSubReqMsg": EMPTY,
+    "BookImbalanceSubReqMsg": EMPTY,
     # --- Holdings / cash (TradingAgent) ---
     "STARTING_CASH": CASH,
     "FINAL_CASH_POSITION": CASH,

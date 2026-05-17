@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from abides_core import Kernel, Message, NanosecondTime
+from abides_core.event_payloads import EMPTY_PAYLOAD
 
 from ..messages.market import (
     MarketClosedMsg,
@@ -534,7 +535,27 @@ class ExchangeAgent(FinancialAgent):
                         deepcopy_event=False,  # type: ignore
                     )
         else:
-            self.logEvent(message.type(), message)
+            # Non-order message echo. Restrict to the explicit allowlist of
+            # query/subscription requests registered in EVENT_TYPE_SCHEMA;
+            # log a bare receipt (EMPTY payload) for those, and warn-and-drop
+            # anything else so we never leak raw Message instances into the
+            # event stream.
+            if isinstance(
+                message,
+                (
+                    QueryMsg,
+                    MarketHoursRequestMsg,
+                    MarketClosePriceRequestMsg,
+                    MarketDataSubReqMsg,
+                ),
+            ):
+                self.logEvent(message.type(), EMPTY_PAYLOAD)
+            else:
+                logger.warning(
+                    "%s received unrecognized non-order message %s; dropping log event",
+                    self.name,
+                    message.type(),
+                )
 
         if isinstance(message, MarketDataSubReqMsg):
             # Handle the DATA SUBSCRIPTION request and cancellation messages from the agents.
