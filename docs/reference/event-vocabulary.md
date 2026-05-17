@@ -47,10 +47,13 @@
 >   and **`AMM_FLATTEN`** now ship positional tuples matching their
 >   registered schemas.
 >
-> Producers whose payload remains a `dict` (e.g. `HOLDINGS_UPDATED`,
-> the dynamic `<tag>_POST_ONLY` rejection events) intentionally fall
-> through to the `GENERIC` schema; reshaping `HOLDINGS_UPDATED` to a
-> per-fill delta tuple is the next planned change (Phase 2c).
+> Producers whose payload remains a `dict` (the dynamic
+> `<tag>_POST_ONLY` rejection events) intentionally fall through to
+> the `GENERIC` schema. `HOLDINGS_UPDATED` was reshaped to the
+> `HOLDINGS_DELTA` schema in Phase 2c: the payload is now the
+> positional tuple `(symbol, delta_qty, qty_after, cash_after_cents)`.
+> Use `abides_markets.utils.reconstruct_holdings` to fold per-fill
+> deltas back into a holdings snapshot.
 >
 > `parse_logs_df()` projects each schema back into per-field DataFrame
 > columns so existing notebook code keeps working. See
@@ -123,7 +126,7 @@ All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.co
 | `FINAL_HOLDINGS` | [249](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L249) | `Σ` | `str` (formatted) | external | `{"holdings": dict[str,int]}` | `[REVIEW]` change to dict | Currently a pre-formatted display string; loses structure for downstream parsing. |
 | `FINAL_CASH_POSITION` | [252](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L252) | `Σ` | `int` (cents) | external | `{"cash_cents": int}` | keep | |
 | `ENDING_CASH` | [257](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L257) | `Σ` | `int` (mark-to-market cents) | `test_market_boundaries.py:471,501`; external | `{"mark_to_market_cents": int}` | keep | Tests assert by name. |
-| `HOLDINGS_UPDATED` | [283, 1139, 1232, 1259, 1289](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L283) | `O` | `dict[str,int]` (deep-copied) | `parse_logs_df`; external | unchanged | `[REVIEW]` dedupe call sites | Five identical call sites. Same payload shape; could route through one helper. |
+| `HOLDINGS_UPDATED` | [283, 1155](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L283) | `O` | `(symbol, delta_qty, qty_after, cash_after_cents)` (HOLDINGS_DELTA v2) | `reconstruct_holdings`; ParquetSink typed columns | typed delta tuple | Phase 2c: reshaped from dict snapshot to per-fill delta. Use `reconstruct_holdings` to fold into snapshot. |
 | `MARK_TO_MARKET` | [1546](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1546) | `Σ` | `str` (formatted) | external | `{"symbol": str, "shares": int, "price": int, "value": int}` | `[REVIEW]` change to dict | Per-symbol breakdown of the mark-to-market computation; currently a display string. |
 | `MARKED_TO_MARKET` | [1551](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1551) | `Σ` | `int` (cents) | external | `{"mark_to_market_cents": int}` | keep | Note vs. `MARK_TO_MARKET` (per-symbol) — same root, easily confused. |
 | `MKT_CLOSED` | [1301](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1301) | `Σ` | `None` | external | unchanged (marker event) | keep | Empty event becomes `EmptyEvent: True` row. |
@@ -242,7 +245,7 @@ than `logEvent`.
      string form.
   2. **Multi-call redundancy at one logical site.** `BID_DEPTH` +
      `ASK_DEPTH` + `IMBALANCE` (three rows per spread response);
-     `HOLDINGS_UPDATED` (five identical call sites);
+     `HOLDINGS_UPDATED` reshaped (Phase 2c) — call sites consolidated to two (first_wake + order_executed);
      `ORDER_SUBMITTED` (three call sites). Consolidation would route
      through a helper but keep the on-disk vocabulary stable.
 * **Two dynamic-name producers** prevent fully static enumeration of

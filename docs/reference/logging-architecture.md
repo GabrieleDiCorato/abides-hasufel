@@ -823,34 +823,37 @@ shards (`<key>.<seq_lo>-<seq_hi>.parquet`) instead of one monolithic
 file; without checkpointing, a single unnumbered file per bucket is
 produced.
 
-**Schema (MVP):** Events use 5 columns `(agent_id, agent_type,
-sim_time_ns, payload, seq)` with `payload` stored as a pickled binary
-blob; book snapshots store `bids`/`asks` the same way. Metrics use
-typed `(agent_id, agent_type, sim_time_ns, value: float64, seq)`. The
-pickled-payload form is a Phase 3 simplification — Phase 2 payloads
-remain heterogeneous Python objects, and typed Arrow columns become a
-follow-up once payloads are normalized to tuples. Future schema
-migrations will bump `abides.bus_format_version` (currently `"1"`),
-recorded as Parquet file metadata along with the schema name/version,
-metric key, or symbol. The reader rejects files whose bus format
-version does not match.
+**Schema (Phase 2c — `BUS_FORMAT_VERSION = "2"`):** Each known
+`event_type` now gets its own typed Arrow schema built from the
+corresponding `PayloadSchema.fields`, so that each column has a
+meaningful name and a precise Arrow dtype (see `_FIELD_TYPE` in
+`parquet_sink.py` for the mapping). The three common columns
+`(agent_id, agent_type, sim_time_ns)` appear first, then one column
+per field, then `seq`. Unknown event types (those absent from
+`EVENT_TYPE_SCHEMA`) are still pooled into `__generic__.parquet` with
+a pickled `payload` column plus an extra `event_type` column. Book
+snapshots continue to store `bids`/`asks` as pickled binaries pending
+structured list<struct> support.
 
-Unknown event types (those without a registered schema) are pooled into
-a single `__generic__.parquet` file with an extra `event_type` column;
-one `RuntimeWarning` is emitted per distinct unknown type.
+The reader rejects files whose `abides.bus_format_version` metadata
+does not match the current constant. `unpickle_payloads(df, column)`
+still works for the `__generic__` bucket and for `bids`/`asks` in
+book-snapshot DataFrames, but for typed-Arrow event buckets the
+columns are already materialized and no unpickling is needed.
+
+**Exceptions:** Two field types remain pickled for now:
+- `DEPTH.levels` — typed Arrow list<struct> conversion is deferred.
+- book-snapshot `bids`/`asks` — same reason.
+
+Unknown event types warn once and pool into `__generic__.parquet`.
 
 **Reader:** `read_parquet_logs(run_dir)` walks the on-disk layout,
 groups shards back into their logical bucket, validates file metadata,
 and returns `dict[str, dict[str, pd.DataFrame]]` keyed by
 `{events, metrics, book_snapshots} → bucket_key → DataFrame`, sorted
-by `(sim_time_ns, seq)`. A companion `unpickle_payloads(df)` helper
-materializes the pickled `payload` (or `bids`/`asks`) column into live
-Python objects.
-
-**Non-goals for Phase 3:** no background writer thread, no spill-to-disk
-backpressure, no `SinkConfig` integration, no typed Arrow columns. The
-sink is fully synchronous and writes from the main thread on
-`on_simulation_end()` (and at each checkpoint boundary).
+by `(sim_time_ns, seq)`. A companion `unpickle_payloads(df, column)`
+helper materializes a pickled binary column; it is a no-op when
+`column` is absent from the DataFrame.
 
 ### 4.5 Bus lifecycle
 

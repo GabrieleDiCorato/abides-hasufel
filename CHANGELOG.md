@@ -21,6 +21,28 @@ reference.
   scalar, ≥ 2 → positional tuple). New schemas: `FILL_PNL`,
   `IMBALANCE_PAYLOAD`, `CIRCUIT_BREAKER`. New singleton
   `EMPTY_PAYLOAD` (`()`).
+- **Phase 2c — typed Arrow columns in `ParquetSink` and `HOLDINGS_UPDATED`
+  delta reshape.**
+  - `ParquetSink` now builds one typed Arrow schema per registered
+    `PayloadSchema`, so each event-type file carries one named, typed
+    column per field (e.g. `order_id: int64`, `symbol: string`,
+    `delta_qty: int64`). No unpickling step is needed when reading
+    typed event buckets. `BUS_FORMAT_VERSION` bumped to `"2"`;
+    existing v1 files are rejected at read time.
+  - `HOLDINGS_UPDATED` reshaped from a deep-copied `dict[str,int]`
+    snapshot to the lean `HOLDINGS_DELTA` v2 schema: positional tuple
+    `(symbol, delta_qty, qty_after, cash_after_cents)`. `delta_qty` is
+    signed (positive for buys, negative for sells). At `first_wake` one
+    row per held symbol is emitted with `delta_qty == qty_after`, making
+    the stream self-contained.
+  - New `abides_markets.utils.reconstruct_holdings(rows)` folds an
+    iterable of `HOLDINGS_DELTA` tuples (or a DataFrame) back into a
+    `dict[str, int]` holdings snapshot using last-write-wins semantics.
+  - Removed `deepcopy_event=True` from all `HOLDINGS_UPDATED` call
+    sites (tuples are immutable).
+  - Removed three stale call sites that emitted `HOLDINGS_UPDATED` on
+    order-state-refresh paths that do not mutate `self.holdings`
+    (`order_partial_cancelled`, `order_modified`, `order_replaced`).
 - `Side.legacy_str()` and `TimeInForce.legacy_str()` — explicit
   human-readable accessors retained for reporting; the enum values
   themselves are now `IntEnum` and cross the wire as integers.
