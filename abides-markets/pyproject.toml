@@ -61,6 +61,11 @@ test = [
 docs = [
     "mkdocs-material>=9.5.0",
 ]
+parquet = [
+    # Optional columnar persistence via `ParquetSink` / `read_parquet_logs`.
+    # Install with: pip install 'abides-ng[parquet]'
+    "pyarrow>=14.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/GabrieleDiCorato/abides-ng"
