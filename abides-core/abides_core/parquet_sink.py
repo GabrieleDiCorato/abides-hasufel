@@ -17,19 +17,25 @@ With ``checkpoint_every_rows=N``, files rotate as
 ``<key>.<seq_lo>-<seq_hi>.parquet`` and the reader concatenates them
 by ``seq`` order.
 
-Payload encoding (Phase 3 MVP)
-------------------------------
+Payload encoding (Phase 2c)
+---------------------------
 
-Event payloads in Phase 2/3 are heterogeneous Python objects (dicts,
-strings, scalars, lists), so this sink stores them as ``pickle``
-binary in a single ``payload`` column.  The schema name and version
-from :mod:`~abides_core.event_payloads` are recorded in the Parquet
-file's key/value metadata for round-trip validation.
+For every event type registered in
+:data:`~abides_core.event_payloads.EVENT_TYPE_SCHEMA`, the sink writes
+the common columns ``(agent_id, agent_type, sim_time_ns, seq)`` plus
+**one typed Arrow column per field in the schema**. Field-to-Arrow
+type mapping lives in :data:`_FIELD_TYPE`; arity rules
+(0 → no payload cols, 1 → one bare scalar, ≥ 2 → positional tuple
+unpacked into N cols) follow :class:`PayloadSchema`.
 
-When event payloads are normalized to typed tuples (Phase 2a), this
-sink can be extended with per-schema typed columns without breaking
-the on-disk layout for the existing pickled-payload column — the
-metadata version bump signals the change to readers.
+Unknown event types still fall back to the ``__generic__`` bucket
+which carries an extra ``event_type`` column and a pickled
+``payload`` column. The order-book ``DEPTH.levels`` field and the
+book-snapshot ``bids`` / ``asks`` columns also remain pickled binary
+in this phase (typed ``list<struct>`` is a follow-up).
+
+The schema name / version and ``bus_format_version`` are recorded in
+the Parquet file's key/value metadata for round-trip validation.
 
 Optional dependency
 -------------------
@@ -64,8 +70,19 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-BUS_FORMAT_VERSION = "1"
-"""Versions the on-disk layout/contract.  Bump on incompatible changes."""
+BUS_FORMAT_VERSION = "2"
+"""Versions the on-disk layout/contract.
+
+* ``"1"`` — Phase 3 MVP: per-event-type files with one pickled
+  ``payload`` column.
+* ``"2"`` — Phase 2c: typed columnar layout. Each registered event
+  type expands its :class:`PayloadSchema` fields into typed Arrow
+  columns; only the ``__generic__`` fallback and the DEPTH /
+  book-snapshot list payloads remain pickled.
+
+The reader rejects files whose ``bus_format_version`` metadata does
+not match the running library's value.
+"""
 
 _META_PREFIX = "abides."
 _PARTIAL_DIR = ".partial"
@@ -77,6 +94,96 @@ _INSTALL_HINT = (
 
 
 # ---------------------------------------------------------------------------
+# Field-to-Arrow-type registry
+# ---------------------------------------------------------------------------
+
+# Maps a PayloadSchema field name to an Arrow type code. The code is
+# resolved against the pyarrow module at schema-build time. Every field
+# in every registered schema must appear here; otherwise schema build
+# fails at first use with a clear KeyError.
+#
+# Type codes:
+#   "int64"   — integer cents / quantities / counts / nanosecond times
+#   "int8"    — IntEnum-backed small-domain integers (Side, TIF, direction)
+#   "float64" — fractions / rates / mixed int-or-float values
+#   "string"  — symbol / tag / human-readable strings
+#   "bool"    — flags
+#   "binary"  — pickled fallback (only DEPTH.levels in this phase)
+_FIELD_TYPE: dict[str, str] = {
+    # ORDER_EVENT
+    "order_id": "int64",
+    "order_kind": "string",
+    "symbol": "string",
+    "side": "int8",
+    "quantity": "int64",
+    "limit_price": "int64",
+    "stop_price": "int64",
+    "time_in_force": "int8",
+    "is_hidden": "bool",
+    "is_price_to_comply": "bool",
+    "tag": "string",
+    # HOLDINGS_DELTA
+    "delta_qty": "int64",
+    "qty_after": "int64",
+    "cash_after_cents": "int64",
+    # CASH
+    "cents": "int64",
+    # DEPTH — pickled fallback (typed list<struct> deferred).
+    "levels": "binary",
+    # QUOTE
+    "price_cents": "int64",
+    "qty": "int64",
+    # AGENT_TYPE
+    "name": "string",
+    # SUMMARY
+    "text": "string",
+    # IMBALANCE
+    "bid_total_qty": "int64",
+    "ask_total_qty": "int64",
+    # FILL_PNL
+    "nav": "int64",
+    "peak_nav": "int64",
+    # VALUATION (mixed int|float surplus / cents)
+    "value": "float64",
+    # EXECUTION_SUMMARY
+    "executed_quantity": "int64",
+    "target_quantity": "int64",
+    "remaining_quantity": "int64",
+    "execution_rate": "float64",
+    # SLICE_DECISION
+    "time": "int64",
+    "order_size": "int64",
+    "direction": "int8",
+    # POV_SUMMARY
+    "effective_pov": "float64",
+    "total_market_volume": "int64",
+    # AMM_FLATTEN
+    "position_closed": "int64",
+    # CIRCUIT_BREAKER (value is float64 above; reason here)
+    "reason": "string",
+    # GENERIC fallback (only used inside the __generic__ bucket)
+    "payload": "binary",
+}
+
+
+def _resolve_arrow_type(pa_mod: Any, code: str) -> Any:
+    """Resolve a ``_FIELD_TYPE`` code to a pyarrow ``DataType``."""
+    if code == "int64":
+        return pa_mod.int64()
+    if code == "int8":
+        return pa_mod.int8()
+    if code == "float64":
+        return pa_mod.float64()
+    if code == "string":
+        return pa_mod.string()
+    if code == "bool":
+        return pa_mod.bool_()
+    if code == "binary":
+        return pa_mod.binary()
+    raise ValueError(f"Unknown Arrow type code {code!r}")
+
+
+# ---------------------------------------------------------------------------
 # Arrow schema builders (lazy, built after pyarrow import succeeds)
 # ---------------------------------------------------------------------------
 
@@ -84,22 +191,52 @@ _INSTALL_HINT = (
 def _build_event_schema(pa_mod: Any, schema: PayloadSchema) -> pa.Schema:
     """Arrow schema for a per-event-type file.
 
-    Phase 3 MVP: ``payload`` is pickled binary; ``schema_name`` /
-    ``schema_version`` recorded as Parquet file metadata.
+    Common columns ``(agent_id, agent_type, sim_time_ns, seq)`` plus
+    one typed column per field in ``schema.fields``. Unknown field
+    names raise :class:`KeyError` to surface registry drift early.
     """
+    fields = [
+        pa_mod.field("agent_id", pa_mod.int64(), nullable=False),
+        pa_mod.field("agent_type", pa_mod.string(), nullable=False),
+        pa_mod.field("sim_time_ns", pa_mod.int64(), nullable=False),
+    ]
+    for fname in schema.fields:
+        try:
+            code = _FIELD_TYPE[fname]
+        except KeyError as exc:
+            raise KeyError(
+                f"ParquetSink: no Arrow type mapping for field {fname!r} "
+                f"(schema {schema.name!r}). Add it to _FIELD_TYPE in "
+                f"abides_core/parquet_sink.py."
+            ) from exc
+        fields.append(
+            pa_mod.field(fname, _resolve_arrow_type(pa_mod, code), nullable=True)
+        )
+    fields.append(pa_mod.field("seq", pa_mod.int64(), nullable=False))
     return pa_mod.schema(
-        [
-            pa_mod.field("agent_id", pa_mod.int64(), nullable=False),
-            pa_mod.field("agent_type", pa_mod.string(), nullable=False),
-            pa_mod.field("sim_time_ns", pa_mod.int64(), nullable=False),
-            pa_mod.field("payload", pa_mod.binary(), nullable=True),
-            pa_mod.field("seq", pa_mod.int64(), nullable=False),
-        ],
+        fields,
         metadata={
             f"{_META_PREFIX}bus_format_version": BUS_FORMAT_VERSION,
             f"{_META_PREFIX}schema_name": schema.name,
             f"{_META_PREFIX}schema_version": str(schema.version),
         },
+    )
+
+
+def _build_event_columns(schema: PayloadSchema) -> tuple[str, ...]:
+    """Column-name layout for an event bucket (matches the Arrow schema)."""
+    return ("agent_id", "agent_type", "sim_time_ns", *schema.fields, "seq")
+
+
+def _pickle_field_offsets(schema: PayloadSchema) -> tuple[int, ...]:
+    """Positions within the payload tuple whose values must be pickled.
+
+    Offsets are 0-indexed into ``schema.fields`` (not into the full row
+    tuple). Empty when no field uses the ``binary`` type code.
+    """
+    return tuple(
+        i for i, fname in enumerate(schema.fields)
+        if _FIELD_TYPE.get(fname) == "binary"
     )
 
 
@@ -313,13 +450,8 @@ class ParquetSink:
         self._warned_unknown_types: set[str] = set()
 
         # Column layouts (positional, matching the Arrow schemas).
-        self._event_columns: tuple[str, ...] = (
-            "agent_id",
-            "agent_type",
-            "sim_time_ns",
-            "payload",
-            "seq",
-        )
+        # The per-event-type column layout is derived from each schema's
+        # fields at first sight of the event_type (see on_event).
         self._generic_event_columns: tuple[str, ...] = (
             "agent_id",
             "agent_type",
@@ -343,6 +475,9 @@ class ParquetSink:
             "seq",
         )
 
+        # Per-event-type pickle-position cache, populated lazily.
+        self._event_pickle_offsets: dict[str, tuple[int, ...]] = {}
+
     # ---- EventSink lifecycle ------------------------------------------------
 
     def on_simulation_start(self, meta: dict) -> None:
@@ -356,6 +491,7 @@ class ParquetSink:
         self._metric_buckets.clear()
         self._book_buckets.clear()
         self._warned_unknown_types.clear()
+        self._event_pickle_offsets.clear()
 
         # Wipe any stale partials from a previous run with the same run_id.
         partial_root = self._run_dir / _PARTIAL_DIR
@@ -379,12 +515,33 @@ class ParquetSink:
         bucket = self._event_buckets.get(event_type)
         if bucket is None:
             bucket = _Bucket(
-                self._event_columns, _build_event_schema(self._pa, schema)
+                _build_event_columns(schema),
+                _build_event_schema(self._pa, schema),
             )
             self._event_buckets[event_type] = bucket
+            self._event_pickle_offsets[event_type] = _pickle_field_offsets(schema)
         if bucket.next_seq_lo is None:
             bucket.next_seq_lo = seq
-        bucket.append((agent_id, agent_type, sim_time_ns, _pickle(payload), seq))
+
+        # Normalize payload to a positional tuple matching schema.fields.
+        arity = len(schema.fields)
+        if arity == 0:
+            payload_cells: tuple[Any, ...] = ()
+        elif arity == 1:
+            payload_cells = (payload,)
+        else:
+            # ≥ 2 — payload is the positional tuple itself.
+            payload_cells = tuple(payload)
+
+        # Pickle any field whose type code is "binary" (DEPTH.levels).
+        pickle_offsets = self._event_pickle_offsets[event_type]
+        if pickle_offsets:
+            payload_list = list(payload_cells)
+            for off in pickle_offsets:
+                payload_list[off] = _pickle(payload_list[off])
+            payload_cells = tuple(payload_list)
+
+        bucket.append((agent_id, agent_type, sim_time_ns, *payload_cells, seq))
         self._maybe_checkpoint(bucket, "events", event_type, seq)
 
     def _append_generic_event(
@@ -581,8 +738,12 @@ def read_parquet_logs(
         types); for ``"metrics"`` the key is the metric name; for
         ``"book_snapshots"`` the key is the symbol.
 
-        Events DataFrames carry pickled payloads in the ``payload``
-        column.  Call :func:`unpickle_payloads` to materialize them.
+        Under :data:`BUS_FORMAT_VERSION` ``"2"`` (Phase 2c), per-event
+        DataFrames carry one typed column per :class:`PayloadSchema`
+        field, so :func:`unpickle_payloads` is needed only for the
+        ``__generic__`` bucket (whose ``payload`` column is still
+        pickled) and for the ``bids`` / ``asks`` columns in
+        ``book_snapshots`` DataFrames.
 
     Raises:
         ImportError: ``pyarrow`` is not installed.
@@ -639,8 +800,13 @@ def unpickle_payloads(df: pd.DataFrame, column: str = "payload") -> pd.DataFrame
     """Replace a pickled binary column with its in-memory Python objects.
 
     Returns a new DataFrame with ``column`` materialized via
-    :func:`pickle.loads`.  ``None`` values pass through.
+    :func:`pickle.loads`.  ``None`` values pass through. If ``column``
+    is absent from ``df`` (the typed-Arrow case in
+    :data:`BUS_FORMAT_VERSION` ``"2"``), the input is returned
+    unchanged.
     """
+    if column not in df.columns:
+        return df
     out = df.copy()
     out[column] = out[column].map(lambda b: pickle.loads(b) if b is not None else None)  # noqa: S301
     return out

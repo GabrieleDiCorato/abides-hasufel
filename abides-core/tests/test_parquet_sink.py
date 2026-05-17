@@ -123,6 +123,9 @@ class TestRoundTrip:
         sink = ParquetSink(root=tmp_path, run_id="r1")
         _start_sink(sink)
         # Two registered event types + one unknown → 3 keys, one bucket each.
+        # Typed columns: AGENT_TYPE has `name` (string), STARTING_CASH has
+        # `cents` (int64); the generic fallback keeps the pickled `payload`
+        # column plus an extra `event_type` column.
         sink.on_event(_event(0, event_type="AGENT_TYPE", payload="TestAgent"))
         sink.on_event(_event(1, event_type="STARTING_CASH", payload=100_000))
         with warnings.catch_warnings():
@@ -134,21 +137,29 @@ class TestRoundTrip:
         events = data["events"]
         assert set(events.keys()) == {"AGENT_TYPE", "STARTING_CASH", "__generic__"}
 
-        # Per-bucket files have 5 columns; generic has an extra event_type column.
+        # Typed-Arrow layout: one typed column per PayloadSchema field.
         assert list(events["AGENT_TYPE"].columns) == [
             "agent_id",
             "agent_type",
             "sim_time_ns",
-            "payload",
+            "name",
+            "seq",
+        ]
+        assert list(events["STARTING_CASH"].columns) == [
+            "agent_id",
+            "agent_type",
+            "sim_time_ns",
+            "cents",
             "seq",
         ]
         assert "event_type" in events["__generic__"].columns
+        assert "payload" in events["__generic__"].columns
 
-        # Payloads round-trip via pickle.
-        agent_type_df = unpickle_payloads(events["AGENT_TYPE"])
-        assert agent_type_df["payload"].iloc[0] == "TestAgent"
-        cash_df = unpickle_payloads(events["STARTING_CASH"])
-        assert cash_df["payload"].iloc[0] == 100_000
+        # Typed values are materialized — no unpickling needed.
+        assert events["AGENT_TYPE"]["name"].iloc[0] == "TestAgent"
+        assert int(events["STARTING_CASH"]["cents"].iloc[0]) == 100_000
+
+        # Generic bucket payloads still round-trip via pickle.
         generic_df = unpickle_payloads(events["__generic__"])
         assert generic_df["payload"].iloc[0] == {"x": 1}
         assert generic_df["event_type"].iloc[0] == "CUSTOM_THING"
@@ -184,6 +195,111 @@ class TestRoundTrip:
         # bids/asks round-trip via pickle.
         bids = pickle.loads(abm["bids"].iloc[0])
         assert bids == ((10_000, 100), (9_990, 50))
+
+    def test_holdings_delta_typed_columns(self, tmp_path):
+        sink = ParquetSink(root=tmp_path, run_id="r1")
+        _start_sink(sink)
+        # HOLDINGS_DELTA arity ≥ 2 → payload is the positional tuple.
+        sink.on_event(
+            _event(
+                0,
+                event_type="HOLDINGS_UPDATED",
+                payload=("ABM", 100, 100, 50_000_00),
+            )
+        )
+        sink.on_event(
+            _event(
+                1,
+                event_type="HOLDINGS_UPDATED",
+                payload=("ABM", -40, 60, 50_400_00),
+            )
+        )
+        _end_sink(sink)
+
+        data = read_parquet_logs(tmp_path / "r1")
+        df = data["events"]["HOLDINGS_UPDATED"]
+        assert list(df.columns) == [
+            "agent_id",
+            "agent_type",
+            "sim_time_ns",
+            "symbol",
+            "delta_qty",
+            "qty_after",
+            "cash_after_cents",
+            "seq",
+        ]
+        assert df["symbol"].tolist() == ["ABM", "ABM"]
+        assert df["delta_qty"].tolist() == [100, -40]
+        assert df["qty_after"].tolist() == [100, 60]
+        assert df["cash_after_cents"].tolist() == [50_000_00, 50_400_00]
+
+    def test_quote_typed_columns(self, tmp_path):
+        sink = ParquetSink(root=tmp_path, run_id="r1")
+        _start_sink(sink)
+        # QUOTE arity 3 → positional tuple (symbol, price_cents, qty).
+        sink.on_event(_event(0, event_type="BEST_BID", payload=("ABM", 10_000, 250)))
+        sink.on_event(_event(1, event_type="BEST_ASK", payload=("ABM", 10_010, 175)))
+        _end_sink(sink)
+
+        data = read_parquet_logs(tmp_path / "r1")
+        bid = data["events"]["BEST_BID"]
+        ask = data["events"]["BEST_ASK"]
+        assert list(bid.columns) == [
+            "agent_id",
+            "agent_type",
+            "sim_time_ns",
+            "symbol",
+            "price_cents",
+            "qty",
+            "seq",
+        ]
+        assert bid["symbol"].iloc[0] == "ABM"
+        assert int(bid["price_cents"].iloc[0]) == 10_000
+        assert int(bid["qty"].iloc[0]) == 250
+        assert int(ask["price_cents"].iloc[0]) == 10_010
+        assert int(ask["qty"].iloc[0]) == 175
+
+    def test_empty_payload_no_value_columns(self, tmp_path):
+        sink = ParquetSink(root=tmp_path, run_id="r1")
+        _start_sink(sink)
+        # EMPTY arity 0 → payload is the shared () singleton, no value cols.
+        sink.on_event(_event(0, event_type="MKT_CLOSED", payload=()))
+        _end_sink(sink)
+
+        data = read_parquet_logs(tmp_path / "r1")
+        df = data["events"]["MKT_CLOSED"]
+        assert list(df.columns) == ["agent_id", "agent_type", "sim_time_ns", "seq"]
+        assert len(df) == 1
+
+    def test_order_event_typed_columns(self, tmp_path):
+        sink = ParquetSink(root=tmp_path, run_id="r1")
+        _start_sink(sink)
+        # ORDER_EVENT arity 11 → positional tuple.
+        payload = (
+            42,        # order_id
+            "LIMIT",   # order_kind
+            "ABM",     # symbol
+            1,         # side (IntEnum int repr)
+            100,       # quantity
+            10_000,    # limit_price
+            None,      # stop_price
+            0,         # time_in_force
+            False,     # is_hidden
+            False,     # is_price_to_comply
+            "tagA",    # tag
+        )
+        sink.on_event(_event(0, event_type="ORDER_SUBMITTED", payload=payload))
+        _end_sink(sink)
+
+        data = read_parquet_logs(tmp_path / "r1")
+        df = data["events"]["ORDER_SUBMITTED"]
+        # 3 common + 11 schema + 1 seq = 15 columns.
+        assert len(df.columns) == 15
+        assert int(df["order_id"].iloc[0]) == 42
+        assert int(df["limit_price"].iloc[0]) == 10_000
+        assert df["tag"].iloc[0] == "tagA"
+        # stop_price is nullable; None round-trips as NaN/None.
+        assert pd.isna(df["stop_price"].iloc[0])
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +415,7 @@ class TestCheckpointRotation:
         sink = ParquetSink(root=tmp_path, run_id="r1", checkpoint_every_rows=100)
         _start_sink(sink)
         for seq in range(350):
-            sink.on_event(_event(seq, event_type="AGENT_TYPE", payload=seq))
+            sink.on_event(_event(seq, event_type="AGENT_TYPE", payload=f"name_{seq}"))
         _end_sink(sink)
 
         events_dir = tmp_path / "r1" / "events"
@@ -313,10 +429,10 @@ class TestCheckpointRotation:
         ]
 
         data = read_parquet_logs(tmp_path / "r1")
-        df = unpickle_payloads(data["events"]["AGENT_TYPE"])
+        df = data["events"]["AGENT_TYPE"]
         # Reader concatenates and sorts by (sim_time_ns, seq).
         assert df["seq"].tolist() == list(range(350))
-        assert df["payload"].tolist() == list(range(350))
+        assert df["name"].tolist() == [f"name_{i}" for i in range(350)]
 
     def test_no_checkpoint_writes_single_unnumbered_file(self, tmp_path):
         sink = ParquetSink(root=tmp_path, run_id="r1")
