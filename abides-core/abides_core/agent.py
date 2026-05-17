@@ -260,7 +260,7 @@ class Agent:
                 f"At {fmt_ts(current_time)}, agent {self.id} ({self.name}) received: {message}"
             )
 
-    def wakeup(self, current_time: NanosecondTime) -> None:
+    def wakeup(self, current_time: NanosecondTime) -> bool | None:
         """
         Agents can request a wakeup call at a future simulation time using
         ``Agent.set_wakeup()``.
@@ -278,6 +278,8 @@ class Agent:
             logger.debug(
                 f"At {fmt_ts(current_time)}, agent {self.id} ({self.name}) received wakeup."
             )
+
+        return None
 
     ### Presently the kernel expects agent IDs only, not agent references.
     ### It is possible this could change in the future.  Normal agents will

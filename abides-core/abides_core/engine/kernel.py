@@ -390,7 +390,7 @@ class Kernel:
         self._state = KernelState.INITIALIZED
 
     def runner(
-        self, hook_actions: tuple[Agent, list[dict[str, Any]]] | None = None
+        self, hook_actions: tuple[RunnerHook, list[dict[str, Any]]] | None = None
     ) -> dict[str, Any]:
         """
         Start the simulation and processing of the message queue.
@@ -482,7 +482,7 @@ class Kernel:
             wakeup_result: Any = None
             if message.__class__ is WakeupMsg:
                 wakeup_result = self.agents[recipient_id].wakeup(self.current_time)
-            elif message.__class__ is MessageBatch:
+            elif isinstance(message, MessageBatch):
                 for sub in message.messages:
                     self.agents[recipient_id].receive_message(
                         self.current_time, sender_id, sub

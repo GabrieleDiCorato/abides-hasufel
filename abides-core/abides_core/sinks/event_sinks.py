@@ -400,7 +400,7 @@ class InMemorySink:
             A new list of ``(sim_time_ns, event_type, payload)`` tuples
             for the requested agent.  Empty if the agent produced no events.
         """
-        out: list[tuple[NanosecondTime, str, Any]] = []
+        out: list[tuple[NanosecondTime, str, Any, int]] = []
         for bucket_key, bucket in self._cols.items():
             event_type = (
                 bucket_key[: -len("::generic")]

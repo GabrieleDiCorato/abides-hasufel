@@ -84,14 +84,18 @@ class PoissonTimeGenerator(InterArrivalTimeGenerator):
             lambda_time is None and lambda_freq is not None
         ), "specify lambda in frequency OR in time"
 
-        self.lambda_s: float = lambda_freq or 1 / lambda_time
+        if lambda_freq is not None:
+            self.lambda_s: float = lambda_freq
+        else:
+            assert lambda_time is not None
+            self.lambda_s = 1.0 / lambda_time
 
-    def next(self) -> float | None:
+    def next(self) -> float:
         """
         returns time delta for next wakeup with time delta following Poisson distribution
         """
         seconds = self.random_generator.exponential(1 / self.lambda_s)
-        return seconds * 1_000_000_000 if seconds is not None else None
+        return float(seconds) * 1_000_000_000
 
     def mean(self) -> float:
         """
