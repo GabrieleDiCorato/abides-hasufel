@@ -87,6 +87,15 @@ All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.co
 All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py).
 Payload is `order.to_dict()` unless noted.
 
+> **Phase 2a (Order slotting).** `Order` and its subclasses are now
+> slotted and expose `to_payload_tuple()` returning an 11-field tuple
+> aligned with the `ORDER_EVENT` schema in
+> `abides_core.event_payloads`. Publish sites still emit `to_dict()`
+> for backwards compatibility with existing consumers; the tuple
+> migration ships in a follow-up PR. Authors of new producers should
+> prefer `to_payload_tuple()` so downstream `ParquetSink` can serialise
+> typed Arrow columns without unpickling.
+
 | event_type | producer (lines) | freq | payload shape | consumers | proposed schema | disposition | notes |
 |---|---|---|---|---|---|---|---|
 | `ORDER_SUBMITTED` | [819, 882, 968](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L819) | `O` | `dict` (`order.to_dict()`) | `metrics:1249`; `OrderLogsSchema`; tests; external | unchanged | `[REVIEW]` dedupe call sites | Three identical call sites across `place_limit_order` / `place_market_order` / partial paths. |

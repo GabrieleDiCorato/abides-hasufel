@@ -28,6 +28,16 @@ reference.
   `pip install 'abides-ng[parquet]'`. Companion `read_parquet_logs`
   reader returns a `dict[kind, dict[key, DataFrame]]`, and
   `unpickle_payloads` materializes pickled payload columns.
+- `Order`, `LimitOrder`, `MarketOrder` and `StopOrder` now use
+  `__slots__` — instances drop the per-instance `__dict__`, saving
+  roughly 280 bytes per order on CPython 3.12.
+- `Order.to_payload_tuple()` (new abstract method) returns an
+  11-field positional tuple aligned with the `ORDER_EVENT` schema in
+  `abides_core.event_payloads`, with an `order_kind` class
+  discriminator (`"LIMIT"` / `"MARKET"` / `"STOP"`) per subclass. The
+  tuple form is the canonical builder for typed Parquet columns;
+  existing publish sites continue to emit `order.to_dict()` until a
+  follow-up PR migrates them.
 
 ### Changed
 - `EventBus` is now the single dispatch hub for agent events, metrics,
@@ -37,6 +47,14 @@ reference.
   is a first-class kwarg.
 - `parse_logs_df` rebuilt around a single `pd.DataFrame.from_records`
   call.
+- `Order.__eq__` now compares the MRO-walked slot tuple instead of
+  `self.__dict__` (slotted instances expose no instance dict). The
+  semantics are preserved: same concrete type, same data → equal.
+  `Order` instances remain unhashable (`__hash__ = None`).
+- `Order.to_dict()` no longer round-trips through `deepcopy(self).__dict__`
+  — it now reads slot values directly. The returned key set and
+  shape are preserved; the change drops an unnecessary defensive copy
+  (sinks must not mutate received payloads).
 
 ### Deprecated
 - `OrderBook.book_log2` and `OrderBook.history` — read from the
