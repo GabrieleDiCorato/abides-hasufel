@@ -121,10 +121,7 @@ class POVExecutionAgent(BaseSlicingExecutionAgent):
         )
         self.logEvent(
             "POV_SUMMARY",
-            {
-                "effective_pov": effective_pov,
-                "total_market_volume": self.total_market_volume_observed,
-            },
+            (effective_pov, self.total_market_volume_observed),
         )
         super().kernel_stopping()
 

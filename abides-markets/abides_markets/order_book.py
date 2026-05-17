@@ -238,13 +238,13 @@ class OrderBook:
         if self.bids:
             self.owner.logEvent(
                 "BEST_BID",
-                f"{self.symbol},{self.bids[0].price},{self.bids[0].total_quantity}",
+                (self.symbol, self.bids[0].price, self.bids[0].total_quantity),
             )
 
         if self.asks:
             self.owner.logEvent(
                 "BEST_ASK",
-                f"{self.symbol},{self.asks[0].price},{self.asks[0].total_quantity}",
+                (self.symbol, self.asks[0].price, self.asks[0].total_quantity),
             )
 
         # Also log the last trade (total share quantity, average share price).
@@ -258,7 +258,9 @@ class OrderBook:
 
             avg_price = int(round(trade_price / trade_qty))
             logger.debug(f"Avg: {trade_qty} @ ${avg_price:0.4f}")
-            self.owner.logEvent("LAST_TRADE", f"{trade_qty},${avg_price:0.4f}")
+            self.owner.logEvent(
+                "LAST_TRADE", (self.symbol, avg_price, trade_qty)
+            )
 
             self.last_trade = avg_price
 

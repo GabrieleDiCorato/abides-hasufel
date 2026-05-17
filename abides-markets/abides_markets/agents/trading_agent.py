@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.event_payloads import EMPTY_PAYLOAD
 from abides_core.utils import fmt_ts
 
 from ..messages.market import (
@@ -634,7 +635,7 @@ class TradingAgent(FinancialAgent):
                 )
                 self.logEvent(
                     "CIRCUIT_BREAKER_TRIPPED",
-                    {"reason": "max_drawdown", "loss": loss},
+                    ("max_drawdown", loss),
                 )
                 return True
 
@@ -653,10 +654,7 @@ class TradingAgent(FinancialAgent):
             )
             self.logEvent(
                 "CIRCUIT_BREAKER_TRIPPED",
-                {
-                    "reason": "max_order_rate",
-                    "orders": self._order_count_in_window,
-                },
+                ("max_order_rate", self._order_count_in_window),
             )
             return True
 
@@ -1168,7 +1166,7 @@ class TradingAgent(FinancialAgent):
             self._peak_nav = nav
         self.logEvent(
             "FILL_PNL",
-            {"nav": nav, "peak_nav": self._peak_nav, "symbol": sym},
+            (nav, self._peak_nav, sym),
         )
 
         # Proactively check the circuit breaker after every fill so the
@@ -1320,7 +1318,7 @@ class TradingAgent(FinancialAgent):
         logger.debug("Received notification of market closure.")
 
         # Log this activity.
-        self.logEvent("MKT_CLOSED")
+        self.logEvent("MKT_CLOSED", EMPTY_PAYLOAD)
 
     def stop_triggered(self, order: StopOrder) -> None:
         """Called when the exchange triggers one of this agent's stop orders.
@@ -1567,9 +1565,16 @@ class TradingAgent(FinancialAgent):
 
             cash += value
 
-            self.logEvent(
-                "MARK_TO_MARKET",
-                f"{shares} {symbol} @ {self.last_trade.get(symbol)} == {value}",
+            # Per-symbol contribution to portfolio value, in integer cents.
+            # The structured payload is the CASH-schema int; a human-
+            # readable line is emitted via the stdlib logger for operators.
+            self.logEvent("MARK_TO_MARKET", value)
+            logger.debug(
+                "MARK_TO_MARKET %d %s @ %s == %d",
+                shares,
+                symbol,
+                self.last_trade.get(symbol),
+                value,
             )
 
         self.logEvent("MARKED_TO_MARKET", cash)

@@ -187,7 +187,7 @@ class TestCircuitBreakerLogging:
         agent.last_trade[SYMBOL] = 4_000  # loss = 600k
         agent._check_circuit_breaker()
         assert any(
-            ev == "CIRCUIT_BREAKER_TRIPPED" and d["reason"] == "max_drawdown"
+            ev == "CIRCUIT_BREAKER_TRIPPED" and d[0] == "max_drawdown"
             for ev, d in logged
         )
 
@@ -199,7 +199,7 @@ class TestCircuitBreakerLogging:
         agent._order_count_in_window = 2
         agent._check_circuit_breaker()
         assert any(
-            ev == "CIRCUIT_BREAKER_TRIPPED" and d["reason"] == "max_order_rate"
+            ev == "CIRCUIT_BREAKER_TRIPPED" and d[0] == "max_order_rate"
             for ev, d in logged
         )
 

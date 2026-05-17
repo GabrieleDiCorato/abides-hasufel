@@ -171,10 +171,12 @@ class TestFillPnlTracking:
         pnl_events = [(n, d) for n, d in events if n == "FILL_PNL"]
         assert len(pnl_events) == 1
         _, data = pnl_events[0]
-        assert "nav" in data
-        assert "peak_nav" in data
-        assert "symbol" in data
-        assert data["symbol"] == SYMBOL
+        # FILL_PNL schema (Phase 2b): positional tuple (nav, peak_nav, symbol)
+        assert isinstance(data, tuple) and len(data) == 3
+        nav, peak_nav, symbol = data
+        assert symbol == SYMBOL
+        assert isinstance(nav, int)
+        assert isinstance(peak_nav, int)
 
     def test_peak_nav_tracks_high_water_mark(self):
         agent = _make_agent(starting_cash=10_000_000)

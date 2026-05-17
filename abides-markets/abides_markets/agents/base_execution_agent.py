@@ -132,12 +132,12 @@ class BaseSlicingExecutionAgent(TradingAgent, abc.ABC):
         )
         self.logEvent(
             "EXECUTION_SUMMARY",
-            {
-                "executed_quantity": self.executed_quantity,
-                "target_quantity": self.quantity,
-                "remaining_quantity": self.remaining_quantity,
-                "execution_rate": pct,
-            },
+            (
+                self.executed_quantity,
+                self.quantity,
+                self.remaining_quantity,
+                pct,
+            ),
         )
 
     # ------------------------------------------------------------------
@@ -229,12 +229,12 @@ class BaseSlicingExecutionAgent(TradingAgent, abc.ABC):
 
         self.logEvent(
             "SLICE_DECISION",
-            {
-                "time": current_time,
-                "order_size": order_size,
-                "remaining_quantity": self.remaining_quantity,
-                "direction": self.direction.value,
-            },
+            (
+                current_time,
+                order_size,
+                self.remaining_quantity,
+                self.direction,
+            ),
         )
 
         if self.trade:

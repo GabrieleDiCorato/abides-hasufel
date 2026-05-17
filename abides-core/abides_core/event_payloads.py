@@ -294,7 +294,7 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     "ENDING_CASH": CASH,
     "HOLDINGS_UPDATED": HOLDINGS,
     "FINAL_HOLDINGS": SUMMARY,
-    "MARK_TO_MARKET": SUMMARY,  # per-symbol human-readable line; structured counterpart is MARKED_TO_MARKET
+    "MARK_TO_MARKET": CASH,  # per-symbol contribution in cents; structured counterpart is MARKED_TO_MARKET
     "MARKED_TO_MARKET": CASH,
     "FILL_PNL": FILL_PNL,
     # --- Market data echo (TradingAgent) ---

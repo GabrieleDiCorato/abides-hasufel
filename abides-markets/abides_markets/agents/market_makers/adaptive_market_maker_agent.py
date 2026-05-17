@@ -566,7 +566,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
 
         self.logEvent(
             "AMM_FLATTEN",
-            {"symbol": self.symbol, "position_closed": position},
+            (self.symbol, position),
             deepcopy_event=False,
         )
         logger.info(
