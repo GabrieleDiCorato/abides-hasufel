@@ -9,11 +9,13 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write  # mkdocs gh-deploy pushes to the gh-pages branch
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  deploy:
-    name: Build & deploy docs
+  build:
+    name: Build docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,5 +32,22 @@ jobs:
       - name: Install dependencies (including docs extras)
         run: uv sync --dev
 
-      - name: Build and deploy
-        run: uv run mkdocs gh-deploy --force
+      - name: Build docs
+        run: uv run mkdocs build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4

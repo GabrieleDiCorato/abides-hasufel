@@ -1,1421 +1,264 @@
-Unreleased
-==========
+# Changelog
 
-OrderBook capture on the EventBus (Phase 3a)
---------------------------------------------
+All notable changes to ABIDES-NG (post-fork) are documented here. The
+format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- **New ``book_capture`` config field on ``ExchangeAgent``.**  Replaces
-  the per-instance ``book_logging`` boolean with a three-valued knob:
-  ``"off"`` (no snapshots; lowest overhead), ``"l1"`` (top-of-book
-  snapshots with publisher-side dedup), ``"l2"`` (full ``stream_history``
-  depth — the legacy ``book_logging=True`` behaviour).  Both the
-  publisher and the sink honour the same setting.  ``book_logging`` is
-  kept as a deprecation shim (``True → "l2"``, ``False → "off"``).
-- **OrderBook capture now flows through the EventBus.**  ``OrderBook``
-  no longer owns ``self.book_log2`` and ``self.history`` lists.  All
-  snapshot writes go through ``OrderBook._publish_snapshot`` →
-  ``EventBus.publish_book_snapshot``; all event writes go through
-  ``OrderBook._publish_event`` → ``EventBus.publish_event`` with typed
-  ``NamedTuple`` payloads from ``abides_markets.book_events``.
-- **Two new shipped sinks.**  ``OrderBookSnapshotMemorySink(symbol,
-  depth)`` and ``OrderBookHistoryMemorySink(symbol)`` in
-  ``abides_core.event_sinks``.  One pair is registered per symbol; the
-  snapshot sink is skipped when ``book_capture == "off"``.  Both
-  expose ``as_book_log2()`` / ``as_history_dicts()`` for code that
-  needs the legacy list-of-dicts shape.
-- **Publisher-side L1 dedup.**  In ``"l1"`` mode the order book caches
-  the last published ``(bid_price, bid_qty)`` and ``(ask_price,
-  ask_qty)`` and short-circuits the publish call when the top is
-  unchanged.  This is the headline perf win for L1-only consumers.
-- **Typed book event vocabulary.**  Six bare-string event types
-  (``LIMIT``, ``EXEC``, ``CANCEL``, ``CANCEL_PARTIAL``, ``MODIFY``,
-  ``REPLACE``) with ``NamedTuple`` payloads documented in
-  [docs/reference/event-vocabulary.md](https://github.com/GabrieleDiCorato/abides-ng/blob/main/docs/reference/event-vocabulary.md)
-  and [docs/reference/logging-architecture.md](https://github.com/GabrieleDiCorato/abides-ng/blob/main/docs/reference/logging-architecture.md)
-  §5.  ``symbol`` is the first payload field so a single history sink
-  can demultiplex a multi-symbol exchange.
-- **Runner and ExchangeAgent read from the sinks directly.**
-  ``runner._finalize_run`` materialises ``book_log2`` and ``history``
-  once per symbol from the per-symbol sinks; ``_extract_liquidity`` and
-  ``_extract_trades`` take an explicit ``history`` argument.
-  ``ExchangeAgent`` gained ``_get_history_sink`` /
-  ``_get_snapshot_sink`` helpers used by ``QueryOrderStreamMsg``,
-  ``log_l2_style``, and ``analyse_order_book``, so normal operation no
-  longer emits ``OrderBook.history`` / ``OrderBook.book_log2``
-  deprecation warnings.
-- **Deprecated ``OrderBook.book_log2`` and ``OrderBook.history``.**
-  Now ``@property`` shims that materialize on demand from the matching
-  per-symbol sink and emit ``DeprecationWarning`` once per instance.
-  The cache is invalidated when the sink length changes so repeated
-  reads remain correct.  When no kernel/bus is attached (standalone
-  unit-test setups) the properties fall back to in-process buffers on
-  the ``OrderBook`` so legacy fixtures keep working.
-- **Auto-registration.**  The compile path registers the per-symbol
-  book sinks on ``kernel.event_bus`` based on the exchange's
-  ``book_capture`` value.  ``ExchangeAgent.kernel_initializing`` also
-  self-registers any missing sinks before ``bus.start()`` so the
-  legacy ``build_config()`` dict-based construction path keeps
-  working.
-- **Reproducibility contract.**  With ``book_capture="l2"`` and a fixed
-  seed, ``SimulationResult.l1_close`` / ``l1_series`` / ``l2_series``
-  / ``trades`` / ``liquidity`` are byte-equivalent to a pre-Phase-3a
-  baseline (pickled at
-  ``abides-markets/tests/data/book_capture_baseline_l2.pkl``,
-  asserted by ``test_book_capture_reproducibility::test_l2_byte_equivalent``).
-
-Event bus (Phase 2 follow-up review)
-------------------------------------
-
-- **``AGENT_TYPE`` is now re-emitted on every kernel attach.** Previously
-  the event was published once from ``Agent.__init__`` via the pre-init
-  buffer, so a second ``Kernel`` constructed with the same agent (the
-  gym-reset pattern) would silently lose its ``AGENT_TYPE`` row.  The
-  event is now emitted from ``Agent.kernel_initializing()`` and fires on
-  every kernel attach.
-- **``parse_logs_df`` now reads ``InMemorySink`` in a single pass.**  The
-  previous implementation iterated ``agent.log`` per agent, triggering
-  the ``Agent.log`` ``DeprecationWarning`` once per agent and
-  re-scanning the full event list ``O(N_agents)`` times.  The fast path
-  fetches the sink once and groups events by ``agent_id`` in one pass.
-  A duck-typed fallback iterates ``agent.log`` only when no kernel is
-  reachable (kept for benchmarks and ad-hoc test fakes).
-- **``_extract_equity_curve`` reads the sink directly.**  Runs no longer
-  emit one ``DeprecationWarning`` per ``TradingAgent`` at termination.
-- **Sink failures are surfaced on ``KernelRunResult``.**  New
-  ``KernelRunResult.sink_failures`` field (tuple of
-  ``SinkFailure(sink_index, sink_type, exception_repr)``) lets
-  programmatic callers detect partial telemetry loss (e.g.
-  ``BZ2PickleSink`` hitting a full disk) without parsing logs.
-- **Per-batch sink failure isolation.**  ``EventBus._drain_buffers``
-  now wraps a single ``try/except`` around the whole tuple loop for
-  each sink instead of per tuple.  A failing sink is marked dead and
-  fully skipped on subsequent batches — the previous version still
-  paid a per-tuple ``try/except`` cost for a sink it knew was broken.
-- **``EventBus.register()`` validates the ``EventSink`` Protocol.**
-  Non-conforming sinks now raise ``TypeError`` at registration time
-  (with the missing-method list) rather than at ``start()`` time with
-  an ``AttributeError``.  The ``accept_*`` class attributes are also
-  checked explicitly.
-- **``publish_book_snapshot`` honours the pre-start buffer.**  Calls
-  made before ``EventBus.start()`` are now queued and delivered on
-  start, matching the existing behaviour of ``publish_event`` and
-  ``publish_metric``.
-- **``BZ2PickleSink`` reads ``log_to_file`` at ``on_simulation_start``.**
-  The legacy kernel path checked ``agent.log_to_file`` lazily at
-  termination.  The sink now matches that contract instead of freezing
-  the flag at construction time.
-- **``EventBus.in_memory_sink`` is now O(1).**  The first
-  ``InMemorySink`` is cached at ``register()`` time rather than
-  re-scanned on every property access.
-
-Event bus (Phase 2)
--------------------
-
-- **Introduced ``EventBus`` and ``EventSink`` protocol.** Agent events
-  and metrics now flow through a single-threaded ``EventBus``
-  (``abides_core.event_bus``) rather than being stored directly on
-  ``agent.log`` or dispatched synchronously to observers.
-  ``EventSink`` is a ``runtime_checkable`` Protocol; any object that
-  implements it can be registered with ``Kernel(event_sinks=[...])``.
-
-- **Three shipped sinks.** All in ``abides_core.event_sinks``:
-
-  - ``InMemorySink`` — captures all events, metrics, and book snapshots
-    as lists of 6-field wire tuples. ``agent_log(agent_id)`` returns
-    ``(sim_time_ns, event_type, payload)`` triples matching the old
-    ``agent.log`` format. Registered by default.
-  - ``BZ2PickleSink`` — writes per-agent ``<name>.bz2`` files on
-    simulation end in the legacy ``(EventTime, EventType, Event)``
-    DataFrame format. Respects ``agent.log_to_file=False``.
-    Registered automatically when ``skip_log=False``.
-  - ``MetricsObserverSink`` — forwards each ``report_metric()`` call
-    to all registered ``KernelObserver`` instances. Registered
-    automatically when observers are present.
-
-- **Wire field constants and typed record views.** ``event_records.py``
-  exports ``WIRE_FIELDS_EVENT``, ``WIRE_FIELDS_METRIC``,
-  ``WIRE_FIELDS_BOOK_SNAPSHOT`` and dataclass views ``EventRecord``,
-  ``MetricRecord``, ``BookSnapshotRecord`` with ``from_tuple()``
-  classmethods.
-
-- **Payload schema registry.** ``event_payloads.py`` exports
-  ``PayloadSchema`` (frozen dataclass) instances for every shipped
-  event type and an ``EVENT_TYPE_SCHEMA: dict[str, PayloadSchema]``
-  lookup map.
-
-- **``Agent.logEvent()`` and ``Agent.report_metric()`` now publish to
-  the bus.** Events emitted before kernel attachment are buffered in
-  ``_pre_init_log`` and flushed at ``kernel_initializing()`` time
-  (appearing in the sink with ``sim_time_ns=0``).
-
-- **Deprecated ``Agent.log`` property.** Accessing ``agent.log``
-  emits a ``DeprecationWarning`` and returns
-  ``InMemorySink.agent_log(agent.id)`` for backward compatibility.
-  Update callers to use ``kernel.event_bus.in_memory_sink.agent_log()``
-  or ``parse_logs_df()``.
-
-- **Updated ``logging-architecture.md``.** Added §4 documenting the
-  bus lifecycle, wire formats, shipped sinks, drain cadence, pre-init
-  bootstrap, and failure-isolation behaviour.
-
-Documentation
--------------
-
-- **Event-vocabulary audit.** Added
-  ``docs/reference/event-vocabulary.md``: a complete, source-anchored
-  inventory of every shipped ``Agent.logEvent(...)`` and
-  ``Agent.report_metric(...)`` call site, grouped by producer category,
-  with payload shape, known consumers, and non-binding consolidation
-  suggestions. No public event names changed; consolidation candidates
-  are flagged ``[REVIEW]`` for a future deprecation cycle.
-  Cross-linked from ``docs/reference/logging-architecture.md``.
-
-Tooling
--------
-
-- **One-shot benchmark scripts under ``benchmarks/``.** Added five
-  developer-facing scripts that produce JSON-line baselines for the
-  perf-sensitive paths called out by the event-logging refactor plan
-  (``parse_logs_df`` latency, headless / default-sinks / gym sim
-  throughput, peak RSS on a longer sim). Not wired into CI; intended
-  for use as before/after probes during refactor work.
-
-Logging & utility hardening
----------------------------
-
-- **Atomic on-disk log writes.** ``BZ2PickleLogWriter`` now serialises
-  pickled DataFrames to a sibling ``<file>.tmp`` and renames into
-  place via ``os.replace``. Crashes mid-write no longer leave
-  partially-written ``.bz2`` files that confuse downstream readers.
-- **Faster ``parse_logs_df``.** Replaced the per-agent intermediate
-  ``DataFrame`` + ``pd.concat`` build with a single
-  ``pd.DataFrame.from_records`` over the flat row list. Same output
-  shape; fewer allocations on large captures.
-
-abides-core v3 foundation refactor
-----------------------------------
-
-Breaking, internal-API-only refactor of ``abides-core``. No external
-``abides-ng`` user code change is required when using
-``SimulationBuilder`` + ``run_simulation()``; only callers that build a
-``Kernel`` directly or use the ``abides`` console script are affected.
-
-- **Modernised type annotations.** All ``Optional[X]`` / ``Union[X, Y]``
-  rewritten as ``X | None`` / ``X | Y`` (PEP 604), enforced via ruff
-  ``UP007``.
-- **Wheel rebrand.** Package name is now ``abides-ng`` (was
-  ``abides-markets``); import paths (``abides_core``, ``abides_markets``,
-  ``abides_gym``) are unchanged.
-- **Required ``random_state``.** ``Kernel.__init__`` now requires
-  ``random_state`` as a keyword argument; the implicit default is gone.
-- **Typed oracle slot + observers.** ``Kernel`` accepts a typed
-  ``oracle: Oracle | None`` and an ``observers: Sequence[KernelObserver]``
-  iterable; the metrics surface lives behind the ``KernelObserver``
-  protocol.
-- **Latency model rename.** ``MessageTypeAwareLatencyModel`` replaces
-  the prior latency-model entry point. Hook protocol renamed
-  ``GymAdapter`` → ``RunnerHook``.
-- **``KernelRunResult`` dataclass.** ``Kernel.run()`` returns a typed
-  ``KernelRunResult(elapsed, slowest_agent_finish_time, messages_processed)``;
-  domain metrics are delivered via observers, not a free-form dict.
-- **Per-agent computation delays as a typed numpy array.** Kernel
-  kwarg renamed ``per_agent_computation_delays: dict[int, int]`` →
-  ``agent_computation_delays: np.ndarray`` (``dtype=int64``, shape
-  ``(n_agents,)``). Builder gains
-  ``agent_computation_delay_by_type(agent_type, delay)`` and
-  ``agent_computation_delay_by_name(agent_name, delay)``; the by-name
-  override wins. ``Agent.computation_delay`` is now a property backed by
-  the kernel's array.
-- **Kernel slimming.**
-  - ``Kernel.log_dir`` defaults to ``uuid.uuid4().hex`` (no more
-    wall-clock collisions under multiprocessing).
-  - ``kernel_wall_clock_start`` removed.
-  - ``ttl_messages`` and ``event_queue_wall_clock_start`` moved into a
-    private ``_RunStats`` dataclass.
-  - ``show_trace_messages`` flag removed; trace logs are now standard
-    ``logger.debug()`` calls gated by
-    ``logger.isEnabledFor(logging.DEBUG)``.
-  - Legacy ``abides`` console script and ``abides_core.abides:main``
-    CLI removed; use ``run_simulation()`` (or ``abides.run()``)
-    programmatically.
-- **``Agent.kernel`` non-Optional.** Initialised to a sentinel that
-  raises ``RuntimeError`` on attribute access before
-  ``kernel_initializing()``. All ``assert self.kernel is not None``
-  assertions removed.
+Entries dated **2021-* and earlier** are inherited verbatim from the
+upstream `abides-jpmc-public` project and are preserved for historical
+reference.
 
 ---
 
-2026-05 Release v2.6.0
-==================
+## [Unreleased]
 
-This release stabilises a series of kernel-internal improvements
-landed since v2.5.8: numpy-backed per-agent state, a unified latency
-model code path, an explicit kernel lifecycle state machine, and
-pluggable log-writer / gym-adapter protocols. Two intentional
-reproducibility breaks are documented under *Breaking Changes*.
+### Added
+- Three-valued `book_capture` field on `ExchangeAgent` (`"off"` / `"l1"` /
+  `"l2"`) — fine-grained control over order-book snapshot retention.
+- Order-book capture flows through the `EventBus`: new
+  `OrderBookSnapshotMemorySink` and `OrderBookHistoryMemorySink`, one
+  pair per symbol. Typed `NamedTuple` payloads for `LIMIT`, `EXEC`,
+  `CANCEL`, `CANCEL_PARTIAL`, `MODIFY`, `REPLACE`.
+- Publisher-side L1 deduplication for `book_capture="l1"`.
 
-It also marks the **transition of the project to a public PyPI
-release** as ``abides-ng`` — see *Distribution Name* below.
+### Changed
+- `EventBus` is now the single dispatch hub for agent events, metrics,
+  and order-book snapshots. `Agent.logEvent()` and `Agent.report_metric()`
+  publish through the bus; `InMemorySink` is the default sink.
+- `Kernel` accepts injectable `LogWriter` and `event_sinks`; `log_root`
+  is a first-class kwarg.
+- `parse_logs_df` rebuilt around a single `pd.DataFrame.from_records`
+  call.
 
-Distribution Name
------------------
+### Deprecated
+- `OrderBook.book_log2` and `OrderBook.history` — read from the
+  corresponding sink instead.
+- Direct `agent.log` access — use
+  `kernel.event_bus.in_memory_sink.agent_log(agent_id)`.
 
-This is the first release published to PyPI. The project uses the
-name **``abides-ng``** (next-generation) to distinguish this
-community-maintained fork from the original ``abides-jpmc-public``
-repository (now archived), while remaining clearly discoverable
-alongside it. The name is deliberately humble — it signals an active
-continuation, not a claim of authority.
-
-Installation:
-
-* **Headless simulation**: ``pip install abides-ng``
-  (contains ``abides_core``, ``abides_markets``, and the ``abides``
-  CLI script).
-* **RL stack** (deferred): ``pip install abides-ng[gym]``.
-  The ``gymnasium`` and ``ray[rllib]`` optional extras are declared
-  in v2.6.0 metadata; ``abides_gym`` source will be bundled once
-  the adapter is re-validated against the new ``SimulationConfig``
-  system. Until then, install from source:
-  ``pip install -e abides-gym/`` from a clone.
-
-**Import names are unchanged**: existing user code that does
-``from abides_core import ...``, ``from abides_markets import ...``,
-or ``from abides_gym import ...`` requires no changes.
-
-**Migration**:
-
-* Install via ``pip install abides-ng`` (the package was never published under the old name).
-* Source/dev installs use the new ``uv`` workspace layout — clone
-  the repo and run ``uv sync --dev`` as before.
-
-Other release-engineering changes shipped in this release:
-
-* Fixed the ``pyproject.toml`` ``version`` field (was ``"v2.6.0"``,
-  now PEP 440-compliant ``"2.6.0"``).
-* Added PyPI metadata: classifiers, keywords, project URLs, and
-  authors / maintainers on both wheels.
-* Added ``CONTRIBUTING.md``, ``SECURITY.md``, and a ``Governance``
-  section in the README.
-* Added a tag-triggered release workflow with PyPI / TestPyPI
-  trusted publishing (OIDC). See
-  ``docs/project/release-process.md`` for the full process.
-* Added ``docs/project/reproducibility.md`` formalising the
-  reproducibility guarantees and the policy that breaking them
-  requires a major-version bump.
-
-Breaking Changes
-----------------
-
-* **Removed the no-op default latency-noise RNG draw.**
-  ``UniformLatencyModel`` and ``MatrixLatencyModel`` now default to
-  ``noise=None`` (was ``[1.0]``). When ``noise`` is ``None`` the model
-  returns its configured latency directly without consuming any RNG
-  draws. **This is an explicit reproducibility break**: seeded
-  simulations that previously relied on the implicit
-  ``np.random.choice([1.0])`` draw per ``send_message`` will diverge
-  from prior runs.
-
-  Migration: pass ``noise=[1.0]`` explicitly to either model
-  constructor to restore the legacy bit-for-bit behavior. The
-  ``Kernel`` constructor's legacy ``latency_noise`` keyword still
-  forwards into the wrapped model unchanged, so callers that already
-  passed ``latency_noise=[1.0]`` are unaffected.
-
-  ``test_seed_replicability.py`` compares two same-seed runs to each
-  other (not to a hardcoded baseline) so it passes unchanged.
-
-Bug Fixes
----------
-
-* **Kernel architecture decomposition.**
-
-  - Introduced ``abides_core.log_writer.LogWriter`` (Protocol) with
-    two concrete implementations: ``NullLogWriter`` (no-op) and
-    ``BZ2PickleLogWriter`` (legacy ``<root>/<run_id>/<name>.bz2``
-    format, with the run directory created lazily on first write so
-    dry-run configs leave no empty dirs). ``Kernel`` accepts an
-    explicit ``log_writer=`` kwarg and a new ``log_root=`` kwarg;
-    ``skip_log`` and ``log_dir`` keep their previous semantics for
-    callers that do not inject a writer.
-  - Introduced ``abides_core.lifecycle.KernelState`` (4 states:
-    ``CONSTRUCTED``, ``INITIALIZED``, ``RUNNING``, ``TERMINATED``).
-    ``Kernel.initialize()``, ``runner()``, ``terminate()`` and
-    ``reset()`` now validate transitions at the public method
-    boundary and raise ``RuntimeError`` on out-of-order calls
-    (previously a silent ``has_run`` flag could hide the mistake).
-  - Introduced ``abides_core.gym_adapter.GymAdapter`` (Protocol).
-    ``Kernel`` accepts an explicit ``gym_adapter=`` kwarg. Legacy
-    auto-detection of ``CoreGymAgent``-based agents still works for
-    one release but emits a ``DeprecationWarning``. The
-    ``abides-gym`` core environment was migrated to pass
-    ``gym_adapter=self.gym_agent`` explicitly so the gym test suite
-    is warning-free immediately. ``Kernel.gym_agents`` remains as a
-    list view (``[adapter]`` or ``[]``) for backwards compatibility.
-  - ``Kernel.__init__`` is now keyword-only after ``agents``: every
-    other constructor parameter must be passed by keyword. All
-    in-tree callers already used kwargs; out-of-tree callers that
-    pass positional arguments will get a ``TypeError`` with a clear
-    diagnosis.
-  - New documentation: ``docs/reference/kernel-architecture.md``
-    (full architecture write-up).
-
-* **Per-agent state moved to numpy arrays.**
-
-  - ``Kernel._agent_current_times`` and ``Kernel._agent_computation_delays``
-    are now ``numpy.ndarray[int64]`` for O(1) hot-loop indexing and a
-    smaller per-agent memory footprint than the previous Python lists.
-  - The legacy attribute names ``agent_current_times`` and
-    ``agent_computation_delays`` remain as **read-only deprecation
-    properties** that emit a one-shot ``DeprecationWarning`` per
-    attribute name and return a non-writable ``ndarray`` view. External
-    code that *reads* these attributes keeps working (with a warning);
-    external code that *writes* will fail loudly because the view
-    rejects item assignment.
-  - ``Kernel.find_agents_by_type`` is now O(1): the kernel pre-indexes
-    each agent's MRO at construction time into ``_agents_by_type``, so
-    passing a base class still returns every subclass instance
-    (``isinstance`` semantics preserved).
-  - ``Kernel.initialize()`` resets the per-agent times via slice
-    assignment on the existing buffer (no realloc); per-agent
-    computation-delay overrides from the constructor still persist
-    across resets.
-  - ``custom_state["kernel_slowest_agent_finish_time"]`` is now cast to
-    a Python ``int`` to keep notebooks and log parsers free of
-    ``numpy.int64`` leaks.
-
-* **Latency model unification.**
-
-  - ``Kernel.send_message`` now always routes through a
-    ``LatencyModel``. The dual code path (legacy
-    ``agent_latency`` matrix + ``latency_noise`` list vs. injected
-    ``agent_latency_model``) is gone.
-  - When ``agent_latency_model`` is not provided, the kernel wraps
-    the legacy ``agent_latency`` / ``default_latency`` /
-    ``latency_noise`` constructor kwargs into a new
-    ``MatrixLatencyModel`` or ``UniformLatencyModel`` (both in
-    ``abides_core.latency_model``). The legacy default
-    ``noise=[1.0]`` RNG draw is preserved so seeded simulations
-    remain bit-for-bit identical (``test_seed_replicability.py``
-    passes unmodified).
-  - ``LatencyModel.get_latency`` gained a keyword-only
-    ``random_state`` parameter. The kernel passes
-    ``self.random_state`` on every call. The cubic
-    ``LatencyModel`` ignores the kwarg and continues to use its own
-    constructor-injected RNG (zero behavioral change for cubic
-    users). Custom ``LatencyModel`` subclasses outside the repo must
-    add ``*, random_state: np.random.RandomState | None = None`` to
-    their ``get_latency`` signatures.
-  - ``LatencyModel.get_latency`` now returns ``int`` (was
-    ``float``). The cubic model casts at the boundary.
-  - Removed ``Kernel.agent_latency`` and ``Kernel.latency_noise``
-    attributes (and their entries in ``_KERNEL_RESERVED_ATTRS``).
-    External readers must access the underlying matrix / noise list
-    via the model object instead.
-
-* **Removed financial fields from kernel core.**
-
-  - Removed ``Kernel.mean_result_by_agent_type`` and
-    ``Kernel.agent_count_by_type`` (and the corresponding entries from
-    ``_KERNEL_RESERVED_ATTRS``). The kernel core no longer carries
-    finance-specific aggregation state.
-  - Added a generic ``Agent.report_metric(key, value)`` API that
-    accumulates ``{"sum": float, "count": int}`` per
-    ``(agent_type, key)`` into
-    ``kernel.custom_state["agent_type_metrics"]``.
-  - ``Kernel.terminate()`` now iterates ``custom_state["agent_type_metrics"]``
-    and prints ``mean = sum/count`` for every reported (type, key)
-    pair with ``count > 0``.
-  - ``TradingAgent.kernel_stopping()`` now reports its mark-to-market
-    gain via ``self.report_metric("ending_value", gain)`` instead of
-    mutating kernel attributes directly.
-  - Migration: external code that reads
-    ``kernel.mean_result_by_agent_type`` / ``agent_count_by_type``
-    must read ``kernel.custom_state["agent_type_metrics"][type][key]``
-    (a ``{"sum", "count"}`` dict) instead. External code that writes
-    those attributes should switch to ``Agent.report_metric()``.
-
-* **Dispatch ordering & heap refactor.**
-
-  - Fixed a latent bug where ``Agent.delay()`` calls inside a message
-    handler were silently dropped. The kernel now advances the
-    recipient's ``agent_current_times`` *after* dispatch, so any
-    ``delay()`` accumulated during ``wakeup()`` /
-    ``receive_message()`` correctly shifts the agent's next slot.
-  - Replaced the raw ``(deliver_at, (sender, recipient, message))``
-    heap entries with an ordered ``_HeapEntry`` dataclass keyed on a
-    per-kernel monotonic ``seq`` counter (reset by
-    ``Kernel.initialize()``). Messages no longer need to be orderable
-    and no global counter is touched at construction.
-  - ``Message.__lt__`` and the global ``_message_id_generator`` have
-    been removed. ``Message.message_id`` survives as a deprecated
-    property returning ``id(self)`` (emits ``DeprecationWarning``).
-  - ``Kernel.set_wakeup`` now reuses a module-level ``_WAKEUP_SINGLETON``
-    instead of constructing a fresh ``WakeupMsg`` for every wakeup.
-  - The two-branch ``runner()`` dispatch loop has been collapsed into a
-    single path: in-future requeue, then a class-identity dispatch
-    (``WakeupMsg`` / ``MessageBatch`` / regular). ``MessageBatch``
-    sub-messages still receive a single computation delay between
-    deliveries.
-  - Direct heap manipulation outside the kernel is no longer
-    supported; tests and callers should use ``Kernel._enqueue`` (or
-    the public ``send_message`` / ``set_wakeup`` APIs).
-
-* **Kernel state hygiene.**
-
-  - ``Kernel.initialize()`` now clears per-run state (``messages``,
-    ``custom_state``, ``summary_log``, ``ttl_messages``,
-    ``current_agent_additional_delay``, and per-agent current-time
-    array) before re-running ``kernel_initializing`` /
-    ``kernel_starting``. Makes ``kernel.reset()`` and gym
-    re-initialization safe in the same interpreter.
-    ``agent_computation_delays`` is intentionally not cleared so
-    constructor-set per-agent overrides survive resets.
-  - ``Kernel.__init__(custom_properties=...)`` now rejects keys that
-    would shadow kernel-managed attributes (``agents``, ``messages``,
-    ``random_state``, etc.) and raises ``ValueError``. The full
-    blocklist is in ``_KERNEL_RESERVED_ATTRS``.
-  - Constructing a ``Kernel`` without an explicit ``seed=`` or
-    ``random_state=`` now emits ``DeprecationWarning``. Callers should
-    pass one or the other for reproducible runs.
-
-* **Kernel hygiene fixes.**
-
-  - ``Kernel.write_summary_log()`` now respects ``skip_log=True`` and no
-    longer creates a summary log file when logging is disabled. The
-    ``abides.run()`` entry point now plumbs ``skip_log`` from the
-    runtime config to the kernel.
-  - The "only one gym agent" check is now a ``ValueError`` instead of
-    an ``assert``, so it is enforced under ``python -O``.
-  - ``Kernel.terminate()`` no longer crashes with ``ZeroDivisionError``
-    when ``mean_result_by_agent_type`` contains entries with no
-    matching count in ``agent_count_by_type``.
-  - ``Kernel.__init__`` validates the long-standing convention that
-    ``agents[i].id == i`` and raises ``ValueError`` on violation. The
-    ``config_add_agents()`` runtime injection helper now reassigns
-    appended agent ids to match their final list index.
-  - ``event_queue_wall_clock_start`` and ``ttl_messages`` are now
-    declared in ``__init__`` with safe defaults instead of being
-    first-assigned in ``initialize()``.
-  - ``default_latency`` and ``agent_latency`` parameter type
-    annotations corrected from ``float`` to ``int``.
-
-Documentation
--------------
-
-* **Docs reorganization.** ``docs/ai/`` merged into ``docs/reference/``
-  (single home for all technical references). ``docs/plans/`` renamed to
-  ``docs/active-plans/`` to clarify its ephemeral, per-PR scope.
-  ``docs/project/HASUFEL_PLAN.md`` renamed to ``docs/project/roadmap.md``
-  to disambiguate from the plans folder. The ``HASUFEL_`` filename prefix
-  was dropped throughout and files renamed to lowercase kebab-case
-  (e.g. ``HASUFEL_CONFIG_SYSTEM.md`` → ``config-system.md``). The
-  previous logging audit (``LOGGING_ANALYSIS.md``) moved into
-  ``docs/reference/logging-architecture.md``. Old paths are not
-  preserved — external bookmarks must be updated.
+### Fixed
+- Repeated `OrderBook.history` / `book_log2` reads no longer emit
+  spurious deprecation warnings during normal operation.
 
 ---
 
-2026-04 Release v2.5.8
-==================
+## [2.6.0] — 2026-05
 
-New Features
-------------
+### Changed
+- **Breaking:** distribution renamed from `abides` to `abides-ng` on
+  PyPI. Import paths (`abides_core`, `abides_markets`, `abides_gym`)
+  are unchanged.
+- Documentation site moved to MkDocs Material; published from `main`
+  via GitHub Actions.
 
-* **Per-order lifecycle tracking** — ``RichAgentMetrics.order_lifecycles``
-  provides an ``OrderLifecycle`` record for every submitted order, reconstructed
-  from ``ORDER_SUBMITTED``, ``ORDER_EXECUTED``, and ``ORDER_CANCELLED`` log
-  events.  Each record exposes ``status`` (filled / partially_filled /
-  cancelled / resting), ``filled_qty``, ``submitted_qty``, ``resting_time_ns``,
-  and per-fill ``(time_ns, price_cents, qty)`` tuples.  Requires
-  ``ResultProfile.AGENT_LOGS``.
-
-* **L1-sampled dense equity curve** — ``compute_equity_curve()`` now accepts
-  an optional ``l1: L1Snapshots`` parameter.  When provided, the returned
-  ``EquityCurve`` has one observation per two-sided L1 tick (carry-forward
-  interpolation from the most recent fill), instead of one observation per
-  fill only.  This yields a denser NAV time-series for Sharpe and drawdown
-  computation.
+### Fixed
+- Numerous correctness fixes across the agent suite — see git history
+  for details.
 
 ---
 
-2026-04 Release v2.5.7
-==================
+## [2.5.8] — 2026-04
 
-New Features
-------------
+### Added
+- `SimulationResult.get_agents_by_category()` helper.
 
-* **Rich Simulation Metrics API** — Added ``compute_rich_metrics()`` as a
-  single-call entry point that produces agent-level analytics
-  (PnL, Sharpe, drawdown, fill rate, VWAP, inventory), market microstructure
-  indicators (LOB imbalance, resilience, OTT ratio), and optional per-fill
-  execution analysis (slippage, adverse selection at configurable windows).
-  New Pydantic models: ``RichSimulationMetrics``, ``RichAgentMetrics``,
-  ``MicrostructureMetrics``, ``FillRecord``.  Standalone helpers
-  ``compute_fill_slippage()`` and ``compute_adverse_selection()`` exposed for
-  ad-hoc use.  All fields degrade gracefully to ``None`` when the required
-  ``ResultProfile`` data is absent.
+## [2.5.7] — 2026-04
 
----
+### Added
+- Per-agent execution-quality metrics surfaced on
+  `compute_rich_metrics()`.
 
-2026-04 Release v2.5.6
-==================
+## [2.5.6] — 2026-04
 
-New Features
-------------
+### Added
+- VPIN (Easley et al. 2012) added to the microstructure metrics
+  surface.
 
-* **Oracle instance forwarding** — ``run_simulation()`` now accepts an
-  ``oracle_instance`` parameter, forwarded to ``compile()``.
-  ``ExternalDataOracle`` users can call ``run_simulation()`` directly instead
-  of dropping to the lower-level ``build_and_compile()`` + ``abides_run()``
-  path.
+### Fixed
+- Edge cases in trade-attribution bucketing under thin liquidity.
 
-Bug Fixes
----------
+## [2.5.4] — 2026-04
 
-* **ValueAgent ZeroDivisionError for small kappa** — ``update_estimates()``
-  now uses ``log1p``/``expm1`` arithmetic to avoid division by zero when the
-  mean-reversion half-life is very long (e.g. 365 days).
+### Added
+- MiFID II RTS 9 market-wide order-to-trade ratio
+  (`MicrostructureMetrics.market_ott_ratio`).
+- Spread-resilience indicator (Foucault, Pagano & Röell 2013).
 
-* **Template fixes** — ``liquid_market`` and ``thin_market`` templates now
-  work correctly for dashboard use; added runtime validation tests.
+### Fixed
+- Adverse-selection window alignment for sub-second horizons.
 
-* **CI black formatting** — pinned ``target-version = ["py312"]`` in the CI
-  workflow so local and remote black produce identical output.
+## [2.5.3] — 2026-04
 
----
+### Added
+- `ResultProfile.FULL` exposes raw event logs (`SimulationResult.logs`)
+  as a parsed DataFrame.
+- Declarative config templates for thin-liquidity and volatile-regime
+  scenarios.
 
-2026-04 Release v2.5.4
-==================
+### Changed
+- Config validation messages now point at the offending field path.
 
-New Features
-------------
+## [2.5.2] — 2026-04
 
-* **Runtime agent injection** — ``run_simulation()`` now accepts a
-  ``runtime_agents`` parameter for post-compile agent injection with auto-ID
-  assignment, category tagging, and latency model regeneration.
+### Added
+- `compute_rich_metrics(include_fills=True)` returns per-fill
+  attribution and VWAP slippage.
 
-* **Worker initializer** — ``run_batch()`` now accepts a
-  ``worker_initializer`` callback, passed through to the multiprocessing
-  ``Pool`` initializer for custom agent registration in spawned workers.
+### Fixed
+- `BaseAgentConfig._prepare_constructor_kwargs()` propagates non-
+  serializable strategy instances correctly.
 
-* **Public ``derive_seed``** — promoted the private ``_derive_seed`` helper
-  to the public ``derive_seed`` API in ``compiler.py`` and re-exported it
-  from ``config_system``.  The private alias is preserved for backward
-  compatibility.
+## [2.5.1] — 2026-03
 
-Bug Fixes
----------
+### Changed
+- Lower per-message overhead in the kernel hot path.
 
-* Fixed mypy error — added ``category: str`` attribute to
-  ``FinancialAgent.__init__`` so the dynamic assignment in ``compile()``
-  is type-safe.
+### Fixed
+- Several test-only fixtures that leaked state between runs.
 
-* Resolved isort/ruff import cycle in ``test_runner_v26.py``.
+## [2.5.0] — 2026-03
 
----
+### Added
+- **Execution agents:** TWAP, VWAP, and POV implementations with
+  declarative scheduling and order-rate caps.
+- **Time-in-force order types:** `IOC`, `FOK`, `DAY`.
+- **Exchange-side stop orders** with deterministic trigger semantics.
+- **Market-maker enhancements:** configurable inventory bands and
+  quote-skew under inventory pressure.
+- **Trade attribution** exposed on `SimulationResult.markets`.
 
-2026-04 Release v2.5.3
-==================
+## [2.4.0] — 2026-03
 
-New Features
-------------
+### Changed
+- **Breaking:** RNG hierarchy reworked to SHA-256 identity hashing —
+  adding or removing an agent no longer shifts the random draws of
+  any other agent. Per-worker seeds in `run_batch` are now
+  composition-invariant.
 
-* **Standalone microstructure metrics** — factored all metric computation out
-  of the simulation runner into standalone ``compute_*()`` functions in
-  ``abides_markets.simulation.metrics``.  External consumers can now compute
-  the canonical metric set from plain Python data without running a simulation.
+## [2.3.0] — 2026-03
 
-* **Tier 1 metrics** — ``compute_mean_spread`` (time-averaged quoted spread),
-  ``compute_effective_spread`` (avg cost of immediacy vs nearest L1 mid),
-  ``compute_volatility`` (annualised mid-price return std, 30+ obs threshold),
-  ``compute_sharpe_ratio`` (annualised risk-adjusted return from equity curve).
+### Added
+- Human-readable units in declarative config (`"100ms"`, `"30s"`,
+  `"$10.00"`).
 
-* **Tier 2 metrics** — ``compute_avg_liquidity`` (mean resting qty at best
-  bid/ask), ``compute_lob_imbalance`` (LOB imbalance mean/std per Cont,
-  Kukanov & Stoikov 2014), ``compute_inventory_std`` (std of intraday
-  inventory from fills), ``compute_market_ott_ratio`` (market-wide
-  order-to-trade ratio, MiFID II RTS 9).
+## [2.2.1] — 2026-03
 
-* **Tier 3 metrics** — ``compute_vpin`` (Volume-Synchronized Probability of
-  Informed Trading per Easley et al. 2012, with Lee-Ready tick test and
-  equal-volume bucketing), ``compute_resilience`` (mean spread recovery time
-  after shock events per Foucault et al. 2013).
+### Changed
+- Internal code-quality pass; no behaviour changes.
 
-* **Order-level fill rate** — ``compute_order_fill_rate`` computes
-  ``N_executed / N_submitted`` (Rohan §1.2 definition).  Documented the
-  semantic distinction from the existing quantity-based ``fill_rate_pct``
-  (``filled_qty / target_qty``).
+## [2.2.0] — 2026-03
 
-* **Agent category support** — ``AgentData`` now carries ``agent_category``
-  stamped from the registry at compile time.  ``SimulationResult`` gained
-  ``get_agents_by_category()`` for filtering agents by role.
+### Added
+- **Risk controls:** declarative position limits, drawdown kill-switch,
+  and order-rate caps enforced at order entry.
+- **Oracle redesign:** every `MarketConfig` must explicitly choose an
+  oracle (or `oracle: null`). `ValueAgent` auto-inherits oracle
+  parameters. External-data oracles are injected via
+  `builder.oracle_instance(...)`.
+- `compute_rich_metrics()` first release: Sharpe, max drawdown, mean
+  spread, LOB imbalance.
 
-Config System
--------------
+### Changed
+- All constructor-side defaults aligned with their config-side
+  counterparts.
+- Order-management hot path vectorised.
 
-* **Raw physical parameters** — ``ValueAgentConfig`` now accepts ``kappa``
-  and ``lambda_a``; ``SparseMeanRevertingOracleConfig`` accepts ``kappa``
-  and ``megashock_lambda_a``.  The compiler propagates oracle parameters
-  correctly.
+### Fixed
+- Off-by-one in the closing-cross fallback when no oracle is present.
 
-* **Template metadata** — templates now carry ``scenario_description``,
-  ``regime_tags``, and ``default_risk_guards`` for richer introspection.
+## [2.1.0] — 2026-03
 
-Documentation
--------------
+### Changed
+- Code-quality pass; type annotations modernised to `X | None` syntax
+  (Python 3.12+).
 
-* Expanded custom agent implementation guide with two-approach structure
-  (direct subclass vs adapter pattern), import table, message type reference,
-  ``_EXCLUDE_FROM_KWARGS`` pattern, and ``AgentCreationContext`` fields.
+## [2.0.0] — 2026-03
 
-* Added Rohan metrics definition reference document
-  (``docs/metrics_definition.md``).
+### Fixed
+- **Breaking:** several long-standing correctness bugs in
+  `MeanReversionAgent`, `ValueAgent`, and `MeanRevertingOracle`.
+  Results from earlier versions are not directly comparable.
 
----
+## [1.3.0] — 2026-03
 
-2026-04 Release v2.5.2
-==================
+### Added
+- **Declarative configuration system:** `SimulationConfig`,
+  `SimulationBuilder`, agent registry, YAML / JSON serialisation,
+  composable templates.
+- `run_simulation()` and `SimulationResult` as the recommended entry
+  points.
 
-Bug Fixes
----------
+### Changed
+- **Breaking:** project renamed in source from upstream layout.
 
-* **Fixed: AdaptiveMarketMakerAgent subscribe-mode crash when mid is None** —
-  the subscribe path in ``receive_message()`` called ``place_orders(mid)``
-  without a ``mid is not None`` guard.  When the order book lacks both sides
-  at simulation start, ``mid`` is ``None`` → ``int(None)`` → ``TypeError``.
+## [1.2.0] — 2026-03
 
-New Features
-------------
+### Changed
+- Hot-path performance improvements in message dispatch and order-book
+  matching.
 
-* **Full-day scenario templates** — five new templates for strategy evaluation:
-  ``stable_day`` (low-vol control), ``volatile_day`` (megashock stress),
-  ``low_liquidity`` (thin book), ``trending_day`` (weak mean-reversion +
-  momentum), ``stress_test`` (extreme conditions).  All run 09:30–16:00 and
-  compose with overlay templates.
+### Fixed
+- Multiple correctness fixes carried over from the upstream backlog.
 
-Documentation
--------------
+## [1.1.0] — 2026-01
 
-* Improved config field descriptions for ``ValueAgentConfig.depth_spread``,
-  ``VWAPExecutionAgentConfig`` time offsets and frequency, and
-  ``MeanRevertingOracleConfig.kappa``.
+First release after forking the archived `abides-jpmc-public` project.
+
+### Added
+- `POVExecutionAgent` implementation (referenced in upstream RMSC03
+  but never shipped).
+
+### Changed
+- Modernised dependency stack: Python 3.12+, NumPy 2.x, Pandas 2.x,
+  Gymnasium (replaces deprecated Gym), Ray 2.40+, SciPy 1.14+,
+  matplotlib 3.9+. `pomegranate` removed.
+
+### Fixed
+- `version_testing` regression suite restored; hard-coded commit
+  comparisons removed.
 
 ---
 
-2026-03 Release v2.5.1
-==================
+## 2021-10-15 Release
 
-Bug Fixes
----------
-
-* **Fixed: ValueAgent sigma_t Bayesian update** — the posterior variance
-  formula used ``self.sigma_t`` (the current prior) in place of
-  ``sigma_tprime`` (the propagated variance at observation time), causing the
-  agent's uncertainty to collapse incorrectly and producing over-confident
-  fundamental estimates.  Corrected to
-  ``(self.sigma_n * sigma_tprime) / (self.sigma_n + sigma_tprime)``.
-
-* **Fixed: sigma_s auto-inheritance for SparseMeanRevertingOracle** —
-  ``_get_oracle_params()`` in the compiler was forwarding ``oc.sigma_s``
-  (a field that does not exist on ``SparseMeanRevertingOracleConfig``),
-  silently injecting ``None`` into every ValueAgent.  The compiler now
-  derives ``sigma_s = oracle.fund_vol ** 2`` (the per-nanosecond shock
-  variance the Bayesian update expects) and ``rmsc04.py`` was updated
-  to pass the same quantity directly.
-
-* **Fixed: AdaptiveMarketMaker negative price orders** — with a wide spread
-  or large ``tick_size`` the computed ``lowest_bid`` could fall below zero,
-  causing the exchange to reject the order.  Price lists are now filtered
-  to ``price >= 1`` before submission.
-
-Simulation Quality
-------------------
-
-* **NoiseAgent multi-wake enabled in templates** — all built-in templates
-  (``rmsc03``, ``rmsc04``, ``small``) now configure NoiseAgent with
-  ``multi_wake=True, wake_up_freq="30s"``, producing a continuous background
-  noise flow instead of a single early-session burst.
-
-* **ValueAgent sigma_s removed from template defaults** — hardcoded
-  ``sigma_s=100_000`` overrides have been removed from all templates so that
-  the compiler-derived value (from oracle ``fund_vol``) is used consistently.
-
-Tests
------
-
-* **Long-simulation regression tests** — new
-  ``test_long_simulation_health.py`` runs full-duration simulations across
-  templates and checks end-state invariants (no NaN prices, non-empty order
-  history, agent cash >= 0).  Catches the sigma_t / sigma_s regression
-  described above.
-
-
-2026-03 Release v2.5.0
-==================
-
-New Agents
-----------
-
-* **MeanReversionAgent** — contrarian strategy that trades on z-score
-  deviations from a rolling mean.  Buys when price is significantly below
-  the mean, sells when above.  Configurable lookback, entry/exit thresholds,
-  and position sizing.  Registered as ``mean_reversion`` (category: strategy).
-
-* **TWAPExecutionAgent** — time-weighted average price execution.  Slices a
-  parent order into equal-sized child IOC orders at regular intervals across
-  the execution window.  Shares ``BaseSlicingExecutionAgent`` base class with
-  POV.  Registered as ``twap_execution`` (category: execution).
-
-* **VWAPExecutionAgent** — volume-weighted average price execution.  Accepts
-  a configurable intraday volume profile and sizes each child slice
-  proportional to the expected volume in each bucket.  Registered as
-  ``vwap_execution`` (category: execution).
-
-Execution Agent Infrastructure
-------------------------------
-
-* **BaseSlicingExecutionAgent** — extracted from POVExecutionAgent as a shared
-  base for all slicing execution agents (POV, TWAP, VWAP).  Handles common
-  concerns: execution window management, IOC child order submission, fill
-  tracking, arrival-price capture, and summary logging.
-
-* **NoiseAgent multi-wake mode** — ``NoiseAgent`` can now be configured for
-  continuous wakeups (``multi_wake=True``), producing a steady background
-  noise flow throughout the session instead of a single trade-and-sleep.
-
-Order Types
------------
-
-* **Time-in-Force qualifiers** — ``LimitOrder`` now supports ``IOC``
-  (immediate-or-cancel), ``FOK`` (fill-or-kill), and ``DAY`` (cancel at
-  close) via the ``TimeInForce`` enum.  The exchange enforces each qualifier
-  at order entry and at end-of-day.
-
-* **Stop orders** — new ``StopOrder`` type with exchange-side trigger logic.
-  When the market price crosses the stop price, the exchange converts the
-  stop into a limit or market order.  ``TradingAgent.place_stop_order()``
-  provides the high-level API.
-
-Market Maker Enhancements
--------------------------
-
-* **End-of-day position flatten** — ``AdaptiveMarketMakerAgent`` now
-  aggressively flattens its inventory near market close, reducing overnight
-  risk.  Logged as ``AMM_FLATTEN`` events.
-
-Data Extraction & Analytics
----------------------------
-
-* **Execution-quality metrics** — ``ExecutionMetrics`` model captures
-  VWAP slippage, participation rate, implementation shortfall, and
-  arrival-price comparison for every execution-category agent.
-
-* **Causal trade attribution** — ``TradeAttribution`` model links each
-  execution to its passive and aggressive orders, enabling post-simulation
-  market-impact analysis.  Extracted via ``ResultProfile.TRADE_ATTRIBUTION``.
-
-* **Equity curves** — ``EquityCurve`` model built from ``FILL_PNL`` log
-  events provides per-fill NAV time-series and max-drawdown computation.
-  Extracted via ``ResultProfile.EQUITY_CURVE``.
-
-Bug Fixes
----------
-
-* **Fixed: execution agents killed simulations** —
-  ``BaseSlicingExecutionAgent.wakeup()`` returned ``bool`` instead of
-  ``None``, triggering the kernel's gym-agent interrupt mechanism and
-  terminating the simulation after ~2 wakeups.  All execution agents
-  (TWAP, VWAP, POV) were completely non-functional.
-
-* **Fixed: OrderBook EXEC history stored price=None** — non-PTC trade
-  executions recorded ``None`` for price in history entries, breaking
-  trade attribution and equity curve extraction.  Changed to always
-  use ``fill_price``.
-
-* **Fixed: execution agent default offsets too large** — default
-  ``start_time_offset`` and ``end_time_offset`` of 30 minutes consumed
-  the entire rmsc04 market window.  Changed to 5 minutes.
-
-Tests & Tooling
----------------
-
-* **972 tests** — up from ~762 in v2.4.0.  New test files cover order book
-  invariants, PTC edge cases, thin-market scenarios, execution-quality
-  numerics, market boundary behavior, oracle numerics, risk interactions,
-  and TradingAgent async gotchas.
-
-* **Full-feature evaluation script** — ``version_testing/evaluate_all_agents.py``
-  runs 10 scenarios covering all templates, agent types, and data extraction
-  profiles.
-
-
-2026-03 Release v2.4.0
-==================
-
-Seed Derivation — Composition-Invariant RNG Hierarchy
------------------------------------------------------
-
-**Breaking change:** the compiler now derives per-component seeds via
-SHA-256 identity hashing instead of a sequential ``master_rng.randint()``
-chain.  This means that **for the same master seed integer, agents will
-receive different ``random_state`` objects than in v2.3.0.**  Simulation
-results generated with earlier versions are not reproducible under v2.4.0.
-
-This is a deliberate departure from the sequential-draw approach described
-in the original ABIDES literature.  The new scheme provides two guarantees
-that the old one could not:
-
-1. **Order independence** — declaring agent groups in a different order
-   (e.g. ``enable_agent("value", ...)`` before ``enable_agent("noise", ...)``)
-   produces identical seeds.  A Pydantic ``model_validator`` on
-   ``SimulationConfig`` now sorts agent groups by name at construction time.
-
-2. **Composition invariance** — adding, removing, or resizing an agent
-   group does not shift the seeds of any other component.  Each component's
-   seed depends only on ``(master_seed, component_name, index)`` via
-   ``hashlib.sha256(f"{seed}:{component}:{index}")``, never on what other
-   components exist.
-
-Practical impact: researchers can inject a new strategy into an existing
-configuration and be certain that all *other* agents behave identically
-to the baseline — a prerequisite for controlled A/B experiments.
-
-* **``_derive_seed()`` helper** — new function in ``compiler.py`` that maps
-  ``(master_seed, component, index)`` → unsigned 32-bit integer via SHA-256.
-* **Sequential ``master_rng`` removed** — the compiler no longer maintains
-  a shared ``np.random.RandomState`` for seed allocation.  Oracle, exchange,
-  each agent group, kernel, and latency model each derive their seed
-  independently.
-* **``_sort_agents`` model validator** — ``SimulationConfig`` sorts
-  ``self.agents`` alphabetically after construction, ensuring canonical
-  ordering for deterministic agent-ID assignment and YAML serialization.
-* **5 new / strengthened tests** — order-independence, oracle injection,
-  adding-agent-preserves-seeds, changing-count-preserves-seeds, and
-  strengthened determinism assertion (verifies full ``random_state``
-  internal state equality).
-* **Documentation** — ``PARALLEL_SIMULATION_GUIDE.md`` updated with the
-  new RNG hierarchy diagram and composition-invariance note.
-
-
-2026-03 Release v2.3.0
-==================
-
-Config UX — Human-Readable Units
----------------------------------
-
-Config fields that previously required obscure nanosecond values or
-per-nanosecond scientific-notation rates now accept **duration strings**
-(e.g. ``"1min"``, ``"175s"``, ``"48d"``).  Internal constructors and
-the oracle still use per-nanosecond values — only the config layer changed.
-
-* **``order_rate_window``** (was ``order_rate_window_ns: int``).
-  ``BaseAgentConfig`` field now accepts a duration string (default ``"1min"``).
-  Converted to nanoseconds when building ``RiskConfig``.
-
-* **``mean_wakeup_gap``** (was ``lambda_a: float``).
-  ``ValueAgentConfig`` field now accepts a duration string (default ``"175s"``).
-  Converted to a Poisson arrival rate (``1/ns``) in ``_prepare_constructor_kwargs``.
-
-* **``mean_reversion_half_life``** (was ``kappa: float``).
-  Both ``SparseMeanRevertingOracleConfig`` and ``ValueAgentConfig`` now
-  accept a duration string (oracle default ``"48d"``, agent default ``None``
-  = auto-inherit).  Converted to per-nanosecond kappa via ``ln(2)/ns``.
-
-* **``subscribe_freq``** — ``AdaptiveMarketMakerConfig`` field changed from
-  ``int`` (nanoseconds) to duration string (default ``"10s"``).
-
-* **``megashock_mean_interval``** (was ``megashock_lambda_a: float``).
-  ``SparseMeanRevertingOracleConfig`` field now accepts a duration string
-  or ``None`` to disable megashocks (default ``"100000h"`` ≈ 11.4 years).
-  Converted to a Poisson rate in the compiler.
-
-* **``fund_vol`` description improved** — now explains per-√(ns) units and
-  practical impact on daily price variation.
-
-* Templates and documentation updated to use new field names.
-
-
-2026-03 Release v2.2.1
-==================
-
-Code Quality
-------------
-
-* **snake_case method renames** — replaced remaining CamelCase methods across
-  all agents: ``placeOrder`` → ``place_order`` (NoiseAgent, ValueAgent),
-  ``updateEstimates`` → ``update_estimates`` (ValueAgent),
-  ``logL2style`` → ``log_l2_style`` (ExchangeAgent).
-* **VALID_STATES runtime validation** — ``TradingAgent`` gained a ``state``
-  property that validates assignments against a ``VALID_STATES`` frozenset.
-  Subclasses that declare ``VALID_STATES`` get instant ``ValueError`` on
-  typos; agents using non-string state (AdaptiveMarketMakerAgent) are
-  unaffected (``VALID_STATES = None`` skips validation).
-  Declared on NoiseAgent, ValueAgent, MomentumAgent, POVExecutionAgent.
-* **Standardized ``@register_agent``** — ``builtin_registrations.py``
-  converted from ``registry.register()`` to the ``register_agent()``
-  decorator pattern, matching the public API documented in the guide.
-
-Documentation
--------------
-
-* **NoiseAgent annotated as reference implementation** — full rewrite with
-  WHY comments explaining event-driven architecture, async data flow,
-  state machine pattern, ``super().wakeup()`` guard, and ``isinstance``
-  dispatch.
-* **Auto-wired constructor params documented** — ``TradingAgent`` docstring
-  now lists the 6 parameters auto-injected by the config system.
-* **Custom Agent Guide expanded** — added §9 (copy-paste agent scaffold
-  with TODO markers), §10 (10-step agent-building checklist), and §11
-  (testing section with ``make_agent()`` and ``SimulationBuilder`` patterns).
-
-Tests
------
-
-* Created shared ``conftest.py`` with ``make_agent()`` helper,
-  ``StubKernel`` stand-in, and ``rmsc04_config`` session fixture.
-* Updated all test references for snake_case method renames.
-
-
-2026-03 Release v2.2.0
-==================
-
-Risk Management
----------------
-
-* **Position limits** — agents can now enforce per-symbol position caps.
-  A symmetric ``[-N, +N]`` share limit is checked before every order placement
-  (limit, market, multi-leg, and replace). Two enforcement modes:
-  reduce-only (clamp the order to the remaining headroom) or hard-block
-  (reject the order outright).
-* **Circuit breaker** — agents automatically stop trading when a drawdown
-  threshold or order-rate limit is breached. The kill-switch is latching
-  (once tripped it stays tripped) and is also checked proactively on every
-  fill, so a sudden adverse move disables the agent immediately.
-* **RiskConfig object** — the five risk parameters (position limit, clamp mode,
-  max drawdown, max order rate, rate window) are bundled in a frozen
-  ``RiskConfig`` dataclass.  It is wired through every concrete agent class
-  and auto-assembled by the config system, so risk rules declared in YAML
-  reach the agent without manual plumbing.
-* **Per-fill P&L tracking** — ``TradingAgent`` now logs a ``FILL_PNL`` event
-  after every execution with a running NAV and peak-NAV high-water mark,
-  enabling post-simulation equity-curve analysis.
-
-Oracle Redesign
----------------
-
-* **Oracle is now a required configuration choice** — ``MarketConfig.oracle``
-  has no default. Every simulation must explicitly set an oracle or pass
-  ``oracle: null`` (oracle-absent mode). This eliminates silent fallback
-  behaviour.
-* **Oracle-absent mode** — setting ``oracle: null`` plus an explicit
-  ``opening_price`` (integer cents) produces a valid simulation without a
-  fundamental value process. Useful for replay and execution-only scenarios.
-* **ValueAgent auto-inherits oracle parameters** — ``r_bar``, ``kappa``, and
-  ``sigma_s`` are pulled from the oracle config automatically when not
-  overridden, removing a common source of parameter mismatch.
-* **ExternalDataOracle injection** — ``ExternalDataOracleConfig`` is now a
-  pure marker type (no ``data_path``). Users build the oracle instance
-  externally and inject it via ``builder.oracle_instance()`` or
-  ``compile(config, oracle_instance=...)``.
-* **Compile-time validation** — the compiler rejects ValueAgent without an
-  oracle, and the builder raises ``ValueError`` when extra kwargs are passed
-  alongside ``oracle(type=None)``.
-
-Order Management
-----------------
-
-* **Replace-order support** — ``ValueAgent`` and ``AdaptiveMarketMakerAgent``
-  now use ``replace_order()`` to amend existing orders in-place instead of
-  cancel-then-resubmit, cutting message traffic on every re-quote cycle.
-
-Config System Enhancements
---------------------------
-
-* **Cross-agent validation** — ``SimulationBuilder.validate()`` returns a
-  structured ``ValidationResult`` that checks inter-agent consistency
-  (e.g. a ValueAgent without an oracle, inverted time windows, missing
-  exchange).
-* **Agent registry metadata** — each registered agent type now carries
-  oracle/count/dependency metadata and a category taxonomy (background,
-  execution, market-maker, …). A full manifest API is available for
-  programmatic discovery.
-* **Richer field descriptions** — config model fields carry human-readable
-  descriptions, physical-unit annotations, and Pydantic validators, making
-  schema introspection and AI-assisted configuration more reliable.
-* **Model-level validators** — ``MarketConfig`` rejects invalid combinations
-  (oracle absent without ``opening_price``, ``start_time ≥ end_time``) at
-  construction time rather than at compile time.
-* **Time-window inversion guards** — ``NoiseAgentConfig`` and
-  ``POVExecutionAgentConfig`` factories reject inverted wakeup/execution
-  windows during ``_prepare_constructor_kwargs()``.
-* **Exposed hidden agent parameters** — ``AdaptiveMarketMakerConfig`` gained
-  ``anchor``, ``subscribe``, ``subscribe_freq``, ``subscribe_num_levels``,
-  ``min_imbalance``; ``MomentumAgentConfig`` gained ``subscribe``.
-* **Compiler error context** — when agent instantiation fails, the error
-  message now includes the ``agent_type_name`` that caused the failure.
-* **Composable ``_EXCLUDE_FROM_KWARGS``** — risk-field exclusion sets use a
-  shared ``_BASE_EXCLUDE`` constant, so adding a new risk field propagates
-  to all subclass configs automatically.
-
-Constructor ↔ Config Alignment
-------------------------------
-
-* Aligned ``AdaptiveMarketMakerAgent`` constructor defaults to rmsc04-tuned
-  values (7 parameters updated).
-* Aligned ``ValueAgent.lambda_a`` default to the rmsc04 Poisson rate
-  (``5.7e-12``), replacing a stale upstream value.
-
-Simulation Analytics
---------------------
-
-* **VWAP and execution metrics** — ``SimulationResult`` now exposes a
-  ``summary_dict()`` method and ``ExecutionMetrics`` with VWAP computation,
-  ready for dashboard consumption.
-
-Performance
------------
-
-* **O(1) message dispatch** — ``TradingAgent`` and ``ExchangeAgent`` replaced
-  their ``isinstance`` dispatch chains with dictionary-based dispatch, making
-  ``receive_message()`` constant-time in the number of message types.
-* **MRO-aware cached dispatch** — the dispatch table respects class
-  hierarchies, so subclass handler overrides are resolved correctly.
-* **Bounded collections** — ``MomentumAgent``'s mid-price history switched to
-  ``deque(maxlen=N)``; ``SparseMeanRevertingOracle``'s ``f_log`` is bounded
-  at 100 000 entries. Both prevent unbounded memory growth in long
-  simulations.
-* **Configurable MA windows** — ``MomentumAgent`` gained ``short_window`` and
-  ``long_window`` parameters so the moving-average look-back is no longer
-  hard-coded.
-* **Subclass-safe type checks** — ``NoiseAgent`` and ``ValueAgent`` replaced
-  ``type(self) is ...`` with ``isinstance`` for proper subclass
-  compatibility.
-* **Removed redundant deepcopy** on limit-order handling in
-  ``ExchangeAgent``.
-
-Bug Fixes
----------
-
-* Fixed ``TradingAgent`` ``kernel_stopping`` result-accumulation pattern:
-  replaced ad-hoc ``if/else`` dict building with ``defaultdict(int)`` in
-  Kernel.
-* Fixed ``NoiseAgent`` surplus calculation to use integer-cent arithmetic
-  throughout (floor division instead of float division).
-* Fixed ``MomentumAgent`` crossover trigger comparison (``>`` → ``>=``).
-* Fixed ``AdaptiveMarketMakerAgent`` ``subscribe_freq`` type annotation
-  (``float`` → ``int`` nanoseconds).
-
-Tests
------
-
-* 28 circuit-breaker tests (drawdown, rate, latching, tumbling window, fill
-  trip, config propagation)
-* 44 position-limit tests (pending delta, enforcement modes, all order paths,
-  config fields)
-* 27 replace-order regression tests (ask-side, crossing, non-existent, AMM
-  diff-and-replace, ValueAgent partial-fill)
-* 16 oracle-redesign tests (oracle-absent, auto-inheritance, builder API)
-* 22 RiskConfig tests (dataclass, unpacking precedence, fill P&L, agent
-  forwarding, config injection)
-* Config-system integrity tests (constructor alignment, kwarg rejection,
-  model validators, time guards, compiler context)
-* Input-validation tests for ``MomentumAgent`` and ``ValueAgent`` parameter
-  guards
-
-Documentation
--------------
-
-* Complete Custom Agent Implementation Guide rewrite with adapter pattern,
-  ``RiskConfig``, ``replace_order``, and config-system integration
-* Updated Copilot instructions with oracle system rules and custom-agent
-  pattern
-* Expanded Config System guide with Oracle Configuration section and examples
-
-
-2026-03 Release v2.1.0
-==================
-
-Code Quality
-------------
-
-* Modernised all type annotations across codebase: ``List`` → ``list``,
-  ``Dict`` → ``dict``, ``Optional[X]`` → ``X | None``, ``Tuple`` → ``tuple``
-* Replaced all ``.format()`` string formatting with f-strings
-* Resolved all CI checks: ruff linting, isort import ordering, black formatting,
-  and pyright/mypy type checking
-* Added ``# type: ignore`` annotations for mypy false positives on
-  ``importlib.util`` usage
-
-Documentation
--------------
-
-* Added technical README files for abides-core, abides-markets, and abides-gym modules
-* Updated AGENT_ASSESSMENT.md for v2.0.0: removed resolved issues, verified
-  remaining open items, added product evaluation section
-* Added professional CI/test/license badges to project README
-
-Housekeeping
-------------
-
-* Removed tracked ``.DS_Store`` files and added pattern to ``.gitignore``
-* Cleaned up folder layout sections from module-level READMEs
-
-
-2026-03 Release v2.0.0
-==================
-
-Agent Bug Fixes
----------------
-
-* Fixed AdaptiveMarketMakerAgent subscribe-mode crash: `self.state["MARKET_DATA"]`
-  referenced a key that never existed — corrected to `self.state["AWAITING_MARKET_DATA"]`
-* Fixed ValueAgent `log_orders` type annotation: was `float`, corrected to `bool`
-* Fixed MomentumAgent `KeyError` on empty order book: replaced bare dict access
-  `self.known_bids[self.symbol]` with safe `.get(self.symbol, [])`
-
-Quant Review Fixes
-------------------
-
-* Fixed `TradingAgent.get_known_bid_ask()` return type: `float | None` corrected to
-  `int | None` — prices are always integer cents
-* Fixed `TradingAgent.get_known_bid_ask_midpoint()` `KeyError` on missing symbol:
-  bare `self.known_bids[symbol]` replaced with safe `.get(symbol, [])`
-* Fixed `TradingAgent.mark_to_market()` `KeyError` on missing last trade: two bare
-  `self.last_trade[symbol]` accesses replaced with safe `.get(symbol)` with None guard
-* Removed dead `if log_orders is None:` block in `TradingAgent.__init__()` — the
-  constructor parameter already defaults to `True`, this branch was unreachable
-* Fixed `ExchangeAgent` duplicate `isinstance(data_sub, self.L3DataSubscription)`
-  check in `publish_data_to_subscribers()`
-* Fixed `ExchangeAgent.metric_trackers` crash when `use_metric_tracker=False`:
-  attribute now always initialised (as empty dict when unused)
-* Normalised `ValueAgent` buy/sell direction variable from `int` (0/1) to `bool`;
-  replaced `buy == 1` comparison with truthiness check
-* Normalised `NoiseAgent` buy/sell direction: renamed `buy_indicator` to `buy`,
-  converted from `int` to `bool`
-* Fixed `MomentumAgent` MA values stored as floats via `.round(2)`: replaced with
-  `int(round(...))` to maintain integer-cent price convention
-* Fixed `AdaptiveMarketMakerAgent` poll-mode wakeup discarding `initialise_state()`
-  return value — result now assigned to `self.state`
-* Fixed `POVExecutionAgent` `last_bid`/`last_ask` type annotations from `float` to
-  `int` — prices are always integer cents
-
-Oracle Fixes
-------------
-
-* Added `f_log` class attribute to Oracle ABC — subclasses that don't track
-  fundamental history now return `{}` by default instead of raising `AttributeError`
-* Replaced fragile `hasattr(self.oracle, "f_log")` check in ExchangeAgent with
-  truthiness check `if self.oracle.f_log:` — works correctly with the new default
-* Removed dead `self.oracle = self.kernel.oracle` line in NoiseAgent (unreachable code)
-
-MeanRevertingOracle Safety
---------------------------
-
-* Added `DeprecationWarning` — users are directed to `SparseMeanRevertingOracle`
-* Added `ValueError` guard rejecting time ranges > 1 000 000 steps to prevent
-  accidental multi-GB memory allocation
-
-Tests
------
-
-* Added `test_agent_fixes.py` — 16 regression tests covering all agent and oracle fixes
-* Added 3 safety tests to `test_mean_reverting_oracle.py` for deprecation warning
-  and step-count guard
-
-2026-03 Release v1.3.0
-==================
-
-
-Declarative Configuration System
----------------------------------
-
-* Added pluggable, AI-friendly config system built on Pydantic models
-* `SimulationBuilder` fluent API with composable templates (rmsc04, liquid_market, thin_market)
-* Agent registry with `@register_agent` decorator for third-party agent types
-* YAML/JSON serialization via `save_config()` / `load_config()`
-* Per-agent-type computation delays (overrides the global default per agent group)
-* AI discoverability API: `list_agent_types()`, `get_config_schema()`, `validate_config()`
-* Compiler produces the same runtime dict format as `build_config()` — fully backward compatible
-
-Simulation Runner
------------------
-
-* Promoted `run_simulation(config)` as the primary API for running simulations —
-  compiles a fresh runtime dict internally and returns a typed, immutable `SimulationResult`
-* `SimulationConfig` is immutable and reusable: the same config can be passed to
-  `run_simulation()` any number of times with identical results
-* `run_batch(configs)` for parallel multi-simulation execution via `multiprocessing`
-* Removed deep-copy from `abides.run()` — the low-level `compile()` → `abides.run()`
-  path now consumes the runtime dict once (original ABIDES behaviour restored)
-
-Bug Fixes
----------
-
-* Fixed `Agent.get_computation_delay()` calling nonexistent `Kernel.get_agent_compute_delay()` — added the missing Kernel method
-* Added `per_agent_computation_delays` support to Kernel for declarative per-agent delay configuration
-* Fixed `@register_agent` decorator raising `ValueError` when a notebook cell that defines
-  a custom agent is re-executed — the decorator now silently overwrites the previous
-  registration (`allow_overwrite=True` by default).
-* Fixed `_register_builtins()` guard: previously skipped all built-in registration if *any*
-  agent was already in the registry (e.g. a custom agent registered before import-time
-  builtins ran).  Guard now checks specifically for the five built-in names.
-
-
-Project Rename
---------------
-
-* Renamed project from `abides-jpmc-public` to `abides-hasufel`
-* Updated all documentation, metadata, and references to reflect the new project identity
-* Added derivative-work copyright for Gabriele Di Corato to LICENSE
-* Upstream attribution to Georgia Tech (original ABIDES) and J.P. Morgan Chase preserved
-
-
-2026-03 Release v1.2.0
-==================
-
-
-Bugs Fixed
-----------
-
-* Fixed latency matrix row aliasing — `[[v]*N]*N` creates N references to the same inner list; replaced with `[[v]*N for _ in range(N)]`
-* Fixed `MessageBatch` computation delay applied N times per batch instead of once
-* Fixed `get_l1_bid_data()` returning the wrong price level after skipping zero-quantity levels; added bounds check
-
-
-Performance Improvements
-------------------------
-
-* Order book insert, cancel, modify, and partial-cancel operations replaced O(N) linear scan with O(log N) binary search via `bisect`
-* Subscription publishing scoped to the affected symbol only — previously iterated all symbols on every order event
-
-
-Other Changes
--------------
-
-* Removed 6 redundant `deepcopy()` calls from exchange agent order processing
-* Replaced `filter+lambda` with list comprehension in L2 book data methods
-* Changed `logEvent` default to `deepcopy_event=False`; added explicit `deepcopy_event=True` where holdings dict is logged
-* Replaced `queue.PriorityQueue` with `heapq` in Kernel message queue, eliminating mutex overhead in the single-threaded event loop
-* Fixed subscription cancel list mutation during iteration
-* Removed global `pd.set_option("display.max_rows", 500)` from exchange agent module scope
-* Documentation: cleaned up and simplified all docs to match current code state (removed outdated concurrency appendix, condensed remediation plan to changelog table)
-
-
-2026-01 Release v1.1.0
-==================
-
-
-Other Changes
--------------
-
-* Added the POVExecutionAgent implementation, which was referenced but missing, to restore RMSC03 env
-* Fixed the version_testing suite of non-regression tests
-    * Removed hardcoded comparison between specific commits
-    * Restored logging to enable extracting runtime metrics for testing
-
-
-Dependency Updates
--------------
-
-This fork modernizes the archived `abides-jpmc-public` project with updated dependencies for compatibility with current Python ecosystems.
-
-### Core Dependencies
-
-| Package | Original Version | Updated Version | Notes |
-|---------|-----------------|-----------------|-------|
-| coloredlogs | 15.0.1 | ≥15.0.1 | Maintained compatibility |
-| gym | 0.18.0 | **gymnasium ≥1.0.0** | **Migrated to maintained fork** |
-| numpy | 1.22.0 | **≥2.0.0** | **Major version update** |
-| pandas | 1.2.4 | **≥2.2.0** | **Major version update** |
-| pomegranate | 0.14.5 | **Removed** | **Deprecated dependency** |
-| psutil | 5.8.0 | ≥6.0.0 | Major version update |
-| ray[rllib] | 1.7.0 | **≥2.40.0** | **Major version update** |
-| scipy | 1.10.0 | **≥1.14.0** | Minor version update |
-| tqdm | 4.61.1 | ≥4.67.0 | Minor version update |
-| p_tqdm | 1.3.3 | ≥1.4.0 (dev) | Moved to optional dev dependencies |
-| matplotlib | N/A | **≥3.9.0** | **New dependency added** |
-
-### Development Dependencies
-
-| Package | Original Version | Updated Version | Notes |
-|---------|-----------------|-----------------|-------|
-| pre-commit | 2.13 | ≥4.0.0 | Major version update |
-| pytest | 6.2.4 | ≥8.3.0 | Major version update |
-| pytest-cov | 2.12.1 | ≥6.0.0 | Major version update |
-| sphinx | 3.5.4 | ≥8.0.0 | Major version update |
-| sphinx-autodoc-typehints | 1.12.0 | ≥2.5.0 | Major version update |
-| sphinx-book-theme | 0.0.42 | ≥1.1.0 | Major version update |
-
-### Breaking Changes
-
-- **gym → gymnasium**: OpenAI Gym is deprecated. All code using `gym` has been migrated to `gymnasium` (the maintained fork).
-- **pomegranate removed**: This probabilistic modeling library is no longer actively maintained and has been removed.
-- **numpy 2.0**: Includes breaking changes in the C API and some deprecated functions removed.
-- **pandas 2.x**: Various API changes and performance improvements.
-
-
-
-
-2021-10-15 Release
-==================
-
-New Features
-------------
-
+### New Features
 - WandB + rllib custom metrics + background V2 + autocalib (PR #86)
 
-Other Changes
--------------
-
+### Other Changes
 - Code cleanup for open source release (PR #87, #88, #90)
 - Separation Gym core into markets and true gym core (PR #91)
 
 
-2021-09-28 Release
-==================
+## 2021-09-28 Release
 
-New Features
-------------
-
+### New Features
 - Order book state subscriptions and alerts (PR #73)
 - ABIDES-gym (PRs #77, #79, #82)
 - Event data subscriptions (PR #81)
 - Background Agents v2 + wandB scripts (PR #85)
 
-Other Changes
--------------
-
+### Other Changes
 - Optimise agent event log data structures for memory use (PR #74)
 - Feature marketreplay realdata2 (PR #75)
 - Replace use of pd.Timestamp with raw ints (PR #76)
 - Simplify kernel initialisation (PR #80)
 - Add message batches (PR #83)
 
-Bugs Fixed
-----------
-
+### Bugs Fixed
 - Fix debug message for modify order msg (PR #72)
 - Fix Order Book Imbalance subscription (PR #78)
 
 
-2021-07-27 Release
-==================
+## 2021-07-27 Release
 
-New Features
-------------
-
+### New Features
 - Add price to comply order types (PR #64)
 - Add insert by ID option for limit orders (PR #68)
 
-Other Changes
--------------
-
+### Other Changes
 - Improve abides-cmd and config layout (PR #62)
 
-Bugs Fixed
-----------
-
+### Bugs Fixed
 - Fix the place order of MM to not place order of size 0 when backstop qty = 0 (PR #63)
 - Fix attempts to cancel MarketOrders (PR #65)
 - Remove placing orders when size is 0 (PR #66)
@@ -1425,42 +268,30 @@ Bugs Fixed
 - Fix end of day mark to market (PR #71)
 
 
-2021-06-29 Release
-==================
+## 2021-06-29 Release
 
-New Features
-------------
-
+### New Features
 - Add hidden orders to order book (PR #56)
 - Use built-in Python logging library (PR #57)
 
-Other Changes
--------------
-
+### Other Changes
 - Reorganise directory layout (PR #54)
 - Add initial pre-commit hooks and RMSC unit test (PR #58)
 - Update generated documentation to work with refactored code layout (PR #59)
 - Replace is_buy_order flag with Side.BID or Side.ASK enum (PR #60)
 
-Bugs Fixed
-----------
-
+### Bugs Fixed
 - Correcting markToMarket function to multiply by shares (PR #61)
 
 
-2021-06-15 Release
-==================
+## 2021-06-15 Release
 
-New Features
-------------
-
+### New Features
 - Add transacted volume and L1 and L3 data subscriptions (PR #42)
 - Change message types to use dataclasses (PR #45)
 - Add replaceOrder command to OrderBook (PR #48)
 
-Other Changes
--------------
-
+### Other Changes
 - Refactor subscription message and data classes (PR #42)
 - Simplify market order handling code by removing limit order creation (PR #43)
 - Use a flat data structure to store order history (PR #44)
@@ -1468,58 +299,42 @@ Other Changes
 - Refining message stream logging and orderbook log2 (PR #47)
 - Add more unit tests for OrderBook (PR #49)
 
-Bugs Fixed
-----------
-
+### Bugs Fixed
 - Fix NoiseAgent and Value agent random seed sources (PR #50)
 - Fix various Message class issues (PR #51)
 
 
-2021-06-01 Release
-==================
+## 2021-06-01 Release
 
-New Features
-------------
-
+### New Features
 - Initial OrderBook unit tests (PR #39)
 - New order book data getting methods (L1, L3 data) (PR #40)
 
-Other Changes
--------------
-
+### Other Changes
 - OrderBook history and tracking now optional (PR #27)
 - Removed unused ExchangeAgent code (PR #30)
 - Reduce number of Python deepcopies (PR #32)
 - General tidy of Order classes (PR #38)
 - Add warning if invalid arguments passed to abides_cmd (PR #41)
 
-Bugs Fixed
-----------
-
+### Bugs Fixed
 - Fix RMSC03 spec documentation (PR #35)
 - Fix version testing script timer (PR #36)
 
 
-2021-05-18 Release
-==================
+## 2021-05-18 Release
 
-New Features
-------------
-
+### New Features
 - Automatically generated documentation using Sphinx-Doc (PR #18)
 - Developer guide in documentation with best practices (PR #18)
 
-Other Changes
--------------
-
+### Other Changes
 - Improved documentation strings in code (PR #18)
 - Type annotations added for most files (PR #18)
 - Faster deepcopy of orders (PR #21)
 - Simplified order ID generation (PR #25)
 - Agent class 'type', 'name' and 'RandomState' parameters now optional (PR #26)
 
-Bugs Fixed
-----------
-
+### Bugs Fixed
 - Correction of type errors in Noise agent (PR #23)
 - Noise calculation error fix (PR #17)
