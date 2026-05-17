@@ -522,7 +522,7 @@ class ExchangeAgent(FinancialAgent):
                 if isinstance(message, (ModifyOrderMsg, ReplaceOrderMsg)):
                     self.logEvent(
                         message.type(),
-                        message.new_order.to_dict(),
+                        message.new_order.to_payload_tuple(),
                         deepcopy_event=False,
                     )
                 else:
@@ -530,7 +530,7 @@ class ExchangeAgent(FinancialAgent):
                     # CancelOrderMsg, PartialCancelOrderMsg) all carry `.order`.
                     self.logEvent(
                         message.type(),
-                        message.order.to_dict(),
+                        message.order.to_payload_tuple(),
                         deepcopy_event=False,  # type: ignore
                     )
         else:
@@ -844,7 +844,7 @@ class ExchangeAgent(FinancialAgent):
                 # Harmonise with the rest of the STOP_ORDER_* / order
                 # lifecycle family: emit the structured dict instead of
                 # the legacy free-form ``str(order)`` representation.
-                self.logEvent("STOP_ORDER_ACCEPTED", order.to_dict())
+                self.logEvent("STOP_ORDER_ACCEPTED", order.to_payload_tuple())
 
     def _check_stop_orders(self, symbol: str) -> None:
         """Evaluate all pending stop orders for *symbol* against ``last_trade``.
@@ -1115,7 +1115,7 @@ class ExchangeAgent(FinancialAgent):
                 # OrderReplacedMsg carries .old_order/.new_order; the rest
                 # carry either .order or .new_order — log the relevant order.
                 order = getattr(message, "order", None) or message.new_order  # type: ignore[union-attr]
-                self.logEvent(message.type(), order.to_dict())
+                self.logEvent(message.type(), order.to_payload_tuple())
         else:
             super().send_message(recipient_id, message)
 

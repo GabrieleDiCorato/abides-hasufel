@@ -816,7 +816,9 @@ class TradingAgent(FinancialAgent):
             self._record_order_for_rate_check()
 
             if self.log_orders:
-                self.logEvent("ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
+                self.logEvent(
+                    "ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                )
 
     def place_market_order(
         self,
@@ -879,7 +881,9 @@ class TradingAgent(FinancialAgent):
             self.send_message(self.exchange_id, MarketOrderMsg(order))
             self._record_order_for_rate_check()
             if self.log_orders:
-                self.logEvent("ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
+                self.logEvent(
+                    "ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                )
 
         else:
             warnings.warn(
@@ -919,7 +923,9 @@ class TradingAgent(FinancialAgent):
         self.orders[order.order_id] = deepcopy(order)
         self.send_message(self.exchange_id, StopOrderMsg(order))
         if self.log_orders:
-            self.logEvent("STOP_ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "STOP_ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+            )
 
     def place_multiple_orders(self, orders: list[LimitOrder | MarketOrder]) -> None:
         """
@@ -965,7 +971,9 @@ class TradingAgent(FinancialAgent):
             self._record_order_for_rate_check()
 
             if self.log_orders:
-                self.logEvent("ORDER_SUBMITTED", order.to_dict(), deepcopy_event=False)
+                self.logEvent(
+                    "ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                )
 
         if len(messages) > 0:
             self.send_message_batch(self.exchange_id, messages)
@@ -991,7 +999,9 @@ class TradingAgent(FinancialAgent):
         if isinstance(order, LimitOrder):
             self.send_message(self.exchange_id, CancelOrderMsg(order, tag, metadata))
             if self.log_orders:
-                self.logEvent("CANCEL_SUBMITTED", order.to_dict(), deepcopy_event=False)
+                self.logEvent(
+                    "CANCEL_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                )
         else:
             warnings.warn(f"Order {order} of type, {type(order)} cannot be cancelled")
 
@@ -1029,7 +1039,9 @@ class TradingAgent(FinancialAgent):
         )
 
         if self.log_orders:
-            self.logEvent("CANCEL_PARTIAL_ORDER", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "CANCEL_PARTIAL_ORDER", order.to_payload_tuple(), deepcopy_event=False
+            )
 
     def modify_order(self, order: LimitOrder, new_order: LimitOrder) -> None:
         """
@@ -1047,7 +1059,9 @@ class TradingAgent(FinancialAgent):
         self.send_message(self.exchange_id, ModifyOrderMsg(order, new_order))
 
         if self.log_orders:
-            self.logEvent("MODIFY_ORDER", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "MODIFY_ORDER", order.to_payload_tuple(), deepcopy_event=False
+            )
 
     def replace_order(self, order: LimitOrder, new_order: LimitOrder) -> None:
         """
@@ -1086,7 +1100,9 @@ class TradingAgent(FinancialAgent):
         self.send_message(self.exchange_id, ReplaceOrderMsg(self.id, order, new_order))
 
         if self.log_orders:
-            self.logEvent("REPLACE_ORDER", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "REPLACE_ORDER", order.to_payload_tuple(), deepcopy_event=False
+            )
 
     def order_executed(self, order: Order) -> None:
         """
@@ -1102,7 +1118,9 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of execution for: {order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_EXECUTED", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "ORDER_EXECUTED", order.to_payload_tuple(), deepcopy_event=False
+            )
 
         # At the very least, we must update CASH and holdings at execution time.
         qty = order.quantity if order.side.is_bid() else -1 * order.quantity
@@ -1170,7 +1188,9 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of acceptance for: {order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_ACCEPTED", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "ORDER_ACCEPTED", order.to_payload_tuple(), deepcopy_event=False
+            )
 
         # We may later wish to add a status to the open orders so an agent can tell whether
         # a given order has been accepted or not (instead of needing to override this method).
@@ -1188,7 +1208,9 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of cancellation for: {order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_CANCELLED", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "ORDER_CANCELLED", order.to_payload_tuple(), deepcopy_event=False
+            )
 
         # Remove the cancelled order from the open orders list.  We may of course wish to have
         # additional logic here later, so agents can easily "look for" cancelled orders.  Of
@@ -1213,7 +1235,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of partial cancellation for: {order}")
 
         if self.log_orders:
-            self.logEvent("PARTIAL_CANCELLED", order.to_dict())
+            self.logEvent("PARTIAL_CANCELLED", order.to_payload_tuple())
 
         # if orders still in the list of agent's order update agent's knowledge of
         # current state of the order
@@ -1244,7 +1266,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of modification for: {order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_MODIFIED", order.to_dict())
+            self.logEvent("ORDER_MODIFIED", order.to_payload_tuple())
 
         # if orders still in the list of agent's order update agent's knowledge of
         # current state of the order
@@ -1271,7 +1293,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of replacement for: {old_order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_REPLACED", old_order.to_dict())
+            self.logEvent("ORDER_REPLACED", old_order.to_payload_tuple())
 
         # replace_order() pre-registered the new order but left the old order
         # in self.orders so that any pending OrderExecutedMsg for the old order
@@ -1314,7 +1336,9 @@ class TradingAgent(FinancialAgent):
         if order.order_id in self.orders:
             del self.orders[order.order_id]
         if self.log_orders:
-            self.logEvent("STOP_TRIGGERED", order.to_dict(), deepcopy_event=False)
+            self.logEvent(
+                "STOP_TRIGGERED", order.to_payload_tuple(), deepcopy_event=False
+            )
 
         # Remember that this has happened.
         self.mkt_closed = True

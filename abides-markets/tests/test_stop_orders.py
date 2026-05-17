@@ -497,11 +497,12 @@ class TestStopTriggerBoundaries:
 # STOP_ORDER_ACCEPTED payload harmonisation
 # ---------------------------------------------------------------------------
 class TestStopOrderAcceptedPayload:
-    """``STOP_ORDER_ACCEPTED`` must publish ``order.to_dict()`` so it sits
-    in the same family as ``STOP_ORDER_SUBMITTED`` / ``STOP_TRIGGERED``.
+    """``STOP_ORDER_ACCEPTED`` must publish the ``ORDER_EVENT`` tuple so it
+    sits in the same family as ``STOP_ORDER_SUBMITTED`` / ``STOP_TRIGGERED``.
 
     The pre-Phase-1-bundle code emitted ``str(order)`` — the only
-    free-form string survivor in the order-lifecycle vocabulary.
+    free-form string survivor in the order-lifecycle vocabulary. Phase
+    2b migrated the dict payload to ``order.to_payload_tuple()``.
     """
 
     def _make_exchange(self, log_orders: bool = True):
@@ -518,7 +519,8 @@ class TestStopOrderAcceptedPayload:
             use_metric_tracker=False,
         )
 
-    def test_stop_order_accepted_publishes_dict_payload(self):
+    def test_stop_order_accepted_publishes_tuple_payload(self):
+        from abides_core.event_payloads import ORDER_EVENT
         from abides_markets.messages.order import StopOrderMsg
 
         exchange = self._make_exchange(log_orders=True)
@@ -535,15 +537,16 @@ class TestStopOrderAcceptedPayload:
         assert len(accept_events) == 1
         payload = accept_events[0][1]
         assert isinstance(
-            payload, dict
-        ), "STOP_ORDER_ACCEPTED must emit a dict, not the legacy str(order)"
-        # Aligned with the ORDER_EVENT family — the same keys
-        # ``order.to_dict()`` produces for every other STOP_ORDER_*.
-        assert payload["order_id"] == stop.order_id
-        assert payload["symbol"] == "TEST"
-        assert payload["quantity"] == 25
-        assert payload["stop_price"] == 10_500
-        assert payload["side"] is Side.BID
+            payload, tuple
+        ), "STOP_ORDER_ACCEPTED must emit an ORDER_EVENT tuple"
+        # Aligned with the ORDER_EVENT family — the same positional layout
+        # ``order.to_payload_tuple()`` produces for every other STOP_ORDER_*.
+        as_dict = dict(zip(ORDER_EVENT.fields, payload))
+        assert as_dict["order_id"] == stop.order_id
+        assert as_dict["symbol"] == "TEST"
+        assert as_dict["quantity"] == 25
+        assert as_dict["stop_price"] == 10_500
+        assert as_dict["side"] is Side.BID
 
     def test_stop_order_accepted_silent_when_log_orders_false(self):
         """``log_orders=False`` continues to suppress the publish."""
