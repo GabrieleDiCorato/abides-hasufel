@@ -1158,6 +1158,49 @@ class TestEventBusBZ2PickleSink:
             f"but found {agent_bz2}"
         )
 
+    def test_bz2_round_trip_matches_in_memory_sink(self, tmp_path):
+        """End-to-end Phase 2b regression: BZ2PickleSink artifact must
+        reproduce the InMemorySink view for the same agent, row-for-row.
+
+        With a fixed seed the simulation is deterministic, so the
+        ``(sim_time_ns, agent_id, seq)``-sorted reconstruction from the
+        columnar in-memory sink is byte-identical to the per-agent
+        DataFrame the BZ2 sink writes to disk.
+        """
+        from abides_core.log_writer import BZ2PickleLogWriter
+
+        agent = _LoggingAgent(0)
+        agent.log_to_file = True
+        log_writer = BZ2PickleLogWriter(root=tmp_path, run_id="run_rt")
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=False,
+            log_writer=log_writer,
+            random_state=np.random.RandomState(seed=2024),
+        )
+        kernel.run()
+
+        bz2_path = tmp_path / "run_rt" / f"{agent.name.replace(' ', '')}.bz2"
+        assert bz2_path.exists()
+        on_disk = pd.read_pickle(bz2_path, compression="bz2")
+
+        sink = kernel.event_bus.in_memory_sink
+        assert sink is not None
+        rows = sink.agent_log(agent.id)
+        # Mirror the BZ2 sink's frame construction: (EventTime, EventType, Event)
+        # with EventTime as the index.
+        in_memory_df = pd.DataFrame(
+            rows, columns=["EventTime", "EventType", "Event"]
+        ).set_index("EventTime")
+
+        assert list(on_disk.columns) == list(in_memory_df.columns)
+        assert len(on_disk) == len(in_memory_df) > 0
+        assert on_disk["EventType"].tolist() == in_memory_df["EventType"].tolist()
+        assert on_disk["Event"].tolist() == in_memory_df["Event"].tolist()
+        assert on_disk.index.tolist() == in_memory_df.index.tolist()
+
 
 class TestEventBusMetricsObserverSink:
     """MetricsObserverSink must route report_metric() to KernelObserver."""
