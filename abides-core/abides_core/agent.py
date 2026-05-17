@@ -57,6 +57,11 @@ class Agent:
         log_to_file: flag to write on disk or not the logged events
     """
 
+    # One-shot DeprecationWarning per process for the deprecated
+    # ``append_summary_log=True`` opt-in on ``logEvent``. Class-level
+    # so gym episode loops and parameter sweeps don't flood stderr.
+    _append_summary_log_warned: bool = False
+
     def __init__(
         self,
         id: int,
@@ -191,6 +196,13 @@ class Agent:
             event_type: label of the event (e.g., Order submitted, order accepted last trade etc....)
             event: actual event to be logged
             append_summary_log:
+                .. deprecated::
+                    The ``summary_log`` path is slated for removal in
+                    the Phase 5+2 cleanup of the event-logging refactor.
+                    Register a :class:`~abides_core.event_sinks.MetricsObserverSink`
+                    (or any custom :class:`~abides_core.event_sinks.EventSink`)
+                    instead. See
+                    ``docs/active-plans/event-logging-refactor-plan.md`` \u00a75.
             deepcopy_event: Set to False to skip deepcopying the event object.
         """
 
@@ -212,6 +224,17 @@ class Agent:
             )
 
         if append_summary_log:
+            if not Agent._append_summary_log_warned:
+                Agent._append_summary_log_warned = True
+                warnings.warn(
+                    "Agent.logEvent(append_summary_log=True) is deprecated and "
+                    "will be removed in a future release; register a "
+                    "MetricsObserverSink (or a custom EventSink) on the "
+                    "kernel's EventBus instead. See "
+                    "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             self.kernel.append_summary_log(self.id, event_type, event)
 
     ### Methods required for communication from other agents.

@@ -2,6 +2,7 @@ import heapq
 import logging
 import os
 import uuid
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -92,6 +93,11 @@ class Kernel:
         index its parallel per-agent state arrays. Violations raise
         ``ValueError`` at construction time.
     """
+
+    # One-shot DeprecationWarning per process for the deprecated
+    # ``Kernel.append_summary_log`` path. Gym episode loops and
+    # parameter sweeps must not flood stderr with duplicates.
+    _append_summary_log_warned: bool = False
 
     def __init__(
         self,
@@ -885,7 +891,26 @@ class Kernel:
             sender_id: The ID of the agent making the call.
             event_type: The type of the event.
             event: The event to append to the log.
+
+        .. deprecated::
+            The ``summary_log`` path is slated for removal in the
+            Phase 5+2 cleanup of the event-logging refactor. Register
+            a :class:`~abides_core.event_sinks.MetricsObserverSink`
+            (or any custom :class:`~abides_core.event_sinks.EventSink`)
+            on the kernel's :class:`~abides_core.event_bus.EventBus`
+            instead. See
+            ``docs/active-plans/event-logging-refactor-plan.md`` §5.
         """
+        if not Kernel._append_summary_log_warned:
+            Kernel._append_summary_log_warned = True
+            warnings.warn(
+                "Kernel.append_summary_log is deprecated and will be removed "
+                "in a future release; register a MetricsObserverSink (or a "
+                "custom EventSink) on Kernel.event_bus instead. See "
+                "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.summary_log.append(
             {
                 "AgentID": sender_id,

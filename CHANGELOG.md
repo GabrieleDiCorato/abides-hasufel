@@ -71,6 +71,18 @@ reference.
   corresponding sink instead.
 - Direct `agent.log` access — use
   `kernel.event_bus.in_memory_sink.agent_log(agent_id)`.
+- Legacy bzip2-pickle log path: `BZ2PickleLogWriter` and
+  `BZ2PickleSink` now emit a `DeprecationWarning` (once per process)
+  on construction. Migrate to `ParquetSink`
+  (`abides_core.parquet_sink.ParquetSink`) or another EventBus-
+  registered columnar sink.
+- `Agent.logEvent(append_summary_log=True)` and
+  `Kernel.append_summary_log` now emit a `DeprecationWarning` (once
+  per process). The `summary_log` path will be removed; register a
+  `MetricsObserverSink` (or any custom `EventSink`) on
+  `Kernel.event_bus` instead. See
+  `docs/active-plans/event-logging-refactor-plan.md` §5 for the
+  deprecation timeline.
 
 ### Fixed
 - Repeated `OrderBook.history` / `book_log2` reads no longer emit

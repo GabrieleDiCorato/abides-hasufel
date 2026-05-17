@@ -1459,3 +1459,101 @@ class TestEventSinksRuntimePlumbing:
             random_state=np.random.RandomState(seed=7),
         )
         assert kernel is not None
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — legacy-logging deprecation warnings
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyLoggingDeprecationWarnings:
+    """Phase 5 of the event-logging refactor opens the deprecation cycle
+    on the legacy on-disk pickle path and the ``summary_log`` opt-in.
+
+    Each warning fires exactly once per process via a class-level flag;
+    these tests reset the flag so each case observes the first emission.
+    """
+
+    def test_bz2_pickle_log_writer_warns_once(self, tmp_path):
+        import pytest
+
+        from abides_core.log_writer import BZ2PickleLogWriter
+
+        BZ2PickleLogWriter._deprecation_warned = False
+        with pytest.warns(DeprecationWarning, match="BZ2PickleLogWriter is deprecated"):
+            BZ2PickleLogWriter(root=tmp_path, run_id="r1")
+        # Second instantiation must NOT re-warn (one-shot per process).
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as captured:
+            _warnings.simplefilter("always")
+            BZ2PickleLogWriter(root=tmp_path, run_id="r2")
+        assert not any(
+            issubclass(w.category, DeprecationWarning)
+            and "BZ2PickleLogWriter" in str(w.message)
+            for w in captured
+        )
+
+    def test_bz2_pickle_sink_warns_once(self, tmp_path):
+        import pytest
+
+        from abides_core.event_sinks import BZ2PickleSink
+        from abides_core.log_writer import BZ2PickleLogWriter
+
+        # Pre-arm the writer's flag so it doesn't drown the sink warning.
+        BZ2PickleLogWriter._deprecation_warned = True
+        writer = BZ2PickleLogWriter(root=tmp_path, run_id="r1")
+
+        BZ2PickleSink._deprecation_warned = False
+        with pytest.warns(DeprecationWarning, match="BZ2PickleSink is deprecated"):
+            BZ2PickleSink(log_writer=writer, agents=[])
+
+    def test_kernel_append_summary_log_warns_once(self):
+        import pytest
+
+        agents = [StubAgent(0)]
+        kernel = Kernel(
+            agents=agents,
+            skip_log=True,
+            random_state=np.random.RandomState(seed=1),
+        )
+        Kernel._append_summary_log_warned = False
+        with pytest.warns(
+            DeprecationWarning, match="Kernel.append_summary_log is deprecated"
+        ):
+            kernel.append_summary_log(0, "STARTING_CASH", 10_000)
+        # Second call must NOT re-warn.
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as captured:
+            _warnings.simplefilter("always")
+            kernel.append_summary_log(0, "ENDING_CASH", 12_000)
+        assert not any(
+            issubclass(w.category, DeprecationWarning)
+            and "Kernel.append_summary_log" in str(w.message)
+            for w in captured
+        )
+
+    def test_agent_log_event_append_summary_log_warns_once(self):
+        import pytest
+
+        agents = [StubAgent(0)]
+        agent = agents[0]
+        agent.log_events = True
+        kernel = Kernel(
+            agents=agents,
+            skip_log=True,
+            random_state=np.random.RandomState(seed=1),
+        )
+        # Attach the kernel to the agent directly (avoids the full
+        # ``kernel.initialize()`` lifecycle which also starts the bus,
+        # opens the latency network, etc.).
+        agent.kernel_initializing(kernel)
+        Agent._append_summary_log_warned = False
+        # Pre-arm the kernel-side flag so we observe ONLY the agent-side warn.
+        Kernel._append_summary_log_warned = True
+        with pytest.warns(
+            DeprecationWarning,
+            match=r"Agent.logEvent\(append_summary_log=True\) is deprecated",
+        ):
+            agent.logEvent("STARTING_CASH", 10_000, append_summary_log=True)

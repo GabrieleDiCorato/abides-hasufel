@@ -241,11 +241,19 @@ class BZ2PickleSink:
     This ensures ``parse_logs_df()`` and downstream analysis notebooks
     continue to work without modification.
 
+    .. deprecated::
+        Slated for removal in the Phase 5+2 cleanup of the event-
+        logging refactor. Replace with
+        :class:`abides_core.parquet_sink.ParquetSink` (columnar,
+        crash-safe, streaming) or another EventBus sink. See
+        ``docs/active-plans/event-logging-refactor-plan.md`` \u00a75 for
+        the deprecation timeline.
+
     Arguments:
         log_writer: A :class:`~abides_core.log_writer.LogWriter` instance.
             The kernel passes its own ``_log_writer`` here.
         agents:     The full list of :class:`~abides_core.agent.Agent`
-            instances.  Used to map ``agent_id → agent_name`` for the
+            instances.  Used to map ``agent_id \u2192 agent_name`` for the
             file naming convention.
     """
 
@@ -253,11 +261,26 @@ class BZ2PickleSink:
     accept_metrics: bool = False
     accept_book_snapshots: bool = False
 
+    # One-shot DeprecationWarning per process. Gym episode loops and
+    # parameter sweeps must not flood stderr with duplicates.
+    _deprecation_warned: bool = False
+
     def __init__(
         self,
         log_writer: LogWriter,
         agents: Sequence[Agent],
     ) -> None:
+        if not BZ2PickleSink._deprecation_warned:
+            BZ2PickleSink._deprecation_warned = True
+            warnings.warn(
+                "BZ2PickleSink is deprecated and will be removed in a "
+                "future release; migrate to ParquetSink "
+                "(``abides_core.parquet_sink.ParquetSink``) or another "
+                "EventBus-registered columnar sink. See "
+                "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self._log_writer = log_writer
         # Retain the agents reference; ``log_to_file`` is read at
         # on_simulation_start() time so post-construction changes to the

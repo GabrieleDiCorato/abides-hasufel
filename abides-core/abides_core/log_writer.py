@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import warnings
 from typing import Protocol
 
 import pandas as pd
@@ -56,9 +57,33 @@ class BZ2PickleLogWriter:
 
     The output directory is created on the first successful write so
     callers that never log anything do not leave behind empty dirs.
+
+    .. deprecated::
+        Slated for removal in the Phase 5+2 cleanup of the event-
+        logging refactor. Migrate to :class:`abides_core.parquet_sink.ParquetSink`
+        (or another columnar sink registered on the kernel's
+        :class:`~abides_core.event_bus.EventBus`). See
+        ``docs/active-plans/event-logging-refactor-plan.md`` §5 for
+        the deprecation timeline.
     """
 
+    # One-shot DeprecationWarning per process. Multiple ``Kernel``
+    # instantiations (gym episodes, parameter sweeps) must not flood
+    # stderr with duplicates.
+    _deprecation_warned: bool = False
+
     def __init__(self, root: str | os.PathLike, run_id: str) -> None:
+        if not BZ2PickleLogWriter._deprecation_warned:
+            BZ2PickleLogWriter._deprecation_warned = True
+            warnings.warn(
+                "BZ2PickleLogWriter is deprecated and will be removed in a "
+                "future release; migrate to ParquetSink "
+                "(``abides_core.parquet_sink.ParquetSink``) or another "
+                "EventBus-registered columnar sink. See "
+                "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self._root: str = os.path.abspath(os.fspath(root))
         self._run_id: str = run_id
         self._dir_ready: bool = False

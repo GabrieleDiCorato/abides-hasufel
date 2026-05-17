@@ -23,6 +23,22 @@ do completely different things and barely interact:
 The per-agent event log flows through the `EventBus`
 rather than being stored directly on `agent.log`. See [§4](#4-eventbus-architecture).
 
+### 0.1 Deprecation status (Phase 5 of the event-logging refactor)
+
+The legacy bzip2-pickle path and the `summary_log` opt-in are in the
+deprecation window. Each surface emits a `DeprecationWarning` once per
+process on first use:
+
+| Surface | Replacement |
+|---|---|
+| `BZ2PickleLogWriter` (legacy on-disk format) | `abides_core.parquet_sink.ParquetSink` or any EventBus sink |
+| `BZ2PickleSink` (legacy event sink) | `ParquetSink` or any EventBus sink |
+| `Agent.logEvent(append_summary_log=True)` | `MetricsObserverSink` (or any custom `EventSink`) |
+| `Kernel.append_summary_log` | `MetricsObserverSink` (or any custom `EventSink`) |
+
+Full timeline in
+[`docs/active-plans/event-logging-refactor-plan.md`](../active-plans/event-logging-refactor-plan.md) §5.
+
 ---
 
 ## 1. System A — Python `logging` module
