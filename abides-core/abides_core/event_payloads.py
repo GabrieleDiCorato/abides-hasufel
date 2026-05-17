@@ -72,12 +72,10 @@ ORDER_EVENT = PayloadSchema(
 )
 """Shared schema for all order lifecycle events.
 
-In Phase 2 the payload is still the ``dict`` returned by
-``Order.to_dict()``.  Migration to a typed tuple (dropping the dict)
-is deferred to Phase 2a when ``Order.to_payload_tuple()`` lands.
-
-Consumers must access the ``dict`` payload directly until Phase 2a;
-the ``fields`` tuple documents the *intended* final positional layout.
+The payload is the positional tuple returned by
+:meth:`abides_markets.orders.Order.to_payload_tuple`. ``side`` and
+``time_in_force`` are :class:`~enum.IntEnum` members; consumer-side
+string formatting (when needed) calls ``.legacy_str()``.
 """
 
 HOLDINGS = PayloadSchema(
@@ -87,10 +85,11 @@ HOLDINGS = PayloadSchema(
 )
 """Schema for ``HOLDINGS_UPDATED``.
 
-In Phase 2 the payload is still the full ``dict[str, int]`` holdings
-snapshot (deep-copied by the producer).  Migration to a per-fill delta
-tuple ``(symbol, delta_qty, qty_after, cash_after_cents)`` is deferred
-to Phase 2a.
+Payload is the full ``dict[str, int]`` holdings snapshot.
+Migration to a per-fill delta tuple
+``(symbol, delta_qty, qty_after, cash_after_cents)`` is deferred to
+Phase 2c so that snapshot-diff consumers have a release window and a
+``reconstruct_holdings()`` helper to migrate against.
 """
 
 CASH = PayloadSchema(
@@ -117,10 +116,9 @@ QUOTE = PayloadSchema(
 )
 """Best-bid / best-ask / last-trade quote.
 
-In Phase 2 the payload for ``BEST_BID`` / ``BEST_ASK`` is the formatted
-string emitted by ``OrderBook`` (e.g. ``"ABM,10000,100"``), and for
-``LAST_TRADE`` it is a similarly formatted string.  Migration to a
-structured tuple is deferred to Phase 2a.
+Payload is the positional tuple ``(symbol, price_cents, qty)`` where
+``price_cents`` and ``qty`` may be ``None`` when the relevant book side
+is empty (e.g. ``BEST_BID`` with no resting bids).
 """
 
 AGENT_TYPE_SCHEMA = PayloadSchema(
@@ -137,7 +135,15 @@ EMPTY = PayloadSchema(
 )
 """Empty payload — the event is a marker with no data.
 
-Producers should pass ``()`` (the shared empty tuple singleton).
+Producers should pass :data:`EMPTY_PAYLOAD` (the shared empty tuple
+singleton) rather than allocating a new tuple per publish.
+"""
+
+EMPTY_PAYLOAD: tuple[()] = ()
+"""Shared empty-tuple singleton for arity-0 events.
+
+Use this constant rather than ``()`` literal so the intent of an
+``EMPTY``-schema event is clear at the call site.
 """
 
 SUMMARY = PayloadSchema(
@@ -145,11 +151,33 @@ SUMMARY = PayloadSchema(
     version=1,
     fields=("text",),
 )
-"""Formatted-string summary (e.g. ``FINAL_HOLDINGS``, ``MARK_TO_MARKET``).
+"""Free-form human-readable summary string.
 
-These events currently carry human-readable formatted strings.  They are
-retained as-is for Phase 2 and tagged for structured-payload migration in
-Phase 2a.
+Reserved for events whose only purpose is operator-visible logging.
+After Phase 2b only ``FINAL_HOLDINGS`` uses this shape; structured
+counterparts (``MARKED_TO_MARKET``) carry numeric scalars under
+:data:`CASH`.
+"""
+
+IMBALANCE_PAYLOAD = PayloadSchema(
+    name="IMBALANCE",
+    version=1,
+    fields=("bid_total_qty", "ask_total_qty"),
+)
+"""Two-element depth imbalance summary.
+
+Payload is ``(sum_of_bid_quantities, sum_of_ask_quantities)``. Distinct
+from :data:`DEPTH`, which carries the full per-level array.
+"""
+
+FILL_PNL = PayloadSchema(
+    name="FILL_PNL",
+    version=1,
+    fields=("nav", "peak_nav", "symbol"),
+)
+"""Per-fill mark-to-market snapshot used by the circuit-breaker.
+
+Payload is ``(nav_cents, peak_nav_cents, symbol)``.
 """
 
 VALUATION = PayloadSchema(
@@ -242,22 +270,41 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     "STOP_ORDER_SUBMITTED": ORDER_EVENT,
     "STOP_ORDER_ACCEPTED": ORDER_EVENT,
     "STOP_TRIGGERED": ORDER_EVENT,
+    # --- ExchangeAgent message-type echoes (Message.type() names) ---
+    # ExchangeAgent.receive_message and ExchangeAgent.send_message echo
+    # OrderMsg / OrderBookMsg subclasses under the message class name as
+    # the event_type, with order.to_dict() (now to_payload_tuple()) as
+    # the payload. The allowlist below mirrors the explicit dispatch in
+    # ExchangeAgent.receive_message after Phase 2b Step 5.
+    "LimitOrderMsg": ORDER_EVENT,
+    "MarketOrderMsg": ORDER_EVENT,
+    "CancelOrderMsg": ORDER_EVENT,
+    "PartialCancelOrderMsg": ORDER_EVENT,
+    "ModifyOrderMsg": ORDER_EVENT,
+    "ReplaceOrderMsg": ORDER_EVENT,
+    "OrderAcceptedMsg": ORDER_EVENT,
+    "OrderExecutedMsg": ORDER_EVENT,
+    "OrderCancelledMsg": ORDER_EVENT,
+    "OrderPartialCancelledMsg": ORDER_EVENT,
+    "OrderModifiedMsg": ORDER_EVENT,
+    "OrderReplacedMsg": ORDER_EVENT,
     # --- Holdings / cash (TradingAgent) ---
     "STARTING_CASH": CASH,
     "FINAL_CASH_POSITION": CASH,
     "ENDING_CASH": CASH,
     "HOLDINGS_UPDATED": HOLDINGS,
-    "FINAL_HOLDINGS": SUMMARY,  # formatted string — see [REVIEW]
-    "MARK_TO_MARKET": SUMMARY,  # formatted string — see [REVIEW]
+    "FINAL_HOLDINGS": SUMMARY,
+    "MARK_TO_MARKET": SUMMARY,  # per-symbol human-readable line; structured counterpart is MARKED_TO_MARKET
     "MARKED_TO_MARKET": CASH,
+    "FILL_PNL": FILL_PNL,
     # --- Market data echo (TradingAgent) ---
     "BID_DEPTH": DEPTH,
     "ASK_DEPTH": DEPTH,
-    "IMBALANCE": DEPTH,
+    "IMBALANCE": IMBALANCE_PAYLOAD,
     # --- Order book (ExchangeAgent via OrderBook) ---
-    "BEST_BID": QUOTE,  # Phase 2: payload is still the formatted string
-    "BEST_ASK": QUOTE,  # Phase 2: payload is still the formatted string
-    "LAST_TRADE": QUOTE,  # Phase 2: payload is still the formatted string
+    "BEST_BID": QUOTE,
+    "BEST_ASK": QUOTE,
+    "LAST_TRADE": QUOTE,
     # --- Lifecycle ---
     "AGENT_TYPE": AGENT_TYPE_SCHEMA,
     "MKT_CLOSED": EMPTY,
