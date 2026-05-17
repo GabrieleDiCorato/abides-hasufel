@@ -1,10 +1,14 @@
 # Kernel Architecture
 
+*For developers auditing or extending the discrete-event core of
+ABIDES.*
+
 `abides_core.kernel.Kernel` is the discrete-event simulator at the heart
 of ABIDES. This page describes its current public contract and the
 collaborator types it relies on. It supersedes the kernel-related
-sections in `llm-gotchas.md` for architecture-level questions; the
-gotchas page remains the place to look for concrete pitfalls.
+sections in [LLM gotchas](./llm-gotchas.md) for architecture-level
+questions; the gotchas page remains the place to look for concrete
+pitfalls.
 
 ## Responsibilities
 

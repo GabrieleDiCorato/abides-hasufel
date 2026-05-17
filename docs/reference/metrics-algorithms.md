@@ -1,8 +1,14 @@
-# Performance Metrics & Evaluation Framework
+# Metrics Algorithms
 
-Canonical functional reference for all quantitative metrics in the Rohan simulation
-framework. Metrics are organised into three groups: **agent performance**,
-**market microstructure**, and **market impact** (strategy vs. baseline deltas).
+*For microstructure researchers and regulatory-research teams who need
+the exact formula, edge-case behaviour, and citation behind every
+metric the simulator reports.*
+
+Canonical functional reference for all quantitative metrics in
+ABIDES-NG. Metrics are organised into three groups: **agent
+performance**, **market microstructure**, and **market impact**
+(strategy vs. baseline deltas). For the Python API that exposes them,
+see [Computing Metrics](./metrics-api.md).
 
 > **Data conventions:** All prices are integer cents. Times in the L1 `time`
 > column are nanoseconds since midnight; `EventTime` is nanoseconds since epoch.

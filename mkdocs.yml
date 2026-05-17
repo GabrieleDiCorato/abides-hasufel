@@ -30,25 +30,31 @@ theme:
 
 docs_dir: docs
 
+exclude_docs: |
+  active-plans/
+
 nav:
   - Home: index.md
-  - Reference:
-    - Config System: reference/config-system.md
-    - Custom Agent Guide: reference/custom-agent-guide.md
-    - Kernel Architecture: reference/kernel-architecture.md
-    - Logging Architecture: reference/logging-architecture.md
+  - Getting Started:
+    - Quickstart: getting-started/quickstart.md
+    - Why ABIDES-NG: project/one-pager.md
+  - User Guides:
+    - Building a Simulation: reference/config-system.md
+    - Writing a Custom Agent: reference/custom-agent-guide.md
+    - Extracting Results: reference/data-extraction.md
+    - Computing Metrics: reference/metrics-api.md
+    - Running Experiments in Parallel: reference/parallel-simulation.md
+  - Architecture Reference:
+    - Kernel & Lifecycle: reference/kernel-architecture.md
+    - Event Bus & Logging: reference/logging-architecture.md
     - Event Vocabulary: reference/event-vocabulary.md
-    - Data Extraction: reference/data-extraction.md
-    - Parallel Simulation: reference/parallel-simulation.md
-    - Metrics API: reference/metrics-api.md
     - Metrics Algorithms: reference/metrics-algorithms.md
-    - LLM Integration Guide: reference/llm-gotchas.md
-  - Project:
-    - Roadmap: project/roadmap.md
-    - Release Process: project/release-process.md
+  - Operations & Governance:
     - Reproducibility: project/reproducibility.md
-    - One-Pager: project/one-pager.md
-    - Event Logging Refactor: project/event-logging-refactor-plan.md
+    - Release Process: project/release-process.md
+    - Roadmap: project/roadmap.md
+  - For LLM / Agent Builders:
+    - Integration Gotchas: reference/llm-gotchas.md
   - Changelog: changelog.md
 
 markdown_extensions:

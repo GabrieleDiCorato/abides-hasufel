@@ -1,6 +1,6 @@
 # ABIDES Logging — Architecture Reference
 
-**Status:** Architecture reference (Phase 2 implemented).
+**Status:** Architecture reference.
 **Scope:** Every form of "logging" present in `abides-core`, `abides-markets`,
 `abides-gym`. The standard Python `logging` module, the per-agent
 `Agent.logEvent()` system, the centralized `summary_log`, and how each
@@ -20,8 +20,8 @@ do completely different things and barely interact:
 | **Per-agent event log** (`Agent.logEvent`) | Every business event the agent emits | `EventBus` → registered `EventSink` implementations → `InMemorySink` (in-memory) and/or `BZ2PickleSink` (disk) | `InMemorySink.agent_log()`, `parse_logs_df()`, notebooks, metrics |
 | **Summary log** (`Kernel.append_summary_log`) | A handful of "important" events (cash, holdings, valuation) | In-memory `kernel.summary_log` list → `./log/<run_id>/summary_log.bz2` | **Nobody in this fork.** Originally intended for "separate statistical summary programs". |
 
-Since **Phase 2**, the per-agent event log flows through the `EventBus`
-rather than being stored directly on `agent.log`. See [§4](#4-phase-2-event-bus-architecture).
+The per-agent event log flows through the `EventBus`
+rather than being stored directly on `agent.log`. See [§4](#4-eventbus-architecture).
 
 ---
 
@@ -244,9 +244,9 @@ consumes the *parsed* DataFrame, not the raw logs.
 - **`parse_logs_df` builds one DataFrame per agent then concats** —
   was O(N) but allocated an intermediate frame for every agent. Now
   rebuilt around a single `pd.DataFrame.from_records` over the flat
-  row list, eliminating the per-agent allocation. The deeper Phase 3
-  win (constructing the DataFrame directly from `InMemorySink` column
-  arrays) is still pending.
+  row list, eliminating the per-agent allocation. A further
+  optimisation that builds the DataFrame directly from `InMemorySink`
+  column arrays is still pending.
 
 ### 2.7 Verdict on system B
 
@@ -257,8 +257,9 @@ real issues:
 1. **Format is fused into the kernel.** No way to swap pickle for
    parquet, no way to mock the writer for tests.
 2. **`parse_logs_df` allocates an intermediate DataFrame per agent.**
-   Reduced in Phase 1 (single `from_records`); a deeper rewrite over
-   `InMemorySink` columnar arrays is the Phase 3 target.
+   The single `from_records` rewrite eliminated the per-agent frame; a
+   deeper rewrite over `InMemorySink` columnar arrays remains a
+   pending optimisation.
 3. **`log_events` / `log_to_file` are per-instance**, awkward to set
    globally.
 
@@ -430,9 +431,9 @@ filesystem ([test_kernel.py L47, 54, 63, 83](https://github.com/GabrieleDiCorato
 ### 7.2 Real performance issues
 
 - **`parse_logs_df` allocated one intermediate DataFrame per agent.**
-  Reduced in Phase 1 to a single `pd.DataFrame.from_records` over the
-  flat row list. The deeper rewrite over `InMemorySink` columnar
-  arrays is the Phase 3 target.
+  The single `pd.DataFrame.from_records` rewrite eliminated that
+  intermediate; a further rewrite over `InMemorySink` columnar arrays
+  is still pending.
 - **`to_pickle(compression="bz2")`** is the slowest pickle path.
   Acceptable for a one-shot serialization but compounds when many
   agents log a lot.
@@ -646,9 +647,9 @@ contract was never open-sourced.**
 
 ---
 
-## 4. Phase 2 — EventBus architecture
+## 4. EventBus architecture
 
-Phase 2 replaced the direct `agent.log` list and the direct observer
+The `EventBus` replaced the direct `agent.log` list and the direct observer
 calls with a single-threaded, per-simulation `EventBus`. This section
 is the authoritative reference for the bus architecture.
 
@@ -777,7 +778,7 @@ A single ``try/except`` wraps the whole tuple loop for each sink in
 - The exception is logged at ``ERROR`` with ``exc_info``.
 - ``bus.shutdown()`` raises ``RuntimeError`` summarising all failed
   sinks; ``Kernel.terminate()`` catches and logs this rather than
-  re-raising (conservative Phase 2 behaviour).
+  re-raising (conservative current behaviour).
 - The failures are also surfaced programmatically on
   ``KernelRunResult.sink_failures`` as a tuple of ``SinkFailure``
   records (``sink_index``, ``sink_type``, ``exception_repr``).  Callers
@@ -790,7 +791,7 @@ a known-broken sink from being re-invoked for every remaining tuple.
 
 ### 4.9 Deprecated `agent.log` property
 
-Accessing `agent.log` after Phase 2 emits a `DeprecationWarning` and
+Accessing `agent.log` emits a `DeprecationWarning` and
 returns `InMemorySink.agent_log(agent.id)` (or `[]` if no sink is
 registered). Update callers to use
 `kernel.event_bus.in_memory_sink.agent_log(agent_id)` directly, or use
@@ -798,9 +799,9 @@ registered). Update callers to use
 
 ---
 
-## 5. Phase 3a — OrderBook capture on the EventBus
+## 5. OrderBook capture on the EventBus
 
-Until Phase 3a, every `OrderBook` instance owned two per-instance Python
+Historically, every `OrderBook` instance owned two per-instance Python
 lists: `book_log2` (snapshots of the L2 book after each mutation) and
 `history` (a dict per `LIMIT` / `EXEC` / `CANCEL` / `CANCEL_PARTIAL` /
 `MODIFY` / `REPLACE` event).  The runner read those lists directly to
@@ -808,7 +809,7 @@ produce `SimulationResult.l1_series`, `l2_series`, `trades`, and
 `liquidity`.  This coupled storage policy to the producer and forced
 every consumer onto the same in-memory format.
 
-Phase 3a moves both flows onto the same `EventBus` used by Phase 2 for
+Both flows now move onto the same `EventBus` used for
 agent events and metrics.
 
 ### 5.1 The `book_capture` config field
@@ -930,7 +931,7 @@ New code should read directly from the sinks via
 
 With `book_capture="l2"` and a fixed seed, all
 `SimulationResult.markets[symbol]` fields are byte-equivalent to a
-pre-Phase-3a baseline pickled at
+pre-EventBus baseline pickled at
 `abides-markets/tests/data/book_capture_baseline_l2.pkl` (asserted by
 `test_book_capture_reproducibility::test_l2_byte_equivalent`).  With
 `book_capture="l1"`, the L1 series equals the L2 series after

@@ -1,11 +1,16 @@
-# ABIDES Metrics API Reference
+# Computing Metrics
 
-Complete reference for the `abides_markets.simulation` metrics surface.
-Covers standalone compute functions, the `compute_rich_metrics()` convenience
-API, and the Pydantic models that carry the results.
+*For execution-quality analysts, microstructure researchers, and risk
+teams who need typed, audit-grade analytics on a finished simulation.*
 
-> **Audience:** LLM tool-calling agents, quantitative researchers, and
-> financial-industry practitioners building on ABIDES-NG.
+Complete reference for the `abides_markets.simulation` metrics surface:
+standalone compute functions, the `compute_rich_metrics()` convenience
+API, and the Pydantic models that carry the results. For the
+underlying formulae and academic citations, see
+[Metrics Algorithms](./metrics-algorithms.md).
+
+> **Audience:** quantitative researchers, financial-industry
+> practitioners, and LLM tool-calling agents building on ABIDES-NG.
 
 > **Data conventions:** All prices are **integer cents** (`$100.00 = 10_000`).
 > All timestamps are **nanoseconds since Unix epoch** (`int64`).

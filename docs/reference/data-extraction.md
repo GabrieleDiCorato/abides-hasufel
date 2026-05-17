@@ -1,4 +1,14 @@
-# Analyzing ABIDES Output
+# Extracting Results
+
+*For analysts and researchers pulling structured data out of a finished
+simulation: per-agent state, L1 / L2 book history, trades, and raw
+event logs.*
+
+This page enumerates every data surface on `SimulationResult`, the
+available `ResultProfile` levels, and how to reconstruct the book
+trajectory from logs when the lighter profiles are not enough.
+
+---
 
 ## 1. Recommended: `SimulationResult`
 

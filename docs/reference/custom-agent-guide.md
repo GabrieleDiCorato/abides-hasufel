@@ -1,9 +1,17 @@
-# ABIDES Custom Agent Implementation Guide
+# Writing a Custom Agent
 
-This guide is optimized for AI coding agents implementing custom trading strategies in ABIDES.
-Since the ABIDES source code is available in your environment, this guide focuses on **architecture, API contracts, and critical behaviors**, avoiding redundant code snippets.
+*For strategy developers plugging proprietary trading or
+execution logic into the simulator.*
 
-**CRITICAL PREREQUISITE:** Before building any agent, you **MUST** read [`llm-gotchas.md`](./llm-gotchas.md) to understand how market data is asynchronously populated (and avoids `None`/`KeyError` crashes).
+This guide covers the `TradingAgent` adapter pattern, the strategy
+protocol convention, registration via `@register_agent`, risk-config
+wiring, and a copy-paste scaffold. It targets engineers who need to
+integrate a strategy without forking the core code.
+
+**CRITICAL PREREQUISITE:** Before building any agent, you **MUST**
+read [LLM gotchas](./llm-gotchas.md) to understand how market data
+is asynchronously populated (and how to avoid `None` / `KeyError`
+crashes).
 
 ---
 

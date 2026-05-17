@@ -1,6 +1,6 @@
 # Event vocabulary audit
 
-> **Status (Phase 0):** Inventory only. Every entry is dispositioned `keep`.
+> **Status:** Inventory only. Every entry is dispositioned `keep`.
 > Suggested consolidations are marked `[REVIEW]` and require explicit
 > sign-off before any rename, merge, or deletion lands.
 >
@@ -12,11 +12,9 @@
 > is a *map* of the current vocabulary, plus a list of candidates a
 > future phase can take to a deprecation cycle.
 
-This document is the deliverable for §3.11 of the
-[event-logging refactor plan](../project/event-logging-refactor-plan.md):
-a complete, source-anchored enumeration of every `Agent.logEvent(...)`
-and `Agent.report_metric(...)` call site shipped with ABIDES, grouped by
-producer category.
+This document is a complete, source-anchored enumeration of every
+`Agent.logEvent(...)` and `Agent.report_metric(...)` call site shipped
+with ABIDES, grouped by producer category.
 
 ## How to read the tables
 
@@ -200,7 +198,7 @@ than `logEvent`.
   asserts the exact order-lifecycle event set; `test_market_boundaries.py`
   asserts `ENDING_CASH`. Renames would require coordinated test churn.
 
-## OrderBook events on the EventBus (Phase 3a)
+## OrderBook events on the EventBus
 
 These six event types are published by `OrderBook` directly onto
 `EventBus` (not via `Agent.logEvent`), with `agent_id=exchange.id` and
@@ -223,7 +221,7 @@ history sink can demultiplex events from a multi-symbol exchange.
 Snapshot publishes use the separate `publish_book_snapshot` wire kind
 (not `publish_event`) and have no `event_type` string; they carry
 `(symbol, sim_time_ns, bids, asks, depth, seq)`.  See
-[logging-architecture.md §5](logging-architecture.md#5-phase-3a--orderbook-capture-on-the-eventbus)
+[logging-architecture.md §5](logging-architecture.md#5-orderbook-capture-on-the-eventbus)
 for the full producer / sink contract and the `book_capture` config
 field.
 
@@ -232,5 +230,3 @@ field.
 * [docs/reference/logging-architecture.md](logging-architecture.md) —
   the architectural shape of the log writer / parser pipeline this
   vocabulary feeds into.
-* [docs/project/event-logging-refactor-plan.md](../project/event-logging-refactor-plan.md) — §3.11
-  is satisfied by this document.

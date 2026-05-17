@@ -28,7 +28,7 @@ require cloning the repository (and are CI-tested via `uv build`).
 
 Semantic versioning. Current line is `2.x`; v3.0 will land when the
 `abides-core-v3-foundation` plan completes (see
-[docs/active-plans/](../active-plans/) when active, or git history).
+[`docs/active-plans/`](https://github.com/GabrieleDiCorato/abides-ng/tree/main/docs/active-plans) when active, or git history).
 
 Reproducibility-breaking changes (anything that alters the output of
 a seeded simulation bit-for-bit) require a **major-version bump** and

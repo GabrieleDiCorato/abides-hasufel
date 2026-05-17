@@ -1,6 +1,14 @@
-# ABIDES — Parallel Simulation Guide
+# Running Experiments in Parallel
 
-> **Audience:** LLM agents or developers who need to launch multiple ABIDES simulations concurrently.
+*For researchers running Monte Carlo studies, parameter sweeps, and
+stress-test batteries across many seeds or scenario variants.*
+
+Covers `run_batch`, the multiprocessing model, the deterministic
+per-worker RNG hierarchy, and the on-disk log layout each parallel
+run produces.
+
+> **Audience:** developers who need to launch multiple ABIDES
+> simulations concurrently.
 
 ---
 

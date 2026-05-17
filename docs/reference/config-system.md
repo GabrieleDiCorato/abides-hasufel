@@ -1,9 +1,13 @@
-# ABIDES — Declarative Configuration System
+# Building a Simulation
 
-This document covers the pluggable, AI-friendly configuration system for ABIDES
-market simulations. It replaces (or complements) the procedural `build_config()`
-functions with declarative Pydantic models, YAML/JSON serialization, and
-composable templates.
+*For quants, execution-quality analysts, and risk teams assembling
+ABIDES scenarios from typed building blocks.*
+
+This page is the definitive reference for the declarative configuration
+system: `SimulationConfig`, `SimulationBuilder`, the agent registry,
+templates, risk controls, oracle modes, and YAML / JSON serialisation.
+After the [Quickstart](../getting-started/quickstart.md), this is the
+next page to read.
 
 > **Interactive tutorial:** See [`notebooks/demo_Config_System.ipynb`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/notebooks/demo_Config_System.ipynb)
 > for a hands-on walkthrough of every feature below.

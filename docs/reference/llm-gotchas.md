@@ -1,8 +1,13 @@
-# ABIDES-NG - LLM Integration Reference & Gotchas
+# ABIDES-NG — LLM Integration Reference & Gotchas
 
-Canonical reference for **AI coding assistants** building on ABIDES-NG.
-Covers the async agent model, every source of `None`/`NaN`/empty collections,
-safe-access patterns, and the simulation runner API.
+*For AI coding assistants and developers writing or reviewing
+ABIDES-NG agent code.*
+
+Canonical reference for the async agent model, every source of
+`None` / `NaN` / empty collections, safe-access patterns, and the
+simulation runner API. If your agent crashes with a `KeyError` or
+returns `None` where you expected a price, this is the first page
+to read.
 
 ---
 
@@ -10,17 +15,17 @@ safe-access patterns, and the simulation runner API.
 
 1. [Mental Model — Not a Loop, Not Synchronous](#1-mental-model)
 2. [Agent Lifecycle](#2-agent-lifecycle)
-3. [Market Data — All Sources of None / Empty](#3-market-data--all-sources-of-none--empty)
-4. [Pre-Market Window — Special State](#4-pre-market-window--special-state)
+3. [Market Data — All Sources of None / Empty](#3-market-data-all-sources-of-none-empty)
+4. [Pre-Market Window — Special State](#4-pre-market-window-special-state)
 5. [Order Book Data Structures Explained](#5-order-book-data-structures-explained)
 6. [The mark_to_market Trap](#6-the-mark_to_market-trap)
-7. [Price Units — Everything is Integer Cents](#7-price-units--everything-is-integer-cents)
+7. [Price Units — Everything is Integer Cents](#7-price-units-everything-is-integer-cents)
 8. [Order Lifecycle and Tracking](#8-order-lifecycle-and-tracking)
 9. [Correct Safe-Access Patterns](#9-correct-safe-access-patterns)
 10. [Subscription vs. Pull-Based Data](#10-subscription-vs-pull-based-data)
 11. [Complete State Validity Checklist](#11-complete-state-validity-checklist)
 12. [Running Simulations](#12-running-simulations)
-13. [External Oracle — Historical / Generated Data](#13-external-oracle--historical--generated-data)
+13. [External Oracle — Historical / Generated Data](#13-external-oracle-historical-generated-data)
 14. [logEvent Deep Copy](#14-logevent-deep-copy)
 
 ---
