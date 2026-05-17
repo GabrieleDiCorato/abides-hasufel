@@ -12,6 +12,54 @@
 > is a *map* of the current vocabulary, plus a list of candidates a
 > future phase can take to a deprecation cycle.
 
+> **Phase 2b update (schemas are now current, not proposed).** The
+> per-event "proposed schema" column below is no longer aspirational
+> for the entries that have been migrated. The canonical, build-time
+> enforced contract now lives in
+> [`abides_core.event_payloads.EVENT_TYPE_SCHEMA`][esrc] and is
+> validated by [`test_event_payload_schema.py`][asrc].
+> Key shape changes shipped in Phase 2b:
+>
+> * **`ORDER_EVENT` family** (`ORDER_SUBMITTED`, `ORDER_ACCEPTED`,
+>   `ORDER_EXECUTED`, `ORDER_CANCELLED`, `PARTIAL_CANCELLED`,
+>   `ORDER_MODIFIED`, `ORDER_REPLACED`, `CANCEL_SUBMITTED`,
+>   `CANCEL_PARTIAL_ORDER`, `MODIFY_ORDER`, `REPLACE_ORDER`,
+>   `STOP_ORDER_SUBMITTED`, `STOP_TRIGGERED`, `STOP_ORDER_ACCEPTED`,
+>   plus the dynamic `<message.type()>` echoes from `ExchangeAgent`)
+>   now ship the 11-field `ORDER_EVENT` positional tuple produced by
+>   `order.to_payload_tuple()`. `Side` and `TimeInForce` are `IntEnum`
+>   and cross the wire as integers (legacy text via
+>   `Side.legacy_str()` / `TimeInForce.legacy_str()`).
+> * **`BEST_BID` / `BEST_ASK`** now ship `(symbol, price, qty)`;
+>   **`LAST_TRADE`** now ships `(symbol, avg_price_cents, qty)`. The
+>   CSV-in-string forms are gone.
+> * **`CIRCUIT_BREAKER_TRIPPED`** now ships `(reason, value)` — the
+>   second slot is the previously asymmetric `loss` / `orders` integer,
+>   harmonised under one field.
+> * **`MARK_TO_MARKET`** now ships a bare integer (cents) under the
+>   `CASH` schema; the per-symbol breakdown that used to share the name
+>   is now a `logger.debug` line, not a logged event.
+> * **`FILL_PNL`** ships `(nav, peak_nav, symbol)`.
+> * **`MKT_CLOSED`**, **`AGENT_TYPE`** and all bare receipt echoes on
+>   `ExchangeAgent` ship the `EMPTY_PAYLOAD` singleton (`()`), routed
+>   through the `EMPTY` schema.
+> * **`EXECUTION_SUMMARY`**, **`SLICE_DECISION`**, **`POV_SUMMARY`**
+>   and **`AMM_FLATTEN`** now ship positional tuples matching their
+>   registered schemas.
+>
+> Producers whose payload remains a `dict` (e.g. `HOLDINGS_UPDATED`,
+> the dynamic `<tag>_POST_ONLY` rejection events) intentionally fall
+> through to the `GENERIC` schema; reshaping `HOLDINGS_UPDATED` to a
+> per-fill delta tuple is the next planned change (Phase 2c).
+>
+> `parse_logs_df()` projects each schema back into per-field DataFrame
+> columns so existing notebook code keeps working. See
+> [`docs/reference/logging-architecture.md`](logging-architecture.md)
+> §4.3.1 for the projection rules and the build-time AST audit.
+>
+> [esrc]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/event_payloads.py
+> [asrc]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_event_payload_schema.py
+
 This document is a complete, source-anchored enumeration of every
 `Agent.logEvent(...)` and `Agent.report_metric(...)` call site shipped
 with ABIDES, grouped by producer category.

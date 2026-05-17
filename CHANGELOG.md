@@ -13,6 +13,24 @@ reference.
 ## [Unreleased]
 
 ### Added
+- **Phase 2b — payload schemas as a contract.**
+  `abides_core.event_payloads.EVENT_TYPE_SCHEMA` is now a complete,
+  frozen registry of every shipped event type. Each entry maps to a
+  `PayloadSchema(name, version, fields)` whose `fields` arity
+  determines the on-wire payload shape (0 → `EMPTY_PAYLOAD`, 1 → bare
+  scalar, ≥ 2 → positional tuple). New schemas: `FILL_PNL`,
+  `IMBALANCE_PAYLOAD`, `CIRCUIT_BREAKER`. New singleton
+  `EMPTY_PAYLOAD` (`()`).
+- `Side.legacy_str()` and `TimeInForce.legacy_str()` — explicit
+  human-readable accessors retained for reporting; the enum values
+  themselves are now `IntEnum` and cross the wire as integers.
+- `InMemorySink.columns` (zero-copy access to the per-event-type
+  columnar storage) and `InMemorySink.bucket_schema(event_type)`
+  (returns the `PayloadSchema` chosen for a given bucket, or `None`).
+- `abides-core/tests/test_event_payload_schema.py` — build-time AST
+  audit that walks every in-tree `.py` file and fails if a publisher
+  call site uses an unregistered string-literal `event_type` or an
+  f-string / `str(x)` payload literal.
 - Three-valued `book_capture` field on `ExchangeAgent` (`"off"` / `"l1"` /
   `"l2"`) — fine-grained control over order-book snapshot retention.
 - Order-book capture flows through the `EventBus`: new
@@ -34,12 +52,57 @@ reference.
 - `Order.to_payload_tuple()` (new abstract method) returns an
   11-field positional tuple aligned with the `ORDER_EVENT` schema in
   `abides_core.event_payloads`, with an `order_kind` class
-  discriminator (`"LIMIT"` / `"MARKET"` / `"STOP"`) per subclass. The
-  tuple form is the canonical builder for typed Parquet columns;
-  existing publish sites continue to emit `order.to_dict()` until a
-  follow-up PR migrates them.
+  discriminator (`"LIMIT"` / `"MARKET"` / `"STOP"`) per subclass.
 
 ### Changed
+- **Breaking — order-lifecycle payloads.** Every event in the
+  `ORDER_EVENT` family (`ORDER_SUBMITTED`, `ORDER_ACCEPTED`,
+  `ORDER_EXECUTED`, `ORDER_CANCELLED`, `PARTIAL_CANCELLED`,
+  `ORDER_MODIFIED`, `ORDER_REPLACED`, `CANCEL_SUBMITTED`,
+  `CANCEL_PARTIAL_ORDER`, `MODIFY_ORDER`, `REPLACE_ORDER`,
+  `STOP_ORDER_SUBMITTED`, `STOP_TRIGGERED`, `STOP_ORDER_ACCEPTED`,
+  plus the dynamic `<message.type()>` echoes from `ExchangeAgent`)
+  now ships the 11-field `ORDER_EVENT` positional tuple produced by
+  `order.to_payload_tuple()` instead of the legacy `order.to_dict()`
+  dict. `parse_logs_df()` projects the tuple back into the same
+  named columns existing consumers expect.
+- **Breaking — `Side` and `TimeInForce` are `IntEnum`.** Wire payloads
+  now carry the integer enum value; use `Side.legacy_str()` /
+  `TimeInForce.legacy_str()` for human-readable rendering.
+- **Breaking — `BEST_BID` / `BEST_ASK`** now ship
+  `(symbol, price, qty)`; **`LAST_TRADE`** now ships
+  `(symbol, avg_price_cents, qty)`. The CSV-in-string payloads are
+  gone.
+- **Breaking — `CIRCUIT_BREAKER_TRIPPED`** now ships
+  `(reason, value)`; the previously asymmetric `loss` / `orders`
+  integer is harmonised under one field.
+- **Breaking — `MARK_TO_MARKET`** now ships a bare integer (cents)
+  under the `CASH` schema (was a free-form `str` under the `SUMMARY`
+  schema). The per-symbol breakdown that used to share the name is
+  now a `logger.debug` line, not a logged event.
+- **Breaking — `EXECUTION_SUMMARY`, `SLICE_DECISION`, `POV_SUMMARY`,
+  `AMM_FLATTEN`, `FILL_PNL`, `MKT_CLOSED`** now ship the positional
+  tuple / `EMPTY_PAYLOAD` form mandated by their registered schemas.
+- **`ExchangeAgent` receipt echoes** are now allowlisted to
+  `QueryMsg`, `MarketHoursRequestMsg`, `MarketClosePriceRequestMsg`
+  and `MarketDataSubReqMsg`, each logged with an `EMPTY_PAYLOAD`
+  under the message class name. Any other message type is dropped
+  with a stdlib-logger warning rather than leaking the raw
+  `Message` instance onto the bus.
+- **`InMemorySink`** rebuilt around a per-event-type columnar layout
+  (`_cols: dict[event_type, dict[column, list]]`). Each bucket
+  carries the four common wire columns (`agent_id`, `agent_type`,
+  `sim_time_ns`, `seq`) plus one column per registered schema
+  field; payload shape is validated before any column is touched
+  (mismatches are diverted to a per-type
+  `"<event_type>::generic"` fallback bucket). `events`,
+  `agent_log()` and `to_dataframe()` reconstruct on demand and
+  remain fully backwards-compatible.
+- **`parse_logs_df`** is now schema-aware: registered payloads are
+  projected into named columns via `EVENT_TYPE_SCHEMA`; arity 0 →
+  `{"EmptyEvent": True}`, arity 1 → `{fields[0]: value}`, arity ≥ 2
+  → `dict(zip(fields, payload, strict=True))`. Dict payloads pass
+  through unchanged.
 - `EventBus` is now the single dispatch hub for agent events, metrics,
   and order-book snapshots. `Agent.logEvent()` and `Agent.report_metric()`
   publish through the bus; `InMemorySink` is the default sink.
@@ -60,13 +123,16 @@ reference.
   The injected `_log_writer` was already a `NoOpLogWriter` in that
   mode, so on-disk behaviour is unchanged — the wasted per-terminate
   `pd.DataFrame` allocation is dropped.
-- `STOP_ORDER_ACCEPTED` now emits `order.to_dict()` instead of the
-  legacy `str(order)`. This brings the event into the same
-  dict-payload family as `STOP_ORDER_SUBMITTED`, `STOP_TRIGGERED`,
-  and the rest of the order lifecycle. **Breaking** for any external
-  consumer that parsed the legacy free-form string representation.
+- `STOP_ORDER_ACCEPTED` now emits the `ORDER_EVENT` tuple, joining
+  the rest of the order lifecycle. (Earlier in this release it had
+  already been changed from `str(order)` to `order.to_dict()`; the
+  Phase 2b tuple migration supersedes that intermediate form.)
 
 ### Deprecated
+- `Order.to_dict()` is retained as a deprecation-window wrapper that
+  rebuilds the legacy dict from the slot values; it will be removed
+  in the Phase 5+2 cleanup. New producers must call
+  `order.to_payload_tuple()` (enforced by the AST audit).
 - `OrderBook.book_log2` and `OrderBook.history` — read from the
   corresponding sink instead.
 - Direct `agent.log` access — use
@@ -85,6 +151,12 @@ reference.
   deprecation timeline.
 
 ### Fixed
+- **`ExchangeAgent` raw-`Message` leak.** The previous catch-all
+  `self.logEvent(message.type(), message)` could push a raw
+  `Message` instance onto the bus (causing pickle / Parquet
+  serialisation failures downstream). The new isinstance allowlist
+  forces an `EMPTY_PAYLOAD` for query / subscription receipts and
+  drops anything else with a logger warning.
 - Repeated `OrderBook.history` / `book_log2` reads no longer emit
   spurious deprecation warnings during normal operation.
 

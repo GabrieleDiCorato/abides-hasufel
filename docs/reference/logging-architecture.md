@@ -712,14 +712,79 @@ class EventSink(Protocol):
 Constants: `WIRE_FIELDS_EVENT`, `WIRE_FIELDS_METRIC`, `WIRE_FIELDS_BOOK_SNAPSHOT`.
 Typed views: `EventRecord.from_tuple(t)`, `MetricRecord.from_tuple(t)`, `BookSnapshotRecord.from_tuple(t)`.
 
+### 4.3.1 Payload shapes (Phase 2b)
+
+Every `event_type` shipped by in-tree agents is registered in
+`abides_core.event_payloads.EVENT_TYPE_SCHEMA`, mapping the string key
+to a frozen `PayloadSchema(name, version, fields)`. The `fields` tuple
+determines the on-wire payload shape:
+
+| Arity (`len(fields)`) | On-wire payload | Example schema | Example call |
+|-----------------------|------------------|----------------|--------------|
+| 0 | `EMPTY_PAYLOAD` (the empty tuple `()`) | `EMPTY` | `self.logEvent("MKT_CLOSED", EMPTY_PAYLOAD)` |
+| 1 | bare scalar (no tuple wrapping) | `CASH = (cents,)` | `self.logEvent("STARTING_CASH", 10_000_000)` |
+| ≥ 2 | positional tuple of length `arity` | `ORDER_EVENT = (...)` | `self.logEvent("ORDER_ACCEPTED", order.to_payload_tuple())` |
+
+The `Order`, `LimitOrder` and `StopOrder` value objects expose
+`to_payload_tuple()` returning an `ORDER_EVENT`-shaped tuple
+(`Side`/`TimeInForce` are `IntEnum` so they cross the wire as ints;
+`Side.legacy_str()` / `TimeInForce.legacy_str()` are provided for
+human-readable reporting). The legacy `to_dict()` method is retained
+as a deprecation-window wrapper that converts the tuple back to a
+dict and will be removed in the Phase 5+2 cleanup.
+
+Dynamic-name events that cannot appear in the static registry are
+still bounded:
+
+* `ExchangeAgent` echoes incoming `OrderMsg` subclasses under
+  `message.type()` (e.g. `"LimitOrderMsg"`); every such class is
+  registered in `EVENT_TYPE_SCHEMA` against `ORDER_EVENT`.
+* Non-order ExchangeAgent receipts (query / subscription requests)
+  log an `EMPTY` payload under the message class name (allowlist of
+  `QueryMsg`, `MarketHoursRequestMsg`, `MarketClosePriceRequestMsg`,
+  `MarketDataSubReqMsg`); anything else is warn-and-dropped via the
+  stdlib logger so no raw `Message` instance can leak onto the bus.
+* `OrderBook` post-only rejections emit dynamic
+  `<order.tag>_POST_ONLY` events with a small dict payload; these
+  intentionally fall through to the `GENERIC` bucket.
+
+`InMemorySink` enforces both halves of the contract at append time:
+unregistered event types are routed to `GENERIC` with a one-time
+warning, and rows whose payload does not match the chosen schema's
+arity are diverted to a per-type `"<event_type>::generic"` fallback
+bucket rather than torn-written into the typed bucket. The
+`parse_logs_df()` consumer mirrors the same projection: arity 0 →
+`{"EmptyEvent": True}`, arity 1 → `{fields[0]: payload}`, arity ≥ 2 →
+`dict(zip(fields, payload))`, dict payloads passed through unchanged.
+
+The build-time invariant is enforced by
+`abides-core/tests/test_event_payload_schema.py`, which walks every
+`.py` file under `abides-core/`, `abides-markets/` and `abides-gym/`
+and inspects calls to `logEvent`, `publish_event`, `publish_metric`
+and `publish_book_snapshot`. The test fails if a string-literal
+`event_type` is missing from `EVENT_TYPE_SCHEMA` or if the payload
+argument is an f-string (`ast.JoinedStr`) or a literal `str(x)` call.
+
 ### 4.4 Shipped sinks
 
 **`InMemorySink`** — registered by default when `event_sinks` is not
-explicitly passed to `Kernel`. Stores all three wire kinds as lists of
-tuples. Key API:
-- `agent_log(agent_id)` → `list[tuple[int, str, Any]]` — `(sim_time_ns, event_type, payload)` triples, matching the old `agent.log` format.
-- `events`, `metrics`, `book_snapshots` — raw wire tuple lists.
-- `to_dataframe()` → `pd.DataFrame` of all events.
+explicitly passed to `Kernel`. Stores events in a schema-driven
+columnar layout (`_cols: dict[event_type, dict[column, list]]`) and
+metrics / book snapshots as raw wire-tuple lists. Each event-type
+bucket carries the four common wire columns (`agent_id`, `agent_type`,
+`sim_time_ns`, `seq`) plus one column per
+`PayloadSchema` field; events whose `event_type` is missing from
+`EVENT_TYPE_SCHEMA` fall through to a single `payload` column under
+the `GENERIC` schema with a one-time warning. Payload shape is
+validated against the chosen schema before any column is touched, so
+appends are transactional: a mismatched row is diverted to a per-type
+`"<event_type>::generic"` fallback bucket rather than leaving a typed
+bucket torn. Key API:
+- `agent_log(agent_id)` → `list[tuple[int, str, Any]]` — `(sim_time_ns, event_type, payload)` triples, matching the old `agent.log` format. Reconstructed from the columnar buckets and sorted by `seq`.
+- `events`, `metrics`, `book_snapshots` — wire tuple lists (`events` is rebuilt on demand from the columns; cache the result if you scan it more than once).
+- `columns` → the raw `dict[event_type, dict[column, list]]` mapping for zero-copy analytics paths (e.g. Arrow exporters).
+- `bucket_schema(event_type)` → the `PayloadSchema` chosen for a given bucket, or `None`.
+- `to_dataframe()` → wide-flat `pd.DataFrame` of all events with `WIRE_FIELDS_EVENT` columns.
 
 **`BZ2PickleSink`** — accepts events only. Writes
 `<agent_name>.bz2` files on `on_simulation_end()` in the legacy
