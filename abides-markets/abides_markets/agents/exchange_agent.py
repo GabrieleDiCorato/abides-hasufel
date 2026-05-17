@@ -841,7 +841,10 @@ class ExchangeAgent(FinancialAgent):
         else:
             self.stop_orders[order.symbol].append((order, sender_id))
             if self.log_orders:
-                self.logEvent("STOP_ORDER_ACCEPTED", str(order))
+                # Harmonise with the rest of the STOP_ORDER_* / order
+                # lifecycle family: emit the structured dict instead of
+                # the legacy free-form ``str(order)`` representation.
+                self.logEvent("STOP_ORDER_ACCEPTED", order.to_dict())
 
     def _check_stop_orders(self, symbol: str) -> None:
         """Evaluate all pending stop orders for *symbol* against ``last_trade``.

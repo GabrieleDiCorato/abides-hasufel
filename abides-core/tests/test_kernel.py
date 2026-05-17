@@ -148,6 +148,31 @@ class TestWriteSummaryLogRespectsSkipLog:
         kernel.write_summary_log()
         assert not (tmp_path / "log").exists()
 
+    def test_skip_log_short_circuits_dataframe_build(self, monkeypatch):
+        """With ``skip_log=True``, ``write_summary_log`` must early-return
+        before allocating the summary ``DataFrame`` — the wasted
+        allocation used to run on every ``terminate`` call.
+        """
+        import pandas as pd
+
+        agents = [StubAgent(0)]
+        kernel = Kernel(
+            agents=agents,
+            skip_log=True,
+            random_state=np.random.RandomState(seed=1),
+        )
+        built: list[object] = []
+        real_dataframe = pd.DataFrame
+        monkeypatch.setattr(
+            pd,
+            "DataFrame",
+            lambda *a, **kw: (built.append((a, kw)), real_dataframe(*a, **kw))[1],
+        )
+        kernel.write_summary_log()
+        assert (
+            built == []
+        ), "skip_log=True must short-circuit before constructing the summary DataFrame"
+
 
 class TestTerminateZeroCountDoesNotCrash:
     def test_metric_with_zero_count_does_not_divide_by_zero(self):
@@ -722,8 +747,14 @@ class TestLogWriter:
 
         writer = _RecordingWriter()
         agents = [StubAgent(0)]
+        # ``skip_log=False`` is required: ``write_summary_log`` now honours
+        # the ``skip_log`` guard and would otherwise short-circuit before
+        # ever reaching the injected writer.
         kernel = Kernel(
-            agents=agents, random_state=np.random.RandomState(seed=1), log_writer=writer
+            agents=agents,
+            random_state=np.random.RandomState(seed=1),
+            log_writer=writer,
+            skip_log=False,
         )
         kernel.write_log(0, _pd.DataFrame({"a": [1]}))
         kernel.write_summary_log()

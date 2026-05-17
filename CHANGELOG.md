@@ -55,6 +55,16 @@ reference.
   — it now reads slot values directly. The returned key set and
   shape are preserved; the change drops an unnecessary defensive copy
   (sinks must not mutate received payloads).
+- `Kernel.write_summary_log()` now honours `skip_log`: when set, the
+  method early-returns instead of building the summary `DataFrame`.
+  The injected `_log_writer` was already a `NoOpLogWriter` in that
+  mode, so on-disk behaviour is unchanged — the wasted per-terminate
+  `pd.DataFrame` allocation is dropped.
+- `STOP_ORDER_ACCEPTED` now emits `order.to_dict()` instead of the
+  legacy `str(order)`. This brings the event into the same
+  dict-payload family as `STOP_ORDER_SUBMITTED`, `STOP_TRIGGERED`,
+  and the rest of the order lifecycle. **Breaking** for any external
+  consumer that parsed the legacy free-form string representation.
 
 ### Deprecated
 - `OrderBook.book_log2` and `OrderBook.history` — read from the

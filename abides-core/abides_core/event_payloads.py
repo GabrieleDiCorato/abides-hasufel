@@ -240,7 +240,7 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     "REPLACE_ORDER": ORDER_EVENT,
     # --- Stop orders ---
     "STOP_ORDER_SUBMITTED": ORDER_EVENT,
-    "STOP_ORDER_ACCEPTED": SUMMARY,  # exchange emits str(order) — see [REVIEW]
+    "STOP_ORDER_ACCEPTED": ORDER_EVENT,
     "STOP_TRIGGERED": ORDER_EVENT,
     # --- Holdings / cash (TradingAgent) ---
     "STARTING_CASH": CASH,

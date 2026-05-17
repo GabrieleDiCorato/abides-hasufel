@@ -896,5 +896,13 @@ class Kernel:
         )
 
     def write_summary_log(self) -> None:
+        # Honour ``skip_log``: avoid building the summary DataFrame at
+        # all when logging is suppressed. The injected ``_log_writer``
+        # is already a ``NoOpLogWriter`` in that mode (so nothing
+        # reaches disk regardless), but this early-return drops the
+        # wasted ``pd.DataFrame`` allocation that ran on every
+        # ``terminate`` call.
+        if self.skip_log:
+            return
         df_log = pd.DataFrame(self.summary_log)
         self._log_writer.write_summary_log(df_log)

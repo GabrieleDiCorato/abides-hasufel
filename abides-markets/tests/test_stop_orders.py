@@ -491,3 +491,73 @@ class TestStopTriggerBoundaries:
         exchange.order_books["TEST"].last_trade = None
         exchange._check_stop_orders("TEST")
         assert len(exchange.stop_orders["TEST"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# STOP_ORDER_ACCEPTED payload harmonisation
+# ---------------------------------------------------------------------------
+class TestStopOrderAcceptedPayload:
+    """``STOP_ORDER_ACCEPTED`` must publish ``order.to_dict()`` so it sits
+    in the same family as ``STOP_ORDER_SUBMITTED`` / ``STOP_TRIGGERED``.
+
+    The pre-Phase-1-bundle code emitted ``str(order)`` — the only
+    free-form string survivor in the order-lifecycle vocabulary.
+    """
+
+    def _make_exchange(self, log_orders: bool = True):
+        from abides_markets.agents.exchange_agent import ExchangeAgent
+
+        return ExchangeAgent(
+            id=0,
+            mkt_open=MKT_OPEN,
+            mkt_close=MKT_CLOSE,
+            symbols=["TEST"],
+            name="TestExchange",
+            random_state=np.random.RandomState(42),
+            log_orders=log_orders,
+            use_metric_tracker=False,
+        )
+
+    def test_stop_order_accepted_publishes_dict_payload(self):
+        from abides_markets.messages.order import StopOrderMsg
+
+        exchange = self._make_exchange(log_orders=True)
+        captured: list[tuple[str, object]] = []
+        exchange.logEvent = lambda event_type, payload=None, **kw: captured.append(
+            (event_type, payload)
+        )
+
+        stop = StopOrder(7, MKT_OPEN, "TEST", 25, Side.BID, stop_price=10_500)
+        msg = StopOrderMsg(order=stop)
+        exchange._handle_stop_order(sender_id=7, current_time=MKT_OPEN, message=msg)
+
+        accept_events = [c for c in captured if c[0] == "STOP_ORDER_ACCEPTED"]
+        assert len(accept_events) == 1
+        payload = accept_events[0][1]
+        assert isinstance(
+            payload, dict
+        ), "STOP_ORDER_ACCEPTED must emit a dict, not the legacy str(order)"
+        # Aligned with the ORDER_EVENT family — the same keys
+        # ``order.to_dict()`` produces for every other STOP_ORDER_*.
+        assert payload["order_id"] == stop.order_id
+        assert payload["symbol"] == "TEST"
+        assert payload["quantity"] == 25
+        assert payload["stop_price"] == 10_500
+        assert payload["side"] is Side.BID
+
+    def test_stop_order_accepted_silent_when_log_orders_false(self):
+        """``log_orders=False`` continues to suppress the publish."""
+        from abides_markets.messages.order import StopOrderMsg
+
+        exchange = self._make_exchange(log_orders=False)
+        captured: list[tuple[str, object]] = []
+        exchange.logEvent = lambda event_type, payload=None, **kw: captured.append(
+            (event_type, payload)
+        )
+
+        stop = StopOrder(7, MKT_OPEN, "TEST", 25, Side.BID, stop_price=10_500)
+        msg = StopOrderMsg(order=stop)
+        exchange._handle_stop_order(sender_id=7, current_time=MKT_OPEN, message=msg)
+
+        accept_events = [c for c in captured if c[0] == "STOP_ORDER_ACCEPTED"]
+        assert accept_events == []
