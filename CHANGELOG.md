@@ -20,6 +20,14 @@ reference.
   pair per symbol. Typed `NamedTuple` payloads for `LIMIT`, `EXEC`,
   `CANCEL`, `CANCEL_PARTIAL`, `MODIFY`, `REPLACE`.
 - Publisher-side L1 deduplication for `book_capture="l1"`.
+- Optional `ParquetSink` (`abides_core.parquet_sink`) for columnar
+  persistence of bus emissions to per-bucket Parquet files, with
+  atomic writes via a `.partial/` staging directory, optional
+  row-count checkpoint rotation, schema/bus-format version metadata,
+  and a `__generic__` fallback for unknown event types. Install with
+  `pip install 'abides-ng[parquet]'`. Companion `read_parquet_logs`
+  reader returns a `dict[kind, dict[key, DataFrame]]`, and
+  `unpickle_payloads` materializes pickled payload columns.
 
 ### Changed
 - `EventBus` is now the single dispatch hub for agent events, metrics,

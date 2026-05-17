@@ -661,6 +661,7 @@ is the authoritative reference for the bus architecture.
 | `abides_core/event_sinks.py` | `EventSink` Protocol + three shipped sinks |
 | `abides_core/event_records.py` | Wire field constants and typed record views |
 | `abides_core/event_payloads.py` | `PayloadSchema` registry + `EVENT_TYPE_SCHEMA` map |
+| `abides_core/parquet_sink.py` | Optional `ParquetSink` + `read_parquet_logs` reader (requires `[parquet]` extra) |
 
 ### 4.2 EventSink Protocol
 
@@ -714,6 +715,61 @@ cleared produce no disk file. Constructed with `(log_writer, agents)`.
 call, forwards `(agent_id, agent_type, key, value)` to each
 `KernelObserver` in the observer list. Replaces the old direct call
 from `agent.report_metric()`.
+
+**`ParquetSink`** — optional columnar persistence sink. Accepts all
+three wire kinds by default; toggle individual kinds via
+`accept_events=`, `accept_metrics=`, `accept_book_snapshots=` on the
+constructor. Lives in `abides_core.parquet_sink` and requires the
+`[parquet]` extra:
+
+```bash
+pip install 'abides-ng[parquet]'
+```
+
+Buffers each bus emission per `(kind, key)` bucket and flushes to a
+Parquet file at `<root>/<run_id>/{events,metrics,book_snapshots}/<key>.parquet`:
+
+- **events** — bucketed by `event_type` (one file per schema)
+- **metrics** — bucketed by metric `key`
+- **book_snapshots** — bucketed by `symbol`
+
+Files are written atomically: each bucket is staged under
+`<run_id>/.partial/<kind>/` and finalized with `os.replace`. The
+`.partial/` directory is wiped on `on_simulation_start()`, so a crashed
+prior run leaves no stale data behind. Set
+`checkpoint_every_rows=<int>` to rotate large buckets into numbered
+shards (`<key>.<seq_lo>-<seq_hi>.parquet`) instead of one monolithic
+file; without checkpointing, a single unnumbered file per bucket is
+produced.
+
+**Schema (MVP):** Events use 5 columns `(agent_id, agent_type,
+sim_time_ns, payload, seq)` with `payload` stored as a pickled binary
+blob; book snapshots store `bids`/`asks` the same way. Metrics use
+typed `(agent_id, agent_type, sim_time_ns, value: float64, seq)`. The
+pickled-payload form is a Phase 3 simplification — Phase 2 payloads
+remain heterogeneous Python objects, and typed Arrow columns become a
+follow-up once payloads are normalized to tuples. Future schema
+migrations will bump `abides.bus_format_version` (currently `"1"`),
+recorded as Parquet file metadata along with the schema name/version,
+metric key, or symbol. The reader rejects files whose bus format
+version does not match.
+
+Unknown event types (those without a registered schema) are pooled into
+a single `__generic__.parquet` file with an extra `event_type` column;
+one `RuntimeWarning` is emitted per distinct unknown type.
+
+**Reader:** `read_parquet_logs(run_dir)` walks the on-disk layout,
+groups shards back into their logical bucket, validates file metadata,
+and returns `dict[str, dict[str, pd.DataFrame]]` keyed by
+`{events, metrics, book_snapshots} → bucket_key → DataFrame`, sorted
+by `(sim_time_ns, seq)`. A companion `unpickle_payloads(df)` helper
+materializes the pickled `payload` (or `bids`/`asks`) column into live
+Python objects.
+
+**Non-goals for Phase 3:** no background writer thread, no spill-to-disk
+backpressure, no `SinkConfig` integration, no typed Arrow columns. The
+sink is fully synchronous and writes from the main thread on
+`on_simulation_end()` (and at each checkpoint boundary).
 
 ### 4.5 Bus lifecycle
 
