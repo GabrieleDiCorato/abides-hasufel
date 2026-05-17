@@ -169,11 +169,45 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
     the fallback path is **not** taken — the ``Agent.log`` property
     would emit a :class:`DeprecationWarning` once per agent.
 
+    Payload expansion (Phase 2b): each event_type is looked up in
+    :data:`~abides_core.event_payloads.EVENT_TYPE_SCHEMA`. Positional
+    tuple payloads are exploded into named columns using the schema's
+    ``fields`` tuple (arity 0 → ``{"EmptyEvent": True}``; arity 1 →
+    ``{fields[0]: payload}``; arity ≥ 2 → ``dict(zip(fields,
+    payload))``). Dict payloads are kept as-is for backward
+    compatibility, and any other shape falls through to
+    ``{"ScalarEventValue": payload}``.
+
     Implementation note: rows are accumulated as a single flat list and
     materialised once via :meth:`pandas.DataFrame.from_records`.
     """
     # Late import to avoid a circular import at module load time.
     from .agent import Agent
+    from .event_payloads import EVENT_TYPE_SCHEMA
+
+    def _expand_payload(event_type: str, payload: Any) -> dict:
+        """Project a payload onto its schema fields when one is registered."""
+        if isinstance(payload, dict):
+            # Legacy / pre-tuple payloads (and the GENERIC fallback path
+            # in ad-hoc agents) keep their dict shape unchanged.
+            return payload
+        schema = EVENT_TYPE_SCHEMA.get(event_type)
+        if schema is not None:
+            arity = len(schema.fields)
+            if arity == 0:
+                return {"EmptyEvent": True}
+            if arity == 1:
+                # Arity-1 payloads are bare scalars; defensively unwrap
+                # a 1-tuple if some caller wrapped it.
+                value = payload[0] if isinstance(payload, tuple) and len(payload) == 1 else payload
+                return {schema.fields[0]: value}
+            if isinstance(payload, tuple) and len(payload) == arity:
+                return dict(zip(schema.fields, payload, strict=True))
+            # Shape mismatch — surface as a scalar so analysts notice.
+            return {"ScalarEventValue": payload}
+        if payload is None:
+            return {"EmptyEvent": True}
+        return {"ScalarEventValue": payload}
 
     # ---- Fast path: pull from the kernel's InMemorySink in one pass ----
     sink = None
@@ -194,12 +228,7 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
             event_time = t[2]
             event_type = t[3]
             event = t[4]
-            if event is None:
-                event_dict: dict = {"EmptyEvent": True}
-            elif isinstance(event, dict):
-                event_dict = event
-            else:
-                event_dict = {"ScalarEventValue": event}
+            event_dict = _expand_payload(event_type, event)
             row = {
                 "EventTime": (
                     event_time if isinstance(event_time, (int, np.int64)) else 0
@@ -219,12 +248,7 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
         agent_type = agent.type
         for m in agent.log:
             event = m[2]
-            if event is None:
-                event_dict = {"EmptyEvent": True}
-            elif isinstance(event, dict):
-                event_dict = event
-            else:
-                event_dict = {"ScalarEventValue": event}
+            event_dict = _expand_payload(m[1], event)
             row = {
                 "EventTime": m[0] if isinstance(m[0], (int, np.int64)) else 0,
                 "EventType": m[1],
