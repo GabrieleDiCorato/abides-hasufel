@@ -1,5 +1,6 @@
 import datetime
 import warnings
+from collections.abc import Iterable
 from contextlib import contextmanager
 
 import numpy as np
@@ -7,6 +8,58 @@ import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 
 from abides_core.latency_model import DeterministicLatencyModel
+
+
+def reconstruct_holdings(
+    rows: Iterable[tuple[str, int, int, int]] | pd.DataFrame,
+) -> dict[str, int]:
+    """Fold a stream of ``HOLDINGS_UPDATED`` deltas back into a snapshot.
+
+    Phase 2c reshaped the ``HOLDINGS_UPDATED`` event payload from the
+    legacy ``dict[str, int]`` snapshot to a per-fill delta tuple
+    ``(symbol, delta_qty, qty_after, cash_after_cents)``. This helper
+    reconstructs the legacy snapshot from any chronologically ordered
+    sequence of those tuples.
+
+    The returned dict tracks ``qty_after`` for the last row seen per
+    symbol (last-write-wins on symbol ordering of ``rows``), plus a
+    ``"CASH"`` key holding the most recent ``cash_after_cents`` from any
+    row. Symbols whose final ``qty_after`` is zero are omitted, matching
+    the in-agent ``self.holdings`` invariant.
+
+    Arguments:
+        rows: Either an iterable of payload tuples, or a DataFrame with
+            columns ``["symbol", "delta_qty", "qty_after",
+            "cash_after_cents"]`` (the shape ``parse_logs_df()``
+            produces for the ``HOLDINGS_UPDATED`` event type).
+    """
+
+    holdings: dict[str, int] = {}
+    last_cash: int | None = None
+    iterator: Iterable[tuple[str, int, int, int]]
+    if isinstance(rows, pd.DataFrame):
+        iterator = (
+            (
+                str(r.symbol),
+                int(r.delta_qty),
+                int(r.qty_after),
+                int(r.cash_after_cents),
+            )
+            for r in rows.itertuples(index=False)
+        )
+    else:
+        iterator = rows  # type: ignore[assignment]
+
+    for symbol, _delta, qty_after, cash_after in iterator:
+        last_cash = cash_after
+        if qty_after == 0:
+            holdings.pop(symbol, None)
+        else:
+            holdings[symbol] = qty_after
+
+    if last_cash is not None:
+        holdings["CASH"] = last_cash
+    return holdings
 
 
 # Utility method to flatten nested lists.

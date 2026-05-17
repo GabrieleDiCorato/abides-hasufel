@@ -280,8 +280,17 @@ class TradingAgent(FinancialAgent):
         super().wakeup(current_time)
 
         if self.first_wake:
-            # Log initial holdings.
-            self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
+            # Log initial non-cash holdings, one row per symbol, framed as a
+            # delta-from-zero so the on-wire HOLDINGS_UPDATED stream is
+            # self-contained for reconstruct_holdings(). Pure-cash agents emit
+            # no rows here; their starting cash is already in STARTING_CASH.
+            cash_after = self.holdings["CASH"]
+            for sym, qty in self.holdings.items():
+                if sym == "CASH":
+                    continue
+                self.logEvent(
+                    "HOLDINGS_UPDATED", (sym, qty, qty, cash_after)
+                )
             self.first_wake = False
 
             # Tell the exchange we want to be sent the final prices when the market closes.
@@ -1152,7 +1161,10 @@ class TradingAgent(FinancialAgent):
 
         logger.debug(f"After order execution, agent open orders: {self.orders}")
 
-        self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
+        self.logEvent(
+            "HOLDINGS_UPDATED",
+            (sym, qty, self.holdings.get(sym, 0), self.holdings["CASH"]),
+        )
 
         # Ensure mark_to_market() can value held positions.  Only seed
         # last_trade from the fill when no market-data price exists yet;
@@ -1249,8 +1261,6 @@ class TradingAgent(FinancialAgent):
             f"After order partial cancellation, agent open orders: {self.orders}"
         )
 
-        self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
-
     def order_modified(self, order: LimitOrder) -> None:
         """
         Handles OrderModified messages from an exchange agent.
@@ -1275,8 +1285,6 @@ class TradingAgent(FinancialAgent):
             warnings.warn("Execution received for order not in orders list: {order}")
 
         logger.debug(f"After order modification, agent open orders: {self.orders}")
-
-        self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
 
     def order_replaced(self, old_order: LimitOrder, new_order: LimitOrder) -> None:
         """
@@ -1304,9 +1312,6 @@ class TradingAgent(FinancialAgent):
         self.orders[new_order.order_id] = new_order
 
         logger.debug(f"After order replacement, agent open orders: {self.orders}")
-
-        # After execution, log holdings.
-        self.logEvent("HOLDINGS_UPDATED", self.holdings, deepcopy_event=True)
 
     def market_closed(self) -> None:
         """

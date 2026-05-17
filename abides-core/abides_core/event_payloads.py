@@ -11,8 +11,8 @@ Public contract (semver-stable, see §3.10 of the refactor plan):
     - :class:`PayloadSchema` — the schema descriptor.
     - :data:`EVENT_TYPE_SCHEMA` — the single source of truth mapping
       ``event_type → schema``.
-    - Named schema instances: ``ORDER_EVENT``, ``HOLDINGS``, ``CASH``,
-      ``DEPTH``, ``QUOTE``, ``AGENT_TYPE_SCHEMA``, ``EMPTY``.
+    - Named schema instances: ``ORDER_EVENT``, ``HOLDINGS_DELTA``,
+      ``CASH``, ``DEPTH``, ``QUOTE``, ``AGENT_TYPE_SCHEMA``, ``EMPTY``.
 """
 
 from __future__ import annotations
@@ -78,18 +78,25 @@ The payload is the positional tuple returned by
 string formatting (when needed) calls ``.legacy_str()``.
 """
 
-HOLDINGS = PayloadSchema(
-    name="HOLDINGS",
-    version=1,
-    fields=("holdings_dict",),
+HOLDINGS_DELTA = PayloadSchema(
+    name="HOLDINGS_DELTA",
+    version=2,
+    fields=("symbol", "delta_qty", "qty_after", "cash_after_cents"),
 )
-"""Schema for ``HOLDINGS_UPDATED``.
+"""Schema for ``HOLDINGS_UPDATED`` (Phase 2c).
 
-Payload is the full ``dict[str, int]`` holdings snapshot.
-Migration to a per-fill delta tuple
-``(symbol, delta_qty, qty_after, cash_after_cents)`` is deferred to
-Phase 2c so that snapshot-diff consumers have a release window and a
-``reconstruct_holdings()`` helper to migrate against.
+Payload is the per-fill delta tuple
+``(symbol, delta_qty, qty_after, cash_after_cents)``. ``delta_qty`` is
+signed (positive for buy fills, negative for sell fills). At
+``first_wake`` one row per held symbol is emitted with
+``delta_qty == qty_after`` so the on-wire stream is self-contained.
+
+Use :func:`abides_markets.utils.reconstruct_holdings` to fold the
+per-fill deltas back into the legacy ``dict[str, int]`` snapshot.
+
+Previously (Phase 2b and earlier) the payload was the full
+``dict[str, int]`` holdings snapshot under a schema named ``HOLDINGS``;
+that schema has been removed.
 """
 
 CASH = PayloadSchema(
@@ -307,7 +314,7 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     "STARTING_CASH": CASH,
     "FINAL_CASH_POSITION": CASH,
     "ENDING_CASH": CASH,
-    "HOLDINGS_UPDATED": HOLDINGS,
+    "HOLDINGS_UPDATED": HOLDINGS_DELTA,
     "FINAL_HOLDINGS": SUMMARY,
     "MARK_TO_MARKET": CASH,  # per-symbol contribution in cents; structured counterpart is MARKED_TO_MARKET
     "MARKED_TO_MARKET": CASH,
