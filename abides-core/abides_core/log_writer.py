@@ -59,12 +59,10 @@ class BZ2PickleLogWriter:
     callers that never log anything do not leave behind empty dirs.
 
     .. deprecated::
-        Slated for removal in the Phase 5+2 cleanup of the event-
-        logging refactor. Migrate to :class:`abides_core.parquet_sink.ParquetSink`
+        Slated for removal in a future legacy-logging cleanup. Migrate to
+        :class:`abides_core.parquet_sink.ParquetSink`
         (or another columnar sink registered on the kernel's
-        :class:`~abides_core.event_bus.EventBus`). See
-        ``docs/active-plans/event-logging-refactor-plan.md`` §5 for
-        the deprecation timeline.
+        :class:`~abides_core.event_bus.EventBus`).
     """
 
     # One-shot DeprecationWarning per process. Multiple ``Kernel``
@@ -79,8 +77,7 @@ class BZ2PickleLogWriter:
                 "BZ2PickleLogWriter is deprecated and will be removed in a "
                 "future release; migrate to ParquetSink "
                 "(``abides_core.parquet_sink.ParquetSink``) or another "
-                "EventBus-registered columnar sink. See "
-                "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                "EventBus-registered columnar sink.",
                 DeprecationWarning,
                 stacklevel=2,
             )

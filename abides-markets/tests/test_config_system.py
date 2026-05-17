@@ -1246,7 +1246,7 @@ class TestCompilerEdgeCases:
 class TestCompilerBookSinkAutoRegistration:
     """``compile()`` auto-registers per-symbol book sinks in ``event_sinks``.
 
-    Behavior contract (Phase 3a):
+    Behavior contract:
       - One ``OrderBookHistoryMemorySink`` per symbol is ALWAYS registered
         (the exchange reads ``OrderBook.history`` to answer
         ``QueryOrderStreamMsg`` — runtime dependency, not analytics).
@@ -1280,8 +1280,7 @@ class TestCompilerBookSinkAutoRegistration:
 
         The history sink is required regardless of capture mode — the
         ExchangeAgent reads ``OrderBook.history`` to answer
-        ``QueryOrderStreamMsg`` (and that property reads from the sink
-        after Phase 3a).
+        ``QueryOrderStreamMsg`` (and that property reads from the sink).
         """
         from abides_core.event_sinks import (
             OrderBookHistoryMemorySink,
@@ -2134,7 +2133,7 @@ class TestCompilerErrorContext:
 
 
 # ---------------------------------------------------------------------------
-# Config validation edge cases (Phase 4.4)
+# Config validation edge cases
 # ---------------------------------------------------------------------------
 
 

@@ -15,7 +15,7 @@ def reconstruct_holdings(
 ) -> dict[str, int]:
     """Fold a stream of ``HOLDINGS_UPDATED`` deltas back into a snapshot.
 
-    Phase 2c reshaped the ``HOLDINGS_UPDATED`` event payload from the
+    ``HOLDINGS_UPDATED`` payloads use the
     legacy ``dict[str, int]`` snapshot to a per-fill delta tuple
     ``(symbol, delta_qty, qty_after, cash_after_cents)``. This helper
     reconstructs the legacy snapshot from any chronologically ordered

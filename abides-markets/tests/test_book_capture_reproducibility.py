@@ -1,4 +1,4 @@
-"""Phase 3a — book_capture publish-path reproducibility regression tests.
+"""book_capture publish-path reproducibility regression tests.
 
 These tests gate the EventBus migration of OrderBook capture. They load
 a fixed-seed baseline pickle produced *before* any OrderBook publish-site
@@ -34,7 +34,7 @@ def _build_config(book_capture: str | None) -> Any:
         # Pass only book_capture; leaving book_logging at its default avoids
         # the resolver's conflict warning (default True -> "l2") and keeps the
         # legacy publish path (which still gates on book_logging) active for
-        # the duration of the Phase 3a migration.
+        # the duration of the EventBus migration.
         builder = builder.exchange(book_capture=book_capture)
     return builder.build()
 

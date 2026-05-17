@@ -1,8 +1,8 @@
 """Tests for ``abides_markets.utils.reconstruct_holdings``.
 
-Phase 2c reshaped ``HOLDINGS_UPDATED`` from a full snapshot dict into a
-per-fill delta tuple ``(symbol, delta_qty, qty_after, cash_after_cents)``
-to remove the only variable-size mutable payload from the bus. The
+``HOLDINGS_UPDATED`` payloads use the ``HOLDINGS_DELTA`` schema:
+a per-fill delta tuple ``(symbol, delta_qty, qty_after, cash_after_cents)``
+that replaces the legacy variable-size mutable snapshot dict. The
 ``reconstruct_holdings`` helper exists so any consumer that previously
 parsed the snapshot dict can still recover the legacy shape from the
 delta stream.

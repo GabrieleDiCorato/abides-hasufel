@@ -975,7 +975,7 @@ class TestKernelGetComputeDelay:
 
 
 # ---------------------------------------------------------------------------
-# EventBus integration — Phase 2 equivalence tests
+# EventBus integration equivalence tests
 # ---------------------------------------------------------------------------
 
 
@@ -1159,7 +1159,7 @@ class TestEventBusBZ2PickleSink:
         )
 
     def test_bz2_round_trip_matches_in_memory_sink(self, tmp_path):
-        """End-to-end Phase 2b regression: BZ2PickleSink artifact must
+        """End-to-end BZ2PickleSink regression: artifact must
         reproduce the InMemorySink view for the same agent, row-for-row.
 
         With a fixed seed the simulation is deterministic, so the
@@ -1505,13 +1505,13 @@ class TestEventSinksRuntimePlumbing:
 
 
 # ---------------------------------------------------------------------------
-# Phase 5 — legacy-logging deprecation warnings
+# Legacy-logging deprecation warnings
 # ---------------------------------------------------------------------------
 
 
 class TestLegacyLoggingDeprecationWarnings:
-    """Phase 5 of the event-logging refactor opens the deprecation cycle
-    on the legacy on-disk pickle path and the ``summary_log`` opt-in.
+    """Covers the deprecation cycle for the legacy on-disk pickle path
+    and the ``summary_log`` opt-in.
 
     Each warning fires exactly once per process via a class-level flag;
     these tests reset the flag so each case observes the first emission.

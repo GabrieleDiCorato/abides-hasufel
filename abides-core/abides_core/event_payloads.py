@@ -83,7 +83,7 @@ HOLDINGS_DELTA = PayloadSchema(
     version=2,
     fields=("symbol", "delta_qty", "qty_after", "cash_after_cents"),
 )
-"""Schema for ``HOLDINGS_UPDATED`` (Phase 2c).
+"""Schema for the ``HOLDINGS_UPDATED`` event.
 
 Payload is the per-fill delta tuple
 ``(symbol, delta_qty, qty_after, cash_after_cents)``. ``delta_qty`` is
@@ -94,9 +94,9 @@ signed (positive for buy fills, negative for sell fills). At
 Use :func:`abides_markets.utils.reconstruct_holdings` to fold the
 per-fill deltas back into the legacy ``dict[str, int]`` snapshot.
 
-Previously (Phase 2b and earlier) the payload was the full
-``dict[str, int]`` holdings snapshot under a schema named ``HOLDINGS``;
-that schema has been removed.
+Previously the payload was the full ``dict[str, int]`` holdings
+snapshot under a schema named ``HOLDINGS``; that schema has been
+removed.
 """
 
 CASH = PayloadSchema(
@@ -161,7 +161,7 @@ SUMMARY = PayloadSchema(
 """Free-form human-readable summary string.
 
 Reserved for events whose only purpose is operator-visible logging.
-After Phase 2b only ``FINAL_HOLDINGS`` uses this shape; structured
+Only ``FINAL_HOLDINGS`` currently uses this shape; structured
 counterparts (``MARKED_TO_MARKET``) carry numeric scalars under
 :data:`CASH`.
 """
@@ -282,7 +282,7 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     # OrderMsg / OrderBookMsg subclasses under the message class name as
     # the event_type, with order.to_dict() (now to_payload_tuple()) as
     # the payload. The allowlist below mirrors the explicit dispatch in
-    # ExchangeAgent.receive_message after Phase 2b Step 5.
+    # ExchangeAgent.receive_message.
     "LimitOrderMsg": ORDER_EVENT,
     "MarketOrderMsg": ORDER_EVENT,
     "CancelOrderMsg": ORDER_EVENT,
@@ -295,7 +295,7 @@ EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
     "OrderPartialCancelledMsg": ORDER_EVENT,
     "OrderModifiedMsg": ORDER_EVENT,
     "OrderReplacedMsg": ORDER_EVENT,
-    # --- ExchangeAgent non-order message echoes (Phase 2b Step 5) ---
+    # --- ExchangeAgent non-order message echoes ---
     # These are query/subscription requests echoed by ExchangeAgent.
     # No structured payload is attached; the event is a bare receipt
     # under the EMPTY schema (sender_id is recorded by the sink).

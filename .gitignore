@@ -178,6 +178,7 @@ cython_debug/
 # copilot-instructions are tracked; only the agents/ directory is
 # personal scratch space)
 .github/agents/
+.copilot
 
 # macOS
 .DS_Store

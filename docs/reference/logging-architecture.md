@@ -23,7 +23,7 @@ do completely different things and barely interact:
 The per-agent event log flows through the `EventBus`
 rather than being stored directly on `agent.log`. See [§4](#4-eventbus-architecture).
 
-### 0.1 Deprecation status (Phase 5 of the event-logging refactor)
+### 0.1 Deprecation status
 
 The legacy bzip2-pickle path and the `summary_log` opt-in are in the
 deprecation window. Each surface emits a `DeprecationWarning` once per
@@ -36,8 +36,7 @@ process on first use:
 | `Agent.logEvent(append_summary_log=True)` | `MetricsObserverSink` (or any custom `EventSink`) |
 | `Kernel.append_summary_log` | `MetricsObserverSink` (or any custom `EventSink`) |
 
-Full timeline in
-[`docs/active-plans/event-logging-refactor-plan.md`](../active-plans/event-logging-refactor-plan.md) §5.
+Full timeline is tracked in the project backlog.
 
 ---
 
@@ -712,7 +711,7 @@ class EventSink(Protocol):
 Constants: `WIRE_FIELDS_EVENT`, `WIRE_FIELDS_METRIC`, `WIRE_FIELDS_BOOK_SNAPSHOT`.
 Typed views: `EventRecord.from_tuple(t)`, `MetricRecord.from_tuple(t)`, `BookSnapshotRecord.from_tuple(t)`.
 
-### 4.3.1 Payload shapes (Phase 2b)
+### 4.3.1 Payload shapes
 
 Every `event_type` shipped by in-tree agents is registered in
 `abides_core.event_payloads.EVENT_TYPE_SCHEMA`, mapping the string key
@@ -731,7 +730,7 @@ The `Order`, `LimitOrder` and `StopOrder` value objects expose
 `Side.legacy_str()` / `TimeInForce.legacy_str()` are provided for
 human-readable reporting). The legacy `to_dict()` method is retained
 as a deprecation-window wrapper that converts the tuple back to a
-dict and will be removed in the Phase 5+2 cleanup.
+dict and will be removed in a future legacy-logging cleanup.
 
 Dynamic-name events that cannot appear in the static registry are
 still bounded:
@@ -823,7 +822,7 @@ shards (`<key>.<seq_lo>-<seq_hi>.parquet`) instead of one monolithic
 file; without checkpointing, a single unnumbered file per bucket is
 produced.
 
-**Schema (Phase 2c — `BUS_FORMAT_VERSION = "2"`):** Each known
+**Schema (`BUS_FORMAT_VERSION = "2"`):** Each known
 `event_type` now gets its own typed Arrow schema built from the
 corresponding `PayloadSchema.fields`, so that each column has a
 meaningful name and a precise Arrow dtype (see `_FIELD_TYPE` in

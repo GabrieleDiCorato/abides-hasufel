@@ -198,11 +198,10 @@ class Agent:
             append_summary_log:
                 .. deprecated::
                     The ``summary_log`` path is slated for removal in
-                    the Phase 5+2 cleanup of the event-logging refactor.
+                    a future legacy-logging cleanup.
                     Register a :class:`~abides_core.event_sinks.MetricsObserverSink`
                     (or any custom :class:`~abides_core.event_sinks.EventSink`)
-                    instead. See
-                    ``docs/active-plans/event-logging-refactor-plan.md`` \u00a75.
+                    instead.
             deepcopy_event: Set to False to skip deepcopying the event object.
         """
 
@@ -230,8 +229,7 @@ class Agent:
                     "Agent.logEvent(append_summary_log=True) is deprecated and "
                     "will be removed in a future release; register a "
                     "MetricsObserverSink (or a custom EventSink) on the "
-                    "kernel's EventBus instead. See "
-                    "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                    "kernel's EventBus instead.",
                     DeprecationWarning,
                     stacklevel=2,
                 )

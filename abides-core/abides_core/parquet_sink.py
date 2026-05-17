@@ -17,7 +17,7 @@ With ``checkpoint_every_rows=N``, files rotate as
 ``<key>.<seq_lo>-<seq_hi>.parquet`` and the reader concatenates them
 by ``seq`` order.
 
-Payload encoding (Phase 2c)
+Payload encoding
 ---------------------------
 
 For every event type registered in
@@ -32,7 +32,7 @@ Unknown event types still fall back to the ``__generic__`` bucket
 which carries an extra ``event_type`` column and a pickled
 ``payload`` column. The order-book ``DEPTH.levels`` field and the
 book-snapshot ``bids`` / ``asks`` columns also remain pickled binary
-in this phase (typed ``list<struct>`` is a follow-up).
+for now (typed ``list<struct>`` is a follow-up).
 
 The schema name / version and ``bus_format_version`` are recorded in
 the Parquet file's key/value metadata for round-trip validation.
@@ -73,9 +73,9 @@ logger = logging.getLogger(__name__)
 BUS_FORMAT_VERSION = "2"
 """Versions the on-disk layout/contract.
 
-* ``"1"`` — Phase 3 MVP: per-event-type files with one pickled
+* ``"1"`` — initial release: per-event-type files with one pickled
   ``payload`` column.
-* ``"2"`` — Phase 2c: typed columnar layout. Each registered event
+* ``"2"`` — typed columnar layout. Each registered event
   type expands its :class:`PayloadSchema` fields into typed Arrow
   columns; only the ``__generic__`` fallback and the DEPTH /
   book-snapshot list payloads remain pickled.
@@ -108,7 +108,7 @@ _INSTALL_HINT = (
 #   "float64" — fractions / rates / mixed int-or-float values
 #   "string"  — symbol / tag / human-readable strings
 #   "bool"    — flags
-#   "binary"  — pickled fallback (only DEPTH.levels in this phase)
+#   "binary"  — pickled fallback (DEPTH.levels and book-snapshot arrays)
 _FIELD_TYPE: dict[str, str] = {
     # ORDER_EVENT
     "order_id": "int64",
@@ -286,9 +286,8 @@ def _build_metric_schema(pa_mod: Any, key: str) -> pa.Schema:
 def _build_book_snapshot_schema(pa_mod: Any, symbol: str) -> pa.Schema:
     """Arrow schema for a per-symbol book-snapshot file.
 
-    Phase 3 MVP: ``bids`` / ``asks`` are pickled tuples-of-tuples
-    (price_cents, qty).  A typed list-of-struct encoding is a
-    follow-up once we drop the pickle column from event payloads.
+    ``bids`` / ``asks`` are pickled tuples-of-tuples (price_cents, qty).
+    A typed list-of-struct encoding is a follow-up.
     """
     return pa_mod.schema(
         [
@@ -738,7 +737,7 @@ def read_parquet_logs(
         types); for ``"metrics"`` the key is the metric name; for
         ``"book_snapshots"`` the key is the symbol.
 
-        Under :data:`BUS_FORMAT_VERSION` ``"2"`` (Phase 2c), per-event
+        Under :data:`BUS_FORMAT_VERSION` ``"2"``, per-event
         DataFrames carry one typed column per :class:`PayloadSchema`
         field, so :func:`unpickle_payloads` is needed only for the
         ``__generic__`` bucket (whose ``payload`` column is still

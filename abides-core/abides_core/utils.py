@@ -169,7 +169,7 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
     the fallback path is **not** taken — the ``Agent.log`` property
     would emit a :class:`DeprecationWarning` once per agent.
 
-    Payload expansion (Phase 2b): each event_type is looked up in
+    Payload expansion: each event_type is looked up in
     :data:`~abides_core.event_payloads.EVENT_TYPE_SCHEMA`. Positional
     tuple payloads are exploded into named columns using the schema's
     ``fields`` tuple (arity 0 → ``{"EmptyEvent": True}``; arity 1 →

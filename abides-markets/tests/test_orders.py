@@ -75,14 +75,14 @@ def test_base_order_init():
 
 
 # ---------------------------------------------------------------------------
-# Phase 2a: __slots__, _slot_values, to_dict (no deepcopy), to_payload_tuple
+# Order slotting: __slots__, _slot_values, to_dict (no deepcopy), to_payload_tuple
 # ---------------------------------------------------------------------------
 
 
 def test_slots_reject_arbitrary_attributes():
     """Slotted Order instances must refuse unknown attributes.
 
-    This guards the Phase 2a memory contract: no per-instance ``__dict__``.
+    This guards the slotted-order memory contract: no per-instance ``__dict__``.
     """
     order = MarketOrder(1, TIME, "X", 1, Side.BID)
     with pytest.raises(AttributeError):

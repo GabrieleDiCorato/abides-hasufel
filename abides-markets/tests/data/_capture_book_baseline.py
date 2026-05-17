@@ -1,4 +1,4 @@
-"""One-off generator for the Phase 3a reproducibility baseline.
+"""One-off generator for the book_capture reproducibility baseline.
 
 Run from the repository root::
 

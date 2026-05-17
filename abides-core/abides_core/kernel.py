@@ -893,21 +893,19 @@ class Kernel:
             event: The event to append to the log.
 
         .. deprecated::
-            The ``summary_log`` path is slated for removal in the
-            Phase 5+2 cleanup of the event-logging refactor. Register
+            The ``summary_log`` path is slated for removal in a future
+            legacy-logging cleanup. Register
             a :class:`~abides_core.event_sinks.MetricsObserverSink`
             (or any custom :class:`~abides_core.event_sinks.EventSink`)
             on the kernel's :class:`~abides_core.event_bus.EventBus`
-            instead. See
-            ``docs/active-plans/event-logging-refactor-plan.md`` §5.
+            instead.
         """
         if not Kernel._append_summary_log_warned:
             Kernel._append_summary_log_warned = True
             warnings.warn(
                 "Kernel.append_summary_log is deprecated and will be removed "
                 "in a future release; register a MetricsObserverSink (or a "
-                "custom EventSink) on Kernel.event_bus instead. See "
-                "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                "custom EventSink) on Kernel.event_bus instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )

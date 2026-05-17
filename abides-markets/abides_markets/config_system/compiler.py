@@ -51,10 +51,9 @@ _derive_seed = derive_seed
 
 
 # Event-type allowlist for OrderBookHistoryMemorySink.  These are the
-# bare-string event types published by OrderBook on the EventBus (see
-# Phase 3a plan, D2 — "event-type namespacing").  Defined here so the
-# auto-registration path can hand a frozen allowlist to each history
-# sink without importing from the (not-yet-created) book_events module.
+# bare-string event types published by OrderBook on the EventBus.
+# Defined here so the auto-registration path can hand a frozen allowlist
+# to each history sink without importing from the book_events module.
 _BOOK_EVENT_TYPES: frozenset[str] = frozenset(
     {"LIMIT", "EXEC", "CANCEL", "CANCEL_PARTIAL", "MODIFY", "REPLACE"}
 )

@@ -462,12 +462,9 @@ class BZ2PickleSink:
     continue to work without modification.
 
     .. deprecated::
-        Slated for removal in the Phase 5+2 cleanup of the event-
-        logging refactor. Replace with
+        Slated for removal in a future legacy-logging cleanup. Replace with
         :class:`abides_core.parquet_sink.ParquetSink` (columnar,
-        crash-safe, streaming) or another EventBus sink. See
-        ``docs/active-plans/event-logging-refactor-plan.md`` \u00a75 for
-        the deprecation timeline.
+        crash-safe, streaming) or another EventBus sink.
 
     Arguments:
         log_writer: A :class:`~abides_core.log_writer.LogWriter` instance.
@@ -496,8 +493,7 @@ class BZ2PickleSink:
                 "BZ2PickleSink is deprecated and will be removed in a "
                 "future release; migrate to ParquetSink "
                 "(``abides_core.parquet_sink.ParquetSink``) or another "
-                "EventBus-registered columnar sink. See "
-                "docs/active-plans/event-logging-refactor-plan.md \u00a75.",
+                "EventBus-registered columnar sink.",
                 DeprecationWarning,
                 stacklevel=2,
             )

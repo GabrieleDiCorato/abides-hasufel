@@ -12,13 +12,13 @@
 > is a *map* of the current vocabulary, plus a list of candidates a
 > future phase can take to a deprecation cycle.
 
-> **Phase 2b update (schemas are now current, not proposed).** The
+> **Schema update (schemas are now current, not proposed).** The
 > per-event "proposed schema" column below is no longer aspirational
 > for the entries that have been migrated. The canonical, build-time
 > enforced contract now lives in
 > [`abides_core.event_payloads.EVENT_TYPE_SCHEMA`][esrc] and is
 > validated by [`test_event_payload_schema.py`][asrc].
-> Key shape changes shipped in Phase 2b:
+> Key shape changes shipped:
 >
 > * **`ORDER_EVENT` family** (`ORDER_SUBMITTED`, `ORDER_ACCEPTED`,
 >   `ORDER_EXECUTED`, `ORDER_CANCELLED`, `PARTIAL_CANCELLED`,
@@ -50,7 +50,7 @@
 > Producers whose payload remains a `dict` (the dynamic
 > `<tag>_POST_ONLY` rejection events) intentionally fall through to
 > the `GENERIC` schema. `HOLDINGS_UPDATED` was reshaped to the
-> `HOLDINGS_DELTA` schema in Phase 2c: the payload is now the
+> `HOLDINGS_DELTA` schema: the payload is now the
 > positional tuple `(symbol, delta_qty, qty_after, cash_after_cents)`.
 > Use `abides_markets.utils.reconstruct_holdings` to fold per-fill
 > deltas back into a holdings snapshot.
@@ -126,7 +126,7 @@ All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.co
 | `FINAL_HOLDINGS` | [249](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L249) | `Σ` | `str` (formatted) | external | `{"holdings": dict[str,int]}` | `[REVIEW]` change to dict | Currently a pre-formatted display string; loses structure for downstream parsing. |
 | `FINAL_CASH_POSITION` | [252](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L252) | `Σ` | `int` (cents) | external | `{"cash_cents": int}` | keep | |
 | `ENDING_CASH` | [257](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L257) | `Σ` | `int` (mark-to-market cents) | `test_market_boundaries.py:471,501`; external | `{"mark_to_market_cents": int}` | keep | Tests assert by name. |
-| `HOLDINGS_UPDATED` | [283, 1155](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L283) | `O` | `(symbol, delta_qty, qty_after, cash_after_cents)` (HOLDINGS_DELTA v2) | `reconstruct_holdings`; ParquetSink typed columns | typed delta tuple | Phase 2c: reshaped from dict snapshot to per-fill delta. Use `reconstruct_holdings` to fold into snapshot. |
+| `HOLDINGS_UPDATED` | [283, 1155](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L283) | `O` | `(symbol, delta_qty, qty_after, cash_after_cents)` (HOLDINGS_DELTA v2) | `reconstruct_holdings`; ParquetSink typed columns | typed delta tuple | Reshaped from dict snapshot to per-fill delta. Use `reconstruct_holdings` to fold into snapshot. |
 | `MARK_TO_MARKET` | [1546](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1546) | `Σ` | `str` (formatted) | external | `{"symbol": str, "shares": int, "price": int, "value": int}` | `[REVIEW]` change to dict | Per-symbol breakdown of the mark-to-market computation; currently a display string. |
 | `MARKED_TO_MARKET` | [1551](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1551) | `Σ` | `int` (cents) | external | `{"mark_to_market_cents": int}` | keep | Note vs. `MARK_TO_MARKET` (per-symbol) — same root, easily confused. |
 | `MKT_CLOSED` | [1301](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L1301) | `Σ` | `None` | external | unchanged (marker event) | keep | Empty event becomes `EmptyEvent: True` row. |
@@ -138,7 +138,7 @@ All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.co
 All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py).
 Payload is `order.to_dict()` unless noted.
 
-> **Phase 2a (Order slotting).** `Order` and its subclasses are now
+> **Order slotting.** `Order` and its subclasses are now
 > slotted and expose `to_payload_tuple()` returning an 11-field tuple
 > aligned with the `ORDER_EVENT` schema in
 > `abides_core.event_payloads`. Publish sites still emit `to_dict()`
@@ -186,7 +186,7 @@ In [abides-markets/abides_markets/agents/exchange_agent.py](https://github.com/G
 | event_type | producer (lines) | freq | payload shape | consumers | proposed schema | disposition | notes |
 |---|---|---|---|---|---|---|---|
 | `<message.type()>` | [406, 414, 420](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L406), [993](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L993) | `M` (per inbound msg, gated on `exchange_log_orders`) | `dict` (`order.to_dict()`) or the message itself | external | `{"msg_type": str, "payload": dict}` | `[REVIEW]` settle dynamic vs. static `EventType` | The exchange writes `EventType = msg.type()` at runtime — the vocabulary is data-driven, which makes static enumeration impossible without crawling every `Message` subclass. Single largest source of vocabulary unpredictability. |
-| `STOP_ORDER_ACCEPTED` | [844](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L844) | `O` (gated on `exchange_log_orders`) | `dict` (`order.to_dict()`) | external | `dict` (`order.to_dict()`) | harmonised — now in the `ORDER_EVENT` family | Pre-Phase 1 bundle this was the lone `str(order)` outlier. Switched to `to_dict()` for parity with `STOP_ORDER_SUBMITTED` and the rest of the lifecycle. |
+| `STOP_ORDER_ACCEPTED` | [844](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L844) | `O` (gated on `exchange_log_orders`) | `dict` (`order.to_dict()`) | external | `dict` (`order.to_dict()`) | harmonised — now in the `ORDER_EVENT` family | Previously the lone `str(order)` outlier. Switched to `to_dict()` for parity with `STOP_ORDER_SUBMITTED` and the rest of the lifecycle. |
 
 ---
 
@@ -235,7 +235,7 @@ than `logEvent`.
 
 * **Conservative-default rule applied throughout.** No row is
   dispositioned `delete`, `rename`, or `merge` outright. All
-  consolidation suggestions are `[REVIEW]` flags for a future phase
+  consolidation suggestions are `[REVIEW]` flags for a future release
   with explicit scope.
 * **Two structural patterns dominate the consolidation candidates:**
   1. **String payloads where dicts would do.** `BEST_BID`, `BEST_ASK`,
@@ -245,7 +245,7 @@ than `logEvent`.
      string form.
   2. **Multi-call redundancy at one logical site.** `BID_DEPTH` +
      `ASK_DEPTH` + `IMBALANCE` (three rows per spread response);
-     `HOLDINGS_UPDATED` reshaped (Phase 2c) — call sites consolidated to two (first_wake + order_executed);
+     `HOLDINGS_UPDATED` reshaped — call sites consolidated to two (first_wake + order_executed);
      `ORDER_SUBMITTED` (three call sites). Consolidation would route
      through a helper but keep the on-disk vocabulary stable.
 * **Two dynamic-name producers** prevent fully static enumeration of
