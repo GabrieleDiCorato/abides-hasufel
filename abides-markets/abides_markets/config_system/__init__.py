@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 # Ensure built-in agent types are registered on import
 import abides_markets.config_system.builtin_registrations  # noqa: F401
@@ -184,7 +184,7 @@ def get_config_schema() -> dict[str, Any]:
 
     AI agents can use this to understand the complete config structure.
     """
-    return SimulationConfig.model_json_schema()
+    return cast(dict[str, Any], SimulationConfig.model_json_schema())
 
 
 def get_full_manifest() -> dict[str, Any]:

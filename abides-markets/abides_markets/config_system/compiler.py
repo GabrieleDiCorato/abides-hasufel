@@ -16,8 +16,9 @@ import numpy as np
 import pandas as pd
 
 from abides_core import NanosecondTime
-from abides_core.event_sinks import (
+from abides_core.sinks.event_sinks import (
     EventSink,
+    InMemorySink,
     OrderBookHistoryMemorySink,
     OrderBookSnapshotMemorySink,
 )
@@ -258,7 +259,7 @@ def compile(
     # per symbol to capture book-depth snapshots.  These are *appended*
     # to ``event_sinks``; user-supplied sinks (when the caller-side API
     # surfaces them in future) survive.
-    event_sinks: list[EventSink] = []
+    event_sinks: list[EventSink] = [InMemorySink()]
     exchange_agent = agents[0]
     if isinstance(exchange_agent, ExchangeAgent):
         capture_snapshots = exchange_agent.book_capture != "off"
