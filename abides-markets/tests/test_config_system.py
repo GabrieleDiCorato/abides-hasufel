@@ -1256,7 +1256,7 @@ class TestCompilerBookSinkAutoRegistration:
     """
 
     def test_default_registers_book_sinks(self):
-        from abides_core.event_sinks import (
+        from abides_core.sinks.event_sinks import (
             OrderBookHistoryMemorySink,
             OrderBookSnapshotMemorySink,
         )
@@ -1282,7 +1282,7 @@ class TestCompilerBookSinkAutoRegistration:
         ExchangeAgent reads ``OrderBook.history`` to answer
         ``QueryOrderStreamMsg`` (and that property reads from the sink).
         """
-        from abides_core.event_sinks import (
+        from abides_core.sinks.event_sinks import (
             OrderBookHistoryMemorySink,
             OrderBookSnapshotMemorySink,
         )

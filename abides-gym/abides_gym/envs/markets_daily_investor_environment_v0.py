@@ -6,7 +6,7 @@ import numpy as np
 
 import abides_markets.agents.utils as markets_agent_utils
 from abides_core import NanosecondTime
-from abides_core.generators import ConstantTimeGenerator
+from abides_core.messaging.generators import ConstantTimeGenerator
 from abides_core.utils import str_to_ns
 
 from .markets_environment import AbidesGymMarketsEnv

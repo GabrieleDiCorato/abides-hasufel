@@ -1,6 +1,6 @@
 import numpy as np
 
-from abides_core.generators import ConstantTimeGenerator, PoissonTimeGenerator
+from abides_core.messaging.generators import ConstantTimeGenerator, PoissonTimeGenerator
 
 
 def test_constant_time_generator():

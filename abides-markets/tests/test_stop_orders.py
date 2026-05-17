@@ -520,7 +520,7 @@ class TestStopOrderAcceptedPayload:
         )
 
     def test_stop_order_accepted_publishes_tuple_payload(self):
-        from abides_core.event_payloads import ORDER_EVENT
+        from abides_core.telemetry.event_payloads import ORDER_EVENT
         from abides_markets.messages.order import StopOrderMsg
 
         exchange = self._make_exchange(log_orders=True)

@@ -18,7 +18,6 @@ import importlib
 import pickle
 import sys
 import warnings
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -27,9 +26,9 @@ import pytest
 pa = pytest.importorskip("pyarrow")
 pq = pytest.importorskip("pyarrow.parquet")
 
-from abides_core.event_sinks import InMemorySink  # noqa: E402
-from abides_core.kernel import Kernel  # noqa: E402
-from abides_core.parquet_sink import (  # noqa: E402
+from abides_core.engine.kernel import Kernel  # noqa: E402
+from abides_core.sinks.event_sinks import InMemorySink  # noqa: E402
+from abides_core.sinks.parquet_sink import (  # noqa: E402
     BUS_FORMAT_VERSION,
     ParquetSink,
     _strip_shard_suffix,
@@ -43,7 +42,9 @@ from abides_core.utils import str_to_ns  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-def _event(seq: int, *, event_type: str = "AGENT_TYPE", payload: object = None) -> tuple:
+def _event(
+    seq: int, *, event_type: str = "AGENT_TYPE", payload: object = None
+) -> tuple:
     return (1, "TestAgent", 1_000 + seq, event_type, payload, seq)
 
 
@@ -72,7 +73,7 @@ def _end_sink(sink: ParquetSink) -> None:
 
 class TestConstruction:
     def test_protocol_compliance(self, tmp_path):
-        from abides_core.event_sinks import EventSink
+        from abides_core.sinks.event_sinks import EventSink
 
         sink = ParquetSink(root=tmp_path)
         assert isinstance(sink, EventSink)
@@ -103,7 +104,7 @@ class TestConstruction:
                 monkeypatch.delitem(sys.modules, key, raising=False)
         # Reload abides_core.parquet_sink so the in-function `import pyarrow`
         # binds against our patched __import__.
-        import abides_core.parquet_sink as ps_mod
+        import abides_core.sinks.parquet_sink as ps_mod
 
         importlib.reload(ps_mod)
         with pytest.raises(ImportError, match=r"pip install.*abides-ng\[parquet\]"):
@@ -276,17 +277,17 @@ class TestRoundTrip:
         _start_sink(sink)
         # ORDER_EVENT arity 11 → positional tuple.
         payload = (
-            42,        # order_id
-            "LIMIT",   # order_kind
-            "ABM",     # symbol
-            1,         # side (IntEnum int repr)
-            100,       # quantity
-            10_000,    # limit_price
-            None,      # stop_price
-            0,         # time_in_force
-            False,     # is_hidden
-            False,     # is_price_to_comply
-            "tagA",    # tag
+            42,  # order_id
+            "LIMIT",  # order_kind
+            "ABM",  # symbol
+            1,  # side (IntEnum int repr)
+            100,  # quantity
+            10_000,  # limit_price
+            None,  # stop_price
+            0,  # time_in_force
+            False,  # is_hidden
+            False,  # is_price_to_comply
+            "tagA",  # tag
         )
         sink.on_event(_event(0, event_type="ORDER_SUBMITTED", payload=payload))
         _end_sink(sink)
@@ -366,7 +367,11 @@ class TestGenericFallback:
         data = read_parquet_logs(tmp_path / "r1")
         generic = data["events"]["__generic__"]
         assert len(generic) == 3
-        assert sorted(generic["event_type"].tolist()) == ["ALSO_WEIRD", "WEIRD", "WEIRD"]
+        assert sorted(generic["event_type"].tolist()) == [
+            "ALSO_WEIRD",
+            "WEIRD",
+            "WEIRD",
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -517,9 +522,11 @@ class TestEndToEndWithKernel:
         parquet_counts = {k: len(df) for k, df in data["events"].items()}
 
         # Known event types must agree exactly; unknown types pool into __generic__.
-        from abides_core.event_payloads import EVENT_TYPE_SCHEMA
+        from abides_core.telemetry.event_payloads import EVENT_TYPE_SCHEMA
 
-        known_in_mem = {k: v for k, v in in_mem_counts.items() if k in EVENT_TYPE_SCHEMA}
+        known_in_mem = {
+            k: v for k, v in in_mem_counts.items() if k in EVENT_TYPE_SCHEMA
+        }
         unknown_in_mem_total = sum(
             v for k, v in in_mem_counts.items() if k not in EVENT_TYPE_SCHEMA
         )

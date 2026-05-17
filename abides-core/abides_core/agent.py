@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 
 from . import NanosecondTime
-from .message import Message, MessageBatch
+from .messaging.message import Message, MessageBatch
 from .utils import fmt_ts
 
 if TYPE_CHECKING:
-    from abides_core.kernel import Kernel
+    from abides_core.engine.kernel import Kernel
 
 logger = logging.getLogger(__name__)
 

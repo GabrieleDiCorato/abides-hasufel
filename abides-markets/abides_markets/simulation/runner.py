@@ -34,7 +34,7 @@ import pandas as pd
 
 from abides_core.abides import run as abides_run
 from abides_core.agent import Agent
-from abides_core.run_result import KernelRunResult
+from abides_core.engine.run_result import KernelRunResult
 from abides_core.utils import parse_logs_df
 from abides_markets.agents.exchange_agent import ExchangeAgent
 from abides_markets.agents.trading_agent import TradingAgent
@@ -389,7 +389,7 @@ def _materialize_book_sinks(
     ``OrderBook.history`` properties so the runner emits no
     deprecation warnings during normal operation.
     """
-    from abides_core.event_sinks import (
+    from abides_core.sinks.event_sinks import (
         OrderBookHistoryMemorySink,
         OrderBookSnapshotMemorySink,
     )

@@ -183,7 +183,7 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
     """
     # Late import to avoid a circular import at module load time.
     from .agent import Agent
-    from .event_payloads import EVENT_TYPE_SCHEMA
+    from .telemetry.event_payloads import EVENT_TYPE_SCHEMA
 
     def _expand_payload(event_type: str, payload: Any) -> dict:
         """Project a payload onto its schema fields when one is registered."""
@@ -199,7 +199,11 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
             if arity == 1:
                 # Arity-1 payloads are bare scalars; defensively unwrap
                 # a 1-tuple if some caller wrapped it.
-                value = payload[0] if isinstance(payload, tuple) and len(payload) == 1 else payload
+                value = (
+                    payload[0]
+                    if isinstance(payload, tuple) and len(payload) == 1
+                    else payload
+                )
                 return {schema.fields[0]: value}
             if isinstance(payload, tuple) and len(payload) == arity:
                 return dict(zip(schema.fields, payload, strict=True))

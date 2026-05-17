@@ -38,7 +38,7 @@ from typing import Any, runtime_checkable
 from typing_extensions import Protocol
 
 from abides_core.agent import Agent
-from abides_core.run_result import KernelRunResult
+from abides_core.engine.run_result import KernelRunResult
 
 
 @runtime_checkable

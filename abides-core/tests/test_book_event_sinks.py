@@ -13,7 +13,7 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 
-from abides_core.event_sinks import (
+from abides_core.sinks.event_sinks import (
     EventSink,
     OrderBookHistoryMemorySink,
     OrderBookSnapshotMemorySink,

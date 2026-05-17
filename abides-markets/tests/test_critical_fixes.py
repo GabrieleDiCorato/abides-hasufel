@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from abides_core.kernel import Kernel
+from abides_core.engine.kernel import Kernel
 from abides_markets.agents.exchange_agent import ExchangeAgent
 from abides_markets.agents.trading_agent import TradingAgent
 from abides_markets.oracles.sparse_mean_reverting_oracle import (
@@ -14,7 +14,7 @@ from abides_markets.oracles.sparse_mean_reverting_oracle import (
 
 def test_kernel_state_transitions_through_initialize():
     """Kernel.state should advance from CREATED to INITIALIZED after initialize()."""
-    from abides_core.kernel import KernelState
+    from abides_core.engine.kernel import KernelState
 
     agents = []
     kernel = Kernel(

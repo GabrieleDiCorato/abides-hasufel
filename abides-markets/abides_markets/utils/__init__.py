@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 
-from abides_core.latency_model import DeterministicLatencyModel
+from abides_core.messaging.latency_model import DeterministicLatencyModel
 
 
 def reconstruct_holdings(
@@ -48,7 +48,7 @@ def reconstruct_holdings(
             for r in rows.itertuples(index=False)
         )
     else:
-        iterator = rows  # type: ignore[assignment]
+        iterator = rows
 
     for symbol, _delta, qty_after, cash_after in iterator:
         last_cash = cash_after

@@ -4,7 +4,7 @@ from typing import Any
 
 import abides_markets.agents.utils as markets_agent_utils
 from abides_core import NanosecondTime
-from abides_core.generators import InterArrivalTimeGenerator
+from abides_core.messaging.generators import InterArrivalTimeGenerator
 
 from ..experimental_agents.financial_gym_agent import FinancialGymAgent
 from .core_environment import AbidesGymCoreEnv

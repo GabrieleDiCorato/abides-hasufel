@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from abides_core import Message, NanosecondTime
-from abides_core.event_payloads import EMPTY_PAYLOAD
+from abides_core.telemetry.event_payloads import EMPTY_PAYLOAD
 from abides_core.utils import fmt_ts
 
 from ..messages.market import (
@@ -288,9 +288,7 @@ class TradingAgent(FinancialAgent):
             for sym, qty in self.holdings.items():
                 if sym == "CASH":
                     continue
-                self.logEvent(
-                    "HOLDINGS_UPDATED", (sym, qty, qty, cash_after)
-                )
+                self.logEvent("HOLDINGS_UPDATED", (sym, qty, qty, cash_after))
             self.first_wake = False
 
             # Tell the exchange we want to be sent the final prices when the market closes.

@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from abides_core.event_payloads import EVENT_TYPE_SCHEMA
+from abides_core.telemetry.event_payloads import EVENT_TYPE_SCHEMA
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOTS = (

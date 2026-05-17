@@ -34,12 +34,26 @@ MKT_CLOSE: NanosecondTime = MKT_OPEN + str_to_ns("06:30:00")
 # ---------------------------------------------------------------------------
 
 
+class _NoOpEventBus:
+    """Minimal event-bus stub that silently discards all published data."""
+
+    def publish_event(self, *args, **kwargs) -> None:
+        pass
+
+    def publish_metric(self, *args, **kwargs) -> None:
+        pass
+
+    def publish_book_snapshot(self, *args, **kwargs) -> None:
+        pass
+
+
 class _StubKernel:
     oracle = None
 
     def __init__(self):
         self.messages: list[tuple] = []
         self.wakeups: list[NanosecondTime] = []
+        self.event_bus = _NoOpEventBus()
 
     def send_message(
         self, sender_id: int, recipient_id: int, message: Any, **kwargs

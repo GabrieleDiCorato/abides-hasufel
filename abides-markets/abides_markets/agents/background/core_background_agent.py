@@ -6,7 +6,10 @@ from typing import Any
 import numpy as np
 
 from abides_core import Message, NanosecondTime
-from abides_core.generators import ConstantTimeGenerator, InterArrivalTimeGenerator
+from abides_core.messaging.generators import (
+    ConstantTimeGenerator,
+    InterArrivalTimeGenerator,
+)
 from abides_core.utils import str_to_ns
 from abides_markets.agents.trading_agent import TradingAgent
 from abides_markets.messages.marketdata import (

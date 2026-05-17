@@ -455,8 +455,13 @@ class TestTradingAgentKernelStopping:
 
         observer = _RecordingObserver()
 
+        class _FakeEventBus:
+            def publish_metric(self, agent_id, agent_type, sim_time_ns, key, value):
+                observer.on_metric(agent_id, agent_type, key, value)
+
         class FakeKernel:
             _observers: tuple = (observer,)
+            event_bus = _FakeEventBus()
 
         agent.kernel = FakeKernel()
         agent.type = "TestAgent"
@@ -486,8 +491,13 @@ class TestTradingAgentKernelStopping:
         agent.holdings[SYMBOL] = -50
         agent.last_trade[SYMBOL] = 10_000
 
+        class _FakeEventBus:
+            def publish_metric(self, *args, **kwargs):
+                pass  # no observers in this test
+
         class FakeKernel:
             _observers: tuple = ()
+            event_bus = _FakeEventBus()
 
         agent.kernel = FakeKernel()
         agent.type = "TestAgent"

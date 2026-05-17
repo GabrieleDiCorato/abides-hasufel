@@ -2,7 +2,7 @@ from abc import ABC
 
 import numpy as np
 
-from abides_core.generators import BaseGenerator
+from abides_core.messaging.generators import BaseGenerator
 
 
 ################## ORDER SIZE MODEL ###############################

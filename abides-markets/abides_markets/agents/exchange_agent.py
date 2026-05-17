@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from abides_core import Kernel, Message, NanosecondTime
-from abides_core.event_payloads import EMPTY_PAYLOAD
+from abides_core.telemetry.event_payloads import EMPTY_PAYLOAD
 
 from ..messages.market import (
     MarketClosedMsg,
@@ -287,7 +287,7 @@ class ExchangeAgent(FinancialAgent):
         directly from the sink in hot paths and avoid the
         ``OrderBook.history`` deprecation warning.
         """
-        from abides_core.event_sinks import OrderBookHistoryMemorySink
+        from abides_core.sinks.event_sinks import OrderBookHistoryMemorySink
 
         for sink in self.kernel.event_bus._sinks:
             if isinstance(sink, OrderBookHistoryMemorySink) and sink.symbol == symbol:
@@ -300,7 +300,7 @@ class ExchangeAgent(FinancialAgent):
         Returns ``None`` if no sink is registered (``book_capture ==
         "off"`` or an ad-hoc test kernel).
         """
-        from abides_core.event_sinks import OrderBookSnapshotMemorySink
+        from abides_core.sinks.event_sinks import OrderBookSnapshotMemorySink
 
         for sink in self.kernel.event_bus._sinks:
             if isinstance(sink, OrderBookSnapshotMemorySink) and sink.symbol == symbol:
@@ -320,7 +320,7 @@ class ExchangeAgent(FinancialAgent):
         dependency).  The snapshot sink is registered only when
         ``book_capture != "off"``.
         """
-        from abides_core.event_sinks import (
+        from abides_core.sinks.event_sinks import (
             OrderBookHistoryMemorySink,
             OrderBookSnapshotMemorySink,
         )

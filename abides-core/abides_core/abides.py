@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from .kernel import Kernel
-from .run_result import KernelRunResult
+from .engine.kernel import Kernel
+from .engine.run_result import KernelRunResult
 
 logger = logging.getLogger("abides")
 

@@ -258,9 +258,7 @@ class OrderBook:
 
             avg_price = int(round(trade_price / trade_qty))
             logger.debug(f"Avg: {trade_qty} @ ${avg_price:0.4f}")
-            self.owner.logEvent(
-                "LAST_TRADE", (self.symbol, avg_price, trade_qty)
-            )
+            self.owner.logEvent("LAST_TRADE", (self.symbol, avg_price, trade_qty))
 
             self.last_trade = avg_price
 
@@ -838,7 +836,7 @@ class OrderBook:
                 stacklevel=2,
             )
             self._book_log2_warned = True
-        from abides_core.event_sinks import OrderBookSnapshotMemorySink
+        from abides_core.sinks.event_sinks import OrderBookSnapshotMemorySink
 
         sink = self._find_sink(OrderBookSnapshotMemorySink)
         if sink is None:
@@ -872,7 +870,7 @@ class OrderBook:
                 stacklevel=2,
             )
             self._history_warned = True
-        from abides_core.event_sinks import OrderBookHistoryMemorySink
+        from abides_core.sinks.event_sinks import OrderBookHistoryMemorySink
 
         sink = self._find_sink(OrderBookHistoryMemorySink)
         if sink is None:

@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from abides_core.agent import Agent
-from abides_core.kernel import Kernel
-from abides_core.message import Message, MessageBatch
+from abides_core.engine.kernel import Kernel
+from abides_core.messaging.message import Message, MessageBatch
 from abides_core.utils import str_to_ns
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ class TestLatencyModelWiring:
     """Kernel always builds a LatencyModel; legacy attrs are gone."""
 
     def test_default_wraps_into_uniform_latency_model(self):
-        from abides_core.latency_model import UniformLatencyModel
+        from abides_core.messaging.latency_model import UniformLatencyModel
 
         agents = [StubAgent(i) for i in range(3)]
         kernel = Kernel(
@@ -176,7 +176,7 @@ class TestWriteSummaryLogRespectsSkipLog:
 
 class TestTerminateZeroCountDoesNotCrash:
     def test_metric_with_zero_count_does_not_divide_by_zero(self):
-        from abides_core.observers import DefaultMetricsObserver
+        from abides_core.sinks.observers import DefaultMetricsObserver
 
         agents = [StubAgent(0)]
         observer = DefaultMetricsObserver()
@@ -373,7 +373,7 @@ class TestHeapSequenceCounter:
 
 class TestWakeupSingleton:
     def test_set_wakeup_reuses_singleton(self):
-        from abides_core.kernel import _WAKEUP_SINGLETON
+        from abides_core.engine.kernel import _WAKEUP_SINGLETON
 
         agents = [StubAgent(0)]
         kernel = Kernel(
@@ -417,7 +417,7 @@ class TestMessageBatchDispatch:
 
 class TestReportMetricAggregation:
     def test_aggregates_by_type_and_key(self):
-        from abides_core.observers import DefaultMetricsObserver
+        from abides_core.sinks.observers import DefaultMetricsObserver
 
         agents = [StubAgent(0), StubAgent(1)]
         observer = DefaultMetricsObserver()
@@ -469,7 +469,7 @@ class TestReportMetricAggregation:
 
 class TestLatencyModelSubclasses:
     def test_uniform_does_not_touch_random_state(self):
-        from abides_core.latency_model import UniformLatencyModel
+        from abides_core.messaging.latency_model import UniformLatencyModel
 
         # UniformLatencyModel is purely deterministic; it must not
         # consume any RNG draws.
@@ -484,7 +484,7 @@ class TestLatencyModelSubclasses:
         assert before[2] == after[2]
 
     def test_uniform_returns_constant(self):
-        from abides_core.latency_model import UniformLatencyModel
+        from abides_core.messaging.latency_model import UniformLatencyModel
 
         rs = np.random.RandomState(seed=0)
         model = UniformLatencyModel(latency=250)
@@ -492,7 +492,7 @@ class TestLatencyModelSubclasses:
         assert model.get_latency(2, 3, random_state=rs) == 250
 
     def test_uniform_casts_float_latency_to_int(self):
-        from abides_core.latency_model import UniformLatencyModel
+        from abides_core.messaging.latency_model import UniformLatencyModel
 
         rs = np.random.RandomState(seed=0)
         model = UniformLatencyModel(latency=99.7)
@@ -500,7 +500,7 @@ class TestLatencyModelSubclasses:
         assert model.get_latency(0, 1, random_state=rs) == 99
 
     def test_matrix_returns_pairwise_value(self):
-        from abides_core.latency_model import MatrixLatencyModel
+        from abides_core.messaging.latency_model import MatrixLatencyModel
 
         rs = np.random.RandomState(seed=0)
         m = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.int64)
@@ -509,7 +509,7 @@ class TestLatencyModelSubclasses:
         assert model.get_latency(2, 1, random_state=rs) == 8
 
     def test_cubic_uses_passed_random_state(self):
-        from abides_core.latency_model import CubicLatencyModel
+        from abides_core.messaging.latency_model import CubicLatencyModel
 
         model = CubicLatencyModel(
             min_latency=np.array([[100, 200], [300, 400]], dtype=np.int64),
@@ -524,14 +524,14 @@ class TestLatencyModelSubclasses:
     def test_cubic_requires_random_state(self):
         import pytest as _pytest
 
-        from abides_core.latency_model import CubicLatencyModel
+        from abides_core.messaging.latency_model import CubicLatencyModel
 
         model = CubicLatencyModel(min_latency=100)
         with _pytest.raises(ValueError, match="random_state"):
             model.get_latency(0, 1)
 
     def test_deterministic_returns_int(self):
-        from abides_core.latency_model import DeterministicLatencyModel
+        from abides_core.messaging.latency_model import DeterministicLatencyModel
 
         model = DeterministicLatencyModel(
             min_latency=np.array([[100, 200], [300, 400]], dtype=np.int64),
@@ -541,11 +541,11 @@ class TestLatencyModelSubclasses:
         assert result == 200
 
     def test_message_type_aware_routes_by_class(self):
-        from abides_core.latency_model import (
+        from abides_core.messaging.latency_model import (
             MessageTypeAwareLatencyModel,
             UniformLatencyModel,
         )
-        from abides_core.message import Message, WakeupMsg
+        from abides_core.messaging.message import Message, WakeupMsg
 
         class _OtherMsg(Message):
             pass
@@ -560,7 +560,7 @@ class TestLatencyModelSubclasses:
         assert model.get_latency(0, 1, message_class=None) == 10
 
     def test_factory_constructs_each_subclass(self):
-        from abides_core.latency_model import (
+        from abides_core.messaging.latency_model import (
             CubicLatencyModel,
             DeterministicLatencyModel,
             LatencyModelFactory,
@@ -700,7 +700,7 @@ class TestFindAgentsByTypeIndex:
 
 class TestLogWriter:
     def test_null_log_writer_creates_no_files(self, tmp_path):
-        from abides_core.log_writer import NullLogWriter
+        from abides_core.sinks.log_writer import NullLogWriter
 
         writer = NullLogWriter()
         df = pd.DataFrame({"a": [1, 2, 3]})
@@ -710,7 +710,7 @@ class TestLogWriter:
         assert list(tmp_path.iterdir()) == []
 
     def test_bz2_log_writer_round_trip(self, tmp_path):
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         writer = BZ2PickleLogWriter(root=tmp_path, run_id="run42")
         df = pd.DataFrame({"a": [1, 2, 3]})
@@ -723,7 +723,7 @@ class TestLogWriter:
         assert round_tripped.equals(df)
 
     def test_bz2_log_writer_creates_dir_lazily(self, tmp_path):
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         writer = BZ2PickleLogWriter(root=tmp_path, run_id="lazy")
         # Constructing must not create the run dir.
@@ -1114,7 +1114,7 @@ class TestEventBusBZ2PickleSink:
     """BZ2PickleSink must write per-agent .bz2 files in the legacy format."""
 
     def test_bz2_files_written_at_simulation_end(self, tmp_path):
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         agent = _LoggingAgent(0)
         # Override to enable file writing.
@@ -1137,7 +1137,7 @@ class TestEventBusBZ2PickleSink:
         assert "AGENT_TYPE" in df["EventType"].values
 
     def test_log_to_file_false_produces_no_bz2(self, tmp_path):
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         agent = _LoggingAgent(0)
         # log_to_file=False (set by _LoggingAgent) must suppress disk write.
@@ -1167,7 +1167,7 @@ class TestEventBusBZ2PickleSink:
         columnar in-memory sink is byte-identical to the per-agent
         DataFrame the BZ2 sink writes to disk.
         """
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         agent = _LoggingAgent(0)
         agent.log_to_file = True
@@ -1206,7 +1206,7 @@ class TestEventBusMetricsObserverSink:
     """MetricsObserverSink must route report_metric() to KernelObserver."""
 
     def test_metrics_forwarded_to_observer(self):
-        from abides_core.observers import DefaultMetricsObserver
+        from abides_core.sinks.observers import DefaultMetricsObserver
 
         class _MetricAgent(Agent):
             def __init__(self, id: int) -> None:
@@ -1312,7 +1312,7 @@ class TestEventBusSinkFailureIsolation:
 
     def test_on_event_raise_marks_sink_failed_and_shutdown_raises(self):
 
-        from abides_core.event_sinks import InMemorySink
+        from abides_core.sinks.event_sinks import InMemorySink
 
         good = InMemorySink()
         bad = _RaisingSink(raise_on="on_event")
@@ -1342,7 +1342,7 @@ class TestEventBusSinkFailureIsolation:
         # (We rely on the kernel path having logged the failure.)
 
     def test_on_simulation_start_raise_isolated(self):
-        from abides_core.event_sinks import InMemorySink
+        from abides_core.sinks.event_sinks import InMemorySink
 
         good = InMemorySink()
         bad = _RaisingSink(raise_on="on_simulation_start")
@@ -1367,7 +1367,7 @@ class TestEventBusRegisterValidation:
     def test_register_rejects_non_sink_object(self):
         import pytest
 
-        from abides_core.event_bus import EventBus
+        from abides_core.telemetry.event_bus import EventBus
 
         bus = EventBus()
         with pytest.raises(TypeError, match="EventSink"):
@@ -1378,8 +1378,8 @@ class TestEventBusBookSnapshotPreStartBuffer:
     """publish_book_snapshot() called before start() must deliver after start."""
 
     def test_pre_start_book_snapshot_delivered(self):
-        from abides_core.event_bus import EventBus
-        from abides_core.event_sinks import InMemorySink
+        from abides_core.sinks.event_sinks import InMemorySink
+        from abides_core.telemetry.event_bus import EventBus
 
         sink = InMemorySink()
         bus = EventBus()
@@ -1467,7 +1467,7 @@ class TestEventSinksRuntimePlumbing:
 
     def test_event_sinks_forwarded_from_runtime(self):
         from abides_core.abides import _kernel_from_runtime
-        from abides_core.event_sinks import InMemorySink
+        from abides_core.sinks.event_sinks import InMemorySink
 
         custom = InMemorySink()
         runtime = {
@@ -1520,7 +1520,7 @@ class TestLegacyLoggingDeprecationWarnings:
     def test_bz2_pickle_log_writer_warns_once(self, tmp_path):
         import pytest
 
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         BZ2PickleLogWriter._deprecation_warned = False
         with pytest.warns(DeprecationWarning, match="BZ2PickleLogWriter is deprecated"):
@@ -1540,8 +1540,8 @@ class TestLegacyLoggingDeprecationWarnings:
     def test_bz2_pickle_sink_warns_once(self, tmp_path):
         import pytest
 
-        from abides_core.event_sinks import BZ2PickleSink
-        from abides_core.log_writer import BZ2PickleLogWriter
+        from abides_core.sinks.event_sinks import BZ2PickleSink
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
 
         # Pre-arm the writer's flag so it doesn't drown the sink warning.
         BZ2PickleLogWriter._deprecation_warned = True
