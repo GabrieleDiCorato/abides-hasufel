@@ -296,7 +296,7 @@ class BaseSlicingExecutionAgent(TradingAgent, abc.ABC):
                 {
                     "time": self.current_time,
                     "quantity": qty,
-                    "side": order.side.value,
+                    "side": order.side.legacy_str(),
                     "fill_price": order.fill_price,
                 }
             )

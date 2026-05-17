@@ -476,7 +476,7 @@ class OrderBook:
                     symbol=self.symbol,
                     order_id=order.order_id,
                     agent_id=order.agent_id,
-                    side=order.side.value,
+                    side=order.side.legacy_str(),
                     quantity=order.quantity,
                     price=order.limit_price,
                 ),
@@ -592,7 +592,7 @@ class OrderBook:
                 ModifyPayload(
                     symbol=self.symbol,
                     order_id=order.order_id,
-                    new_side=order.side.value,
+                    new_side=order.side.legacy_str(),
                     new_quantity=new_order.quantity,
                 ),
             )

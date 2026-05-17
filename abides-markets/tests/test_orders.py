@@ -291,3 +291,43 @@ def test_deepcopy_still_works_under_slots():
     s_copy = deepcopy(s)
     assert s_copy is not s
     assert s_copy == s
+
+
+def test_side_is_intenum_with_stable_values():
+    """``Side`` is encoded as an IntEnum with stable integer values."""
+    assert int(Side.BID) == 1
+    assert int(Side.ASK) == 2
+    assert Side.BID == 1
+    assert Side.ASK == 2
+    assert Side.BID != Side.ASK
+
+
+def test_side_legacy_str_returns_pre_phase_2b_form():
+    """``Side.legacy_str()`` returns the old string representation."""
+    assert Side.BID.legacy_str() == "BID"
+    assert Side.ASK.legacy_str() == "ASK"
+
+
+def test_time_in_force_is_intenum_with_stable_values():
+    """``TimeInForce`` is encoded as an IntEnum with stable integer values."""
+    assert int(TimeInForce.GTC) == 1
+    assert int(TimeInForce.IOC) == 2
+    assert int(TimeInForce.FOK) == 3
+    assert int(TimeInForce.DAY) == 4
+    assert TimeInForce.GTC == 1
+
+
+def test_time_in_force_legacy_str_returns_pre_phase_2b_form():
+    """``TimeInForce.legacy_str()`` returns the old string representation."""
+    assert TimeInForce.GTC.legacy_str() == "GTC"
+    assert TimeInForce.IOC.legacy_str() == "IOC"
+    assert TimeInForce.FOK.legacy_str() == "FOK"
+    assert TimeInForce.DAY.legacy_str() == "DAY"
+
+
+def test_intenum_equality_preserves_existing_semantics():
+    """Enum-to-enum comparisons still work after the IntEnum migration."""
+    assert Side.BID == Side.BID
+    assert Side.BID is Side.BID
+    assert TimeInForce.IOC == TimeInForce.IOC
+    assert TimeInForce.IOC is TimeInForce.IOC

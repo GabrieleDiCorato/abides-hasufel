@@ -2,7 +2,7 @@ import itertools
 import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from enum import Enum
+from enum import IntEnum
 from typing import Any, ClassVar
 
 from abides_core import NanosecondTime
@@ -11,9 +11,17 @@ from abides_core.utils import fmt_ts
 from .utils import dollarize
 
 
-class Side(Enum):
-    BID = "BID"
-    ASK = "ASK"
+class Side(IntEnum):
+    """Order side discriminator.
+
+    Encoded as a stable integer for efficient typed-column storage in
+    Parquet and parallel-array sinks. ``legacy_str()`` returns the
+    pre-Phase-2b string form (``"BID"`` / ``"ASK"``) for log lines and
+    book-history NamedTuple payloads that still expect a string.
+    """
+
+    BID = 1
+    ASK = 2
 
     def is_bid(self) -> bool:
         return self == Side.BID
@@ -21,9 +29,18 @@ class Side(Enum):
     def is_ask(self) -> bool:
         return self == Side.ASK
 
+    def legacy_str(self) -> str:
+        """Return the pre-Phase-2b string representation."""
+        return self.name
 
-class TimeInForce(Enum):
+
+class TimeInForce(IntEnum):
     """Time-in-force qualifiers for limit orders.
+
+    Encoded as stable integers for typed-column storage. The integer
+    values are part of the public ABI: do not renumber them. Use
+    :meth:`legacy_str` to recover the pre-Phase-2b string form
+    (``"GTC"`` etc.) when emitting human-readable logs.
 
     - GTC: Good-til-cancelled (default) — rests in the book until filled or
       explicitly cancelled.
@@ -35,10 +52,14 @@ class TimeInForce(Enum):
       cancelled at market close.
     """
 
-    GTC = "GTC"
-    IOC = "IOC"
-    FOK = "FOK"
-    DAY = "DAY"
+    GTC = 1
+    IOC = 2
+    FOK = 3
+    DAY = 4
+
+    def legacy_str(self) -> str:
+        """Return the pre-Phase-2b string representation."""
+        return self.name
 
 
 class Order(ABC):
@@ -267,7 +288,7 @@ class LimitOrder(Order):
             self.agent_id,
             fmt_ts(self.time_placed),
             f" [{self.tag}]" if self.tag is not None else "",
-            self.side.value,
+            self.side.legacy_str(),
             self.quantity,
             self.symbol,
             (
@@ -342,7 +363,7 @@ class MarketOrder(Order):
         )
 
     def __str__(self) -> str:
-        return f"(Agent {self.agent_id} @ {fmt_ts(self.time_placed)}) : MKT Order {self.side.value} {self.quantity} {self.symbol}"
+        return f"(Agent {self.agent_id} @ {fmt_ts(self.time_placed)}) : MKT Order {self.side.legacy_str()} {self.quantity} {self.symbol}"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -414,7 +435,7 @@ class StopOrder(Order):
     def __str__(self) -> str:
         return (
             f"(Agent {self.agent_id} @ {fmt_ts(self.time_placed)}) : "
-            f"STOP {self.side.value} {self.quantity} {self.symbol} "
+            f"STOP {self.side.legacy_str()} {self.quantity} {self.symbol} "
             f"@ {dollarize(self.stop_price)}"
         )
 
