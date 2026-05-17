@@ -92,19 +92,13 @@ class TestExtractTrades:
     def test_extracts_exec_entries_only(self):
         from abides_markets.simulation.runner import _extract_trades
 
-        class FakeBook:
-            history = self._make_history()
-
-        trades = _extract_trades(FakeBook())
+        trades = _extract_trades(self._make_history())
         assert len(trades) == 2
 
     def test_first_trade_fields(self):
         from abides_markets.simulation.runner import _extract_trades
 
-        class FakeBook:
-            history = self._make_history()
-
-        trades = _extract_trades(FakeBook())
+        trades = _extract_trades(self._make_history())
         t = trades[0]
         assert t.time_ns == 1_000_000
         assert t.passive_agent_id == 10
@@ -116,10 +110,7 @@ class TestExtractTrades:
     def test_second_trade_fields(self):
         from abides_markets.simulation.runner import _extract_trades
 
-        class FakeBook:
-            history = self._make_history()
-
-        trades = _extract_trades(FakeBook())
+        trades = _extract_trades(self._make_history())
         t = trades[1]
         assert t.passive_agent_id == 30
         assert t.aggressive_agent_id == 40
@@ -127,40 +118,34 @@ class TestExtractTrades:
     def test_empty_history(self):
         from abides_markets.simulation.runner import _extract_trades
 
-        class FakeBook:
-            history: list = []
-
-        trades = _extract_trades(FakeBook())
+        trades = _extract_trades([])
         assert trades == []
 
     def test_no_history_attribute(self):
         from abides_markets.simulation.runner import _extract_trades
 
-        class FakeBook:
-            pass
-
-        trades = _extract_trades(FakeBook())
+        # No history entries → no trades.
+        trades = _extract_trades([])
         assert trades == []
 
     def test_exec_without_price_skipped(self):
         from abides_markets.simulation.runner import _extract_trades
 
-        class FakeBook:
-            history = [
-                {
-                    "time": 1,
-                    "type": "EXEC",
-                    "order_id": 1,
-                    "agent_id": 1,
-                    "oppos_order_id": 2,
-                    "oppos_agent_id": 2,
-                    "side": "BUY",
-                    "quantity": 10,
-                    "price": None,
-                },
-            ]
+        history = [
+            {
+                "time": 1,
+                "type": "EXEC",
+                "order_id": 1,
+                "agent_id": 1,
+                "oppos_order_id": 2,
+                "oppos_agent_id": 2,
+                "side": "BUY",
+                "quantity": 10,
+                "price": None,
+            },
+        ]
 
-        trades = _extract_trades(FakeBook())
+        trades = _extract_trades(history)
         assert trades == []
 
 
