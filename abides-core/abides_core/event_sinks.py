@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import pandas as pd
 
+from .event_payloads import EVENT_TYPE_SCHEMA, GENERIC, PayloadSchema
 from .event_records import WIRE_FIELDS_EVENT, NanosecondTime
 from .log_writer import LogWriter
 from .observers import KernelObserver
@@ -118,15 +119,29 @@ class EventSink(Protocol):
 
 
 class InMemorySink:
-    """Accumulates all events in memory.
+    """Accumulates all events in memory using a schema-driven columnar layout.
+
+    Internal storage is :attr:`_cols`, a ``dict[event_type, dict[column,
+    list]]`` keyed by event type. Each bucket carries the four common
+    wire columns (``agent_id``, ``agent_type``, ``sim_time_ns``,
+    ``seq``) plus one column per field declared by the matching
+    :class:`~abides_core.event_payloads.PayloadSchema`. Event types
+    absent from :data:`~abides_core.event_payloads.EVENT_TYPE_SCHEMA`
+    fall back to a single ``payload`` column under the
+    :data:`~abides_core.event_payloads.GENERIC` schema, and a one-time
+    warning is logged so we know the registry is incomplete.
 
     Provides:
     * :meth:`agent_log` — backward-compatible ``(time, event_type,
       payload)`` list for one agent, identical shape to the old
       ``Agent.log`` list.
-    * :meth:`to_dataframe` — full event table with columns from
-      :data:`~abides_core.event_records.WIRE_FIELDS_EVENT`.
-    * :attr:`events` — raw wire tuples for zero-copy access.
+    * :meth:`to_dataframe` — full wide-flat event table with columns
+      from :data:`~abides_core.event_records.WIRE_FIELDS_EVENT`,
+      reconstructed from the columnar buckets and sorted by ``seq``.
+    * :attr:`events` — wire tuples reconstructed on demand in
+      publication (``seq``) order. Backward-compatible with code that
+      iterates ``sink.events`` expecting ``(agent_id, agent_type,
+      sim_time_ns, event_type, payload, seq)``.
 
     Metrics and book snapshots are captured if ``accept_metrics`` /
     ``accept_book_snapshots`` are left ``True`` (the defaults).
@@ -136,20 +151,135 @@ class InMemorySink:
     accept_metrics: bool = True
     accept_book_snapshots: bool = True
 
+    # Common columns present in every bucket, in WIRE_FIELDS_EVENT order
+    # minus event_type (the bucket key) and payload (replaced by schema
+    # fields or a single ``payload`` column for GENERIC).
+    _COMMON_COLS: tuple[str, ...] = ("agent_id", "agent_type", "sim_time_ns", "seq")
+
     def __init__(self) -> None:
-        self._events: list[tuple] = []
+        self._cols: dict[str, dict[str, list]] = {}
         self._metrics: list[tuple] = []
         self._book_snapshots: list[tuple] = []
+        # Schema selected per event_type (one entry per bucket key);
+        # cached so we don't re-do the dict lookup on every event.
+        self._bucket_schema: dict[str, PayloadSchema] = {}
+        # Event types we have already warned about for GENERIC fallback.
+        self._warned_generic: set[str] = set()
+        self._event_count: int = 0
 
     # ---- EventSink lifecycle --------------------------------------------------
 
     def on_simulation_start(self, meta: dict) -> None:
-        self._events.clear()
+        self._cols.clear()
+        self._bucket_schema.clear()
+        self._warned_generic.clear()
         self._metrics.clear()
         self._book_snapshots.clear()
+        self._event_count = 0
 
     def on_event(self, t: tuple) -> None:
-        self._events.append(t)
+        # Wire tuple shape: (agent_id, agent_type, sim_time_ns, event_type, payload, seq)
+        agent_id, agent_type, sim_time_ns, event_type, payload, seq = t
+
+        schema = self._bucket_schema.get(event_type)
+        if schema is None:
+            schema = EVENT_TYPE_SCHEMA.get(event_type, GENERIC)
+            self._bucket_schema[event_type] = schema
+            if schema is GENERIC and event_type not in self._warned_generic:
+                self._warned_generic.add(event_type)
+                logger.warning(
+                    "InMemorySink: event_type %r is not registered in "
+                    "EVENT_TYPE_SCHEMA; falling back to GENERIC bucket.",
+                    event_type,
+                )
+
+        bucket = self._cols.get(event_type)
+        if bucket is None:
+            bucket = {col: [] for col in self._COMMON_COLS}
+            if schema is GENERIC:
+                bucket["payload"] = []
+            else:
+                for field in schema.fields:
+                    bucket[field] = []
+            self._cols[event_type] = bucket
+
+        # Decompose the payload against the schema before mutating any
+        # column so the append is transactional: if the payload shape
+        # does not match the schema we route the row to the GENERIC
+        # bucket instead of leaving the typed bucket in a torn state.
+        if schema is GENERIC:
+            field_values: tuple = (payload,)
+            field_names: tuple[str, ...] = ("payload",)
+        else:
+            arity = len(schema.fields)
+            if arity == 0:
+                field_values = ()
+                field_names = ()
+            elif arity == 1:
+                # Arity-1 payloads are stored as the bare scalar; if the
+                # caller wrapped it in a 1-tuple we unwrap defensively.
+                if isinstance(payload, tuple) and len(payload) == 1:
+                    field_values = (payload[0],)
+                else:
+                    field_values = (payload,)
+                field_names = schema.fields
+            else:
+                # Arity ≥ 2 must be a positional tuple of matching length.
+                if isinstance(payload, tuple) and len(payload) == arity:
+                    field_values = payload
+                    field_names = schema.fields
+                else:
+                    # Shape mismatch: divert to the GENERIC bucket so we
+                    # never silently drop a row or torn-write a column.
+                    self._fallback_to_generic(
+                        event_type, agent_id, agent_type, sim_time_ns, payload, seq
+                    )
+                    return
+
+        # Atomic append: common columns first, then schema fields.
+        bucket["agent_id"].append(agent_id)
+        bucket["agent_type"].append(agent_type)
+        bucket["sim_time_ns"].append(sim_time_ns)
+        bucket["seq"].append(seq)
+        for name, value in zip(field_names, field_values, strict=True):
+            bucket[name].append(value)
+        self._event_count += 1
+
+    def _fallback_to_generic(
+        self,
+        event_type: str,
+        agent_id: int,
+        agent_type: str,
+        sim_time_ns: NanosecondTime,
+        payload: Any,
+        seq: int,
+    ) -> None:
+        """Route a schema-mismatched row to a dedicated GENERIC bucket.
+
+        The bucket key is suffixed with ``"::generic"`` so the typed
+        bucket (if any) retains its uniform column shapes.  A single
+        warning per event_type is emitted to flag the producer.
+        """
+        if event_type not in self._warned_generic:
+            self._warned_generic.add(event_type)
+            logger.warning(
+                "InMemorySink: payload for event_type %r does not match its "
+                "schema; routing to GENERIC fallback bucket.",
+                event_type,
+            )
+        fallback_key = f"{event_type}::generic"
+        bucket = self._cols.get(fallback_key)
+        if bucket is None:
+            bucket = {col: [] for col in self._COMMON_COLS}
+            bucket["payload"] = []
+            self._cols[fallback_key] = bucket
+            self._bucket_schema[fallback_key] = GENERIC
+        bucket["agent_id"].append(agent_id)
+        bucket["agent_type"].append(agent_type)
+        bucket["sim_time_ns"].append(sim_time_ns)
+        bucket["seq"].append(seq)
+        bucket["payload"].append(payload)
+        self._event_count += 1
 
     def on_metric(self, t: tuple) -> None:
         self._metrics.append(t)
@@ -163,16 +293,61 @@ class InMemorySink:
     def on_simulation_end(self, meta: dict) -> None:
         return  # no-op; data stays in memory
 
+    # ---- Reconstruction helpers ---------------------------------------------
+
+    def _reconstruct_payload(self, bucket_key: str, idx: int) -> Any:
+        """Reassemble the original payload for row ``idx`` of ``bucket_key``."""
+        bucket = self._cols[bucket_key]
+        schema = self._bucket_schema[bucket_key]
+        if schema is GENERIC:
+            return bucket["payload"][idx]
+        arity = len(schema.fields)
+        if arity == 0:
+            return ()
+        if arity == 1:
+            return bucket[schema.fields[0]][idx]
+        return tuple(bucket[name][idx] for name in schema.fields)
+
+    def _iter_rows(self) -> list[tuple]:
+        """Reconstruct all rows as wire tuples, sorted by ``seq``."""
+        rows: list[tuple] = []
+        for bucket_key, bucket in self._cols.items():
+            # The schema-mismatch fallback uses a ``"<type>::generic"``
+            # bucket key; the surfaced event_type strips that suffix so
+            # readers see the original type.
+            event_type = (
+                bucket_key[: -len("::generic")]
+                if bucket_key.endswith("::generic")
+                else bucket_key
+            )
+            n = len(bucket["seq"])
+            for i in range(n):
+                rows.append(
+                    (
+                        bucket["agent_id"][i],
+                        bucket["agent_type"][i],
+                        bucket["sim_time_ns"][i],
+                        event_type,
+                        self._reconstruct_payload(bucket_key, i),
+                        bucket["seq"][i],
+                    )
+                )
+        rows.sort(key=lambda r: r[5])
+        return rows
+
     # ---- Public API ----------------------------------------------------------
 
     @property
     def events(self) -> list[tuple]:
-        """Raw event wire tuples in publication order.
+        """Wire-format event tuples in publication (``seq``) order.
+
+        Reconstructed on each call from the columnar buckets; if you
+        plan to scan more than once, cache the returned list.
 
         Shape: ``(agent_id, agent_type, sim_time_ns, event_type,
         payload, seq)`` — see :data:`~abides_core.event_records.WIRE_FIELDS_EVENT`.
         """
-        return self._events
+        return self._iter_rows()
 
     @property
     def metrics(self) -> list[tuple]:
@@ -184,6 +359,30 @@ class InMemorySink:
         """Raw book-snapshot wire tuples in publication order."""
         return self._book_snapshots
 
+    @property
+    def columns(self) -> dict[str, dict[str, list]]:
+        """Direct read-only access to the columnar bucket storage.
+
+        Keys are event_type strings; values are ``dict[column_name,
+        list]``. Common columns are ``agent_id``, ``agent_type``,
+        ``sim_time_ns``, ``seq``; the remaining columns mirror the
+        :class:`~abides_core.event_payloads.PayloadSchema` fields for
+        the matching event_type, or a single ``payload`` column for
+        events that fell through to the
+        :data:`~abides_core.event_payloads.GENERIC` schema.
+
+        Do not mutate the returned dicts; intended for zero-copy
+        analytics paths such as Arrow exporters.
+        """
+        return self._cols
+
+    def bucket_schema(self, event_type: str) -> PayloadSchema | None:
+        """Return the :class:`PayloadSchema` chosen for ``event_type``.
+
+        ``None`` if no events of that type have been seen yet.
+        """
+        return self._bucket_schema.get(event_type)
+
     def agent_log(self, agent_id: int) -> list[tuple[NanosecondTime, str, Any]]:
         """Return ``(sim_time_ns, event_type, payload)`` triples for one agent.
 
@@ -192,8 +391,7 @@ class InMemorySink:
         deprecation shim delegates here.
 
         Events are returned in publication order (monotonically
-        increasing ``seq``).  If order matters, callers should sort
-        by ``sim_time_ns`` after the fact.
+        increasing ``seq``).
 
         Arguments:
             agent_id: The integer agent identifier.
@@ -202,22 +400,44 @@ class InMemorySink:
             A new list of ``(sim_time_ns, event_type, payload)`` tuples
             for the requested agent.  Empty if the agent produced no events.
         """
-        return [(t[2], t[3], t[4]) for t in self._events if t[0] == agent_id]
+        out: list[tuple[NanosecondTime, str, Any]] = []
+        for bucket_key, bucket in self._cols.items():
+            event_type = (
+                bucket_key[: -len("::generic")]
+                if bucket_key.endswith("::generic")
+                else bucket_key
+            )
+            agent_ids = bucket["agent_id"]
+            times = bucket["sim_time_ns"]
+            seqs = bucket["seq"]
+            for i, aid in enumerate(agent_ids):
+                if aid == agent_id:
+                    out.append(
+                        (
+                            times[i],
+                            event_type,
+                            self._reconstruct_payload(bucket_key, i),
+                            seqs[i],
+                        )
+                    )
+        out.sort(key=lambda r: r[3])
+        return [(t, et, p) for t, et, p, _seq in out]
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Return all events as a :class:`pandas.DataFrame`.
+        """Return all events as a wide-flat :class:`pandas.DataFrame`.
 
         Columns match :data:`~abides_core.event_records.WIRE_FIELDS_EVENT`.
-        The DataFrame is a fresh allocation; mutating it does not affect
-        the sink's internal state.
+        The DataFrame is materialised by reconstructing wire tuples
+        from the columnar storage; mutating the returned frame does
+        not affect the sink's internal state.
 
         Returns:
             An empty DataFrame (with correct columns) when no events have
             been captured.
         """
-        if not self._events:
+        if self._event_count == 0:
             return pd.DataFrame(columns=list(WIRE_FIELDS_EVENT))
-        return pd.DataFrame(self._events, columns=list(WIRE_FIELDS_EVENT))
+        return pd.DataFrame(self._iter_rows(), columns=list(WIRE_FIELDS_EVENT))
 
 
 # ---------------------------------------------------------------------------
