@@ -3,7 +3,7 @@ import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 from abides_core import NanosecondTime
 from abides_core.utils import fmt_ts
@@ -46,7 +46,40 @@ class Order(ABC):
 
     This should not be confused with order Messages agents send to request an Order.
     Specific order types will inherit from this (like LimitOrder).
+
+    Notes:
+        ``Order`` and its subclasses use ``__slots__`` for two reasons:
+
+        1. Memory — slotted instances drop the per-instance ``__dict__``,
+           saving roughly 280 bytes per order on CPython 3.12. For
+           millions of orders in a long simulation this is a measurable
+           RSS reduction.
+        2. Cheap tuple serialisation — :meth:`to_payload_tuple` reads
+           slot values directly without dict construction, which
+           unblocks typed Arrow columns in
+           :class:`abides_core.parquet_sink.ParquetSink` once consumer
+           sites migrate from the legacy ``dict`` payload.
+
+        A consequence is that arbitrary attribute attachment on an
+        ``Order`` instance now raises ``AttributeError``. Use the
+        ``tag`` field for caller metadata.
     """
+
+    __slots__ = (
+        "agent_id",
+        "time_placed",
+        "symbol",
+        "quantity",
+        "side",
+        "order_id",
+        "fill_price",
+        "tag",
+    )
+
+    # The order_kind sentinel mirrors the discriminator that the
+    # ``ORDER_EVENT`` payload schema will eventually carry as a typed
+    # column. Subclasses override.
+    order_kind: ClassVar[str] = "ORDER"
 
     _order_id_generator = itertools.count(0)
 
@@ -98,13 +131,62 @@ class Order(ABC):
 
         self.tag: Any | None = tag
 
+    def _slot_values(self) -> tuple[Any, ...]:
+        """Walk the class MRO collecting every declared slot value.
+
+        Used by :meth:`__eq__` and :meth:`to_dict` as a replacement for
+        the pre-slot ``self.__dict__`` snapshot. The walk is
+        deterministic: slots are collected in MRO order.
+        """
+        return tuple(
+            getattr(self, name)
+            for cls in type(self).__mro__
+            for name in getattr(cls, "__slots__", ())
+        )
+
     def to_dict(self) -> dict[str, Any]:
-        as_dict = deepcopy(self).__dict__
+        """Return a JSON-friendly snapshot of the order's slot values.
+
+        Replaces the pre-Phase-2a ``deepcopy(self).__dict__`` antipattern.
+        The sink contract (sinks must not mutate received payloads)
+        makes the defensive copy unnecessary.
+        """
+        as_dict: dict[str, Any] = {
+            name: getattr(self, name)
+            for cls in type(self).__mro__
+            for name in getattr(cls, "__slots__", ())
+        }
         as_dict["time_placed"] = fmt_ts(self.time_placed)
         return as_dict
 
-    def __eq__(self, other):
-        return type(other) is type(self) and self.__dict__ == other.__dict__
+    @abstractmethod
+    def to_payload_tuple(self) -> tuple[Any, ...]:
+        """Return a positional tuple matching the ``ORDER_EVENT`` schema.
+
+        Field order (see :mod:`abides_core.event_payloads`):
+
+        ``(order_id, order_kind, symbol, side, quantity, limit_price,
+        stop_price, time_in_force, is_hidden, is_price_to_comply,
+        tag)``
+
+        Fields not applicable to the concrete subclass are filled with
+        ``None``. ``side`` is the :class:`Side` enum and
+        ``time_in_force`` is the :class:`TimeInForce` enum (or ``None``
+        when not applicable); consumer-side conversion to int / string
+        is the sink's responsibility.
+        """
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            type(other) is type(self)
+            and self._slot_values() == other._slot_values()  # type: ignore[attr-defined]
+        )
+
+    # Orders are mutable (quantity, fill_price, is_hidden change after
+    # creation), so equality without a hash matches the pre-Phase-2a
+    # contract: instances are unhashable. Defining ``__eq__`` already
+    # sets ``__hash__`` to None implicitly.
+    __hash__ = None  # type: ignore[assignment]
 
     def __deepcopy__(self, memodict={}):
         raise NotImplementedError
@@ -117,6 +199,17 @@ class LimitOrder(Order):
 
     These are the Orders that typically go in an Exchange's OrderBook.
     """
+
+    __slots__ = (
+        "limit_price",
+        "is_hidden",
+        "is_price_to_comply",
+        "insert_by_id",
+        "is_post_only",
+        "time_in_force",
+    )
+
+    order_kind: ClassVar[str] = "LIMIT"
 
     def __init__(
         self,
@@ -146,6 +239,21 @@ class LimitOrder(Order):
         self.insert_by_id: bool = insert_by_id
         self.is_post_only: bool = is_post_only
         self.time_in_force: TimeInForce = time_in_force
+
+    def to_payload_tuple(self) -> tuple[Any, ...]:
+        return (
+            self.order_id,
+            self.order_kind,
+            self.symbol,
+            self.side,
+            self.quantity,
+            self.limit_price,
+            None,
+            self.time_in_force,
+            self.is_hidden,
+            self.is_price_to_comply,
+            self.tag,
+        )
 
     def __str__(self) -> str:
         filled = ""
@@ -200,6 +308,10 @@ class LimitOrder(Order):
 class MarketOrder(Order):
     """MarketOrder class, inherits from Order class."""
 
+    __slots__ = ()
+
+    order_kind: ClassVar[str] = "MARKET"
+
     def __init__(
         self,
         agent_id: int,
@@ -212,6 +324,21 @@ class MarketOrder(Order):
     ) -> None:
         super().__init__(
             agent_id, time_placed, symbol, quantity, side, order_id=order_id, tag=tag
+        )
+
+    def to_payload_tuple(self) -> tuple[Any, ...]:
+        return (
+            self.order_id,
+            self.order_kind,
+            self.symbol,
+            self.side,
+            self.quantity,
+            None,
+            None,
+            None,
+            None,
+            None,
+            self.tag,
         )
 
     def __str__(self) -> str:
@@ -249,6 +376,10 @@ class StopOrder(Order):
     submits it to the order book.
     """
 
+    __slots__ = ("stop_price",)
+
+    order_kind: ClassVar[str] = "STOP"
+
     def __init__(
         self,
         agent_id: int,
@@ -264,6 +395,21 @@ class StopOrder(Order):
             agent_id, time_placed, symbol, quantity, side, order_id=order_id, tag=tag
         )
         self.stop_price: int = stop_price
+
+    def to_payload_tuple(self) -> tuple[Any, ...]:
+        return (
+            self.order_id,
+            self.order_kind,
+            self.symbol,
+            self.side,
+            self.quantity,
+            None,
+            self.stop_price,
+            None,
+            None,
+            None,
+            self.tag,
+        )
 
     def __str__(self) -> str:
         return (
