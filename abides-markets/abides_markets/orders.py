@@ -199,8 +199,9 @@ class Order(ABC):
 
     def __eq__(self, other: object) -> bool:
         return (
-            type(other) is type(self)
-            and self._slot_values() == other._slot_values()  # type: ignore[attr-defined]
+            isinstance(other, Order)
+            and type(other) is type(self)
+            and self._slot_values() == other._slot_values()
         )
 
     # Orders are mutable (quantity, fill_price, is_hidden change after
