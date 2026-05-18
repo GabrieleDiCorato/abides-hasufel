@@ -184,3 +184,4 @@ cython_debug/
 .DS_Store
 .AppleDouble
 .LSOverride
+.git-backup-pre-v0.1.0/

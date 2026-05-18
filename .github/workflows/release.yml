@@ -1,8 +1,8 @@
 name: Release
 
 # Triggers on tag pushes:
-#   v2.6.0          → publish to PyPI + GitHub Release
-#   v2.6.0-rc1      → publish to TestPyPI only (no GitHub Release)
+#   v0.1.0          → publish to PyPI + GitHub Release
+#   v0.1.0-rc1      → publish to TestPyPI only (no GitHub Release)
 #   workflow_dispatch (manual) → TestPyPI only
 #
 # Trusted-publishing setup is REQUIRED on both PyPI and TestPyPI before

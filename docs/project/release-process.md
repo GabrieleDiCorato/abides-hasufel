@@ -8,14 +8,14 @@ release workflow at
 ## Distribution overview
 
 The monorepo defines two PyPI distributions, but **only `abides-ng`
-is published in the v2.6.x line**:
+is published in the v0.1.x line**:
 
 - **`abides-ng`** — kernel + market microstructure. Source lives in
   `abides-markets/` (directory keeps its original name). Bundles
   `abides_core` via hatchling `force-include` from
   `abides-core/abides_core/`. **Published.**
 - **`abides-ng[gym]`** — Gymnasium and RLlib adapters (`abides_gym` source
-  in `abides-gym/` directory). **Deferred from v2.6.x** — the gym adapter
+  in `abides-gym/` directory). **Deferred from v0.1.x** — the gym adapter
   has not been re-validated against the new `SimulationConfig` system and
   has no pytest coverage in this repo. The optional extra is declared in the
   `abides-ng` metadata; the source will be bundled into the wheel once
@@ -26,22 +26,22 @@ require cloning the repository (and are CI-tested via `uv build`).
 
 ## Versioning
 
-Semantic versioning. Current line is `2.x`; v3.0 will land when the
-`abides-core-v3-foundation` plan completes (see
-[`docs/active-plans/`](https://github.com/GabrieleDiCorato/abides-ng/tree/main/docs/active-plans) when active, or git history).
+Semantic versioning. Current line is `0.x` (pre-1.0); while on this
+line, **breaking changes are permitted on minor-version bumps** as
+APIs continue to stabilize. The first stability commitment lands at
+`v1.0.0`.
 
 Reproducibility-breaking changes (anything that alters the output of
-a seeded simulation bit-for-bit) require a **major-version bump** and
-must be called out in `CHANGELOG.md` under `Breaking Changes`. See
-[reproducibility.md](reproducibility.md).
+a seeded simulation bit-for-bit) must be called out in `CHANGELOG.md`
+under `Breaking Changes`. See [reproducibility.md](reproducibility.md).
 
 ### Tag format
 
-- Stable release: `v2.6.0`, `v2.7.0`, `v3.0.0`
-- Pre-release: `v2.7.0-rc1`, `v3.0.0-a1`, `v3.0.0-b2`
+- Stable release: `v0.1.0`, `v0.2.0`, `v1.0.0`
+- Pre-release: `v0.1.0-rc1`, `v1.0.0-a1`, `v1.0.0-b2`
 
 The leading `v` is the **git-tag convention** only; the
-`pyproject.toml` `version` field is bare PEP 440 (`2.6.0`).
+`pyproject.toml` `version` field is bare PEP 440 (`0.1.0`).
 
 The release workflow strips the `v` and verifies that the tag
 version matches `abides-markets/pyproject.toml` before publishing.
@@ -86,8 +86,8 @@ The workflow at `.github/workflows/release.yml` runs on tag pushes:
 
 | Tag pattern        | Builds wheels | Uploads to TestPyPI | Uploads to PyPI | GitHub Release |
 |--------------------|---------------|---------------------|-----------------|----------------|
-| `v2.6.0` (stable)  | yes           | no                  | yes             | yes            |
-| `v2.6.0-rc1`       | yes           | yes                 | no              | no             |
+| `v0.1.0` (stable)  | yes           | no                  | yes             | yes            |
+| `v0.1.0-rc1`       | yes           | yes                 | no              | no             |
 | `workflow_dispatch`| yes           | yes (manual)        | no              | no             |
 
 ### Job graph
@@ -131,12 +131,12 @@ a smoke simulation from `notebooks/`.
 
 ### 3. Pre-release dry-run (TestPyPI)
 
-For the first release on a new line (e.g. v3.0.0) or anytime you
+For the first release on a new line (e.g. v1.0.0) or anytime you
 want a rehearsal:
 
 ```bash
-git tag v2.6.0-rc1
-git push origin v2.6.0-rc1
+git tag v0.1.0-rc1
+git push origin v0.1.0-rc1
 ```
 
 Workflow runs → uploads to TestPyPI. In a fresh venv:
@@ -144,7 +144,7 @@ Workflow runs → uploads to TestPyPI. In a fresh venv:
 ```bash
 pip install --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
-            "abides-ng==2.6.0rc1"
+            "abides-ng==0.1.0rc1"
 abides --help
 python -c "import abides_core, abides_markets; print('ok')"
 ```
@@ -153,15 +153,15 @@ If broken, delete the tag locally and on origin, fix, and try
 `-rc2`:
 
 ```bash
-git tag -d v2.6.0-rc1
-git push origin :refs/tags/v2.6.0-rc1
+git tag -d v0.1.0-rc1
+git push origin :refs/tags/v0.1.0-rc1
 ```
 
 ### 4. Stable release
 
 ```bash
-git tag v2.6.0
-git push origin v2.6.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
 Workflow runs `build` → waits for **manual approval** on the `pypi`
@@ -173,22 +173,22 @@ release notes from CHANGELOG.
 In a fresh venv:
 
 ```bash
-pip install abides-ng==2.6.0
+pip install abides-ng==0.1.0
 abides --help
 ```
 
 Verify the PyPI project page renders the README correctly:
-<https://pypi.org/project/abides-ng/2.6.0/>.
+<https://pypi.org/project/abides-ng/0.1.0/>.
 
 ## Hotfix releases
 
 For an urgent fix on a released line:
 
-1. Branch from the release tag: `git checkout -b hotfix/2.6.1 v2.6.0`.
+1. Branch from the release tag: `git checkout -b hotfix/0.1.1 v0.1.0`.
 2. Apply the fix, update CHANGELOG and both `pyproject.toml`
-   versions to `2.6.1`.
+   versions to `0.1.1`.
 3. Open a PR back into `main`.
-4. After merge, tag `v2.6.1` and push.
+4. After merge, tag `v0.1.1` and push.
 
 ## Yanking a release
 
@@ -200,7 +200,7 @@ does not allow re-uploading the same version):
 3. Provide a brief reason. Yanked versions remain installable by
    exact pin but are excluded from `pip install abides-ng`
    resolution.
-4. Cut a fixed `2.6.x` patch as soon as possible.
+4. Cut a fixed `0.1.x` patch as soon as possible.
 
 ## What is intentionally not in the workflow yet
 

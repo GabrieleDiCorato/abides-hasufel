@@ -50,17 +50,34 @@ The project is currently broken down into 3 parts: ABIDES-Core, ABIDES-Markets a
 
 ## About this Fork
 
-This project extends ABIDES (Byrd & Balch, 2019), originally
-developed at Georgia Tech and later maintained by J.P. Morgan Chase
-as [abides-jpmc-public](https://github.com/jpmorganchase/abides-jpmc-public)
+This project extends ABIDES (Byrd & Balch, 2019), originally developed
+at Georgia Tech and later maintained by J.P. Morgan Chase as
+[abides-jpmc-public](https://github.com/jpmorganchase/abides-jpmc-public)
 (now archived). It modernizes the codebase with updated dependencies,
 uv-based dependency management, a declarative configuration system,
 oracle redesign, kernel state machine, integer-cents pricing
 discipline, type-checked source, and numerous bug fixes.
 
-Released as ``abides-ng`` on PyPI starting with v2.6.0. The ``abides-gym`` RL adapter is in this
-repo but not yet bundled in the wheel — see the install section below. See
-[CHANGELOG.md](CHANGELOG.md) for full version history.
+### Versioning and provenance
+
+`abides-ng` was developed privately as a detached fork through an
+internal `v2.6.0` milestone before being prepared for public release.
+The inherited git tags from that period (`v1.0.0-legacy` through
+`v2.6.0`) are preserved in this repository under the `archive/`
+prefix (e.g. `archive/v2.6.0`) for full provenance; the original
+`v*` tags have been removed from the public release namespace so
+that `v0.1.0` is the unambiguous first public tag.
+
+Public release begins at **`v0.1.0`** and follows
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the
+project is on the pre-1.0 line, **breaking changes are permitted on
+minor-version bumps** as APIs continue to stabilize. A `1.0.0` release
+will mark the first stability commitment.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history,
+including pre-rename entries preserved for reference. The
+``abides-gym`` RL adapter lives in this repo but is not yet bundled
+in the wheel — see the install section below.
 
 <!-- CITING -->
 ## Citing ABIDES

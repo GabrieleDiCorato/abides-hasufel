@@ -10,7 +10,7 @@ reference.
 
 ---
 
-## [Unreleased]
+## [0.1.0] - Unreleased
 
 ### Added
 - **Phase 2b — payload schemas as a contract.**
@@ -181,6 +181,15 @@ reference.
   drops anything else with a logger warning.
 - Repeated `OrderBook.history` / `book_log2` reads no longer emit
   spurious deprecation warnings during normal operation.
+
+---
+
+## Pre-rename history
+
+Entries below describe work done while the project was a private
+detached fork (internal versions through `v2.6.0`). They are preserved
+for provenance. Corresponding git tags are retained under the
+`archive/` prefix.
 
 ---
 
