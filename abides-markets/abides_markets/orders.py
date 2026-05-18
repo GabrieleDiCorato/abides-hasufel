@@ -3,7 +3,7 @@ import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import IntEnum
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from abides_core import NanosecondTime
 from abides_core.utils import fmt_ts
@@ -198,11 +198,9 @@ class Order(ABC):
         """
 
     def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, Order)
-            and type(other) is type(self)
-            and self._slot_values() == other._slot_values()
-        )
+        if type(other) is not type(self):
+            return False
+        return self._slot_values() == cast(Order, other)._slot_values()
 
     # Orders are mutable (quantity, fill_price, is_hidden change after
     # creation), so equality without a hash matches the pre-Phase-2a
