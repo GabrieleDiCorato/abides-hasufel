@@ -29,8 +29,24 @@ reference.
   escape-hatch covers fields without a dedicated builder method.
 - **`ConfigError`** (subclass of `ValueError`) raised by the compiler
   when an explicit `event_sinks` list is combined with
-  `exchange.book_logging=True`, or when an order-book sink references a
-  symbol absent from the exchange.
+  `exchange.book_logging=True`, when an order-book sink references a
+  symbol absent from the exchange, or when a `ParquetSinkConfig` is
+  requested in an environment that does not have `pyarrow` installed.
+
+### Changed
+- **Per-symbol book-sink configs now expand to one sink per resolved
+  symbol.** Previously the compiler silently kept only the first symbol
+  when `OrderBookSnapshotMemorySinkConfig(symbols=[...])` or
+  `OrderBookHistoryMemorySinkConfig(symbols=[...])` listed more than
+  one. The underlying sink classes are per-symbol, so the compiler now
+  emits N sinks instead.
+
+### Removed
+- **`OrderBookSnapshotMemorySinkConfig.sampling`** field. The
+  underlying `OrderBookSnapshotMemorySink` took no sampling parameter,
+  so the field was silently ignored. It may return if and when the
+  sink gains real sampling support; today, configs that set it are
+  rejected by `extra=forbid`.
 
 ### Changed (Breaking)
 - **`Kernel.__init__` no longer accepts `log_root`.** Callers that need

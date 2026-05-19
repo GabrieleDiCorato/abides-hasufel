@@ -230,6 +230,12 @@ The available `SinkConfig` kinds:
 | `orderbook_snapshot_memory` | `OrderBookSnapshotMemorySinkConfig` | In-memory book-depth snapshots per symbol. |
 | `orderbook_history_memory` | `OrderBookHistoryMemorySinkConfig` | In-memory order-event history per symbol. |
 
+The two `orderbook_*` configs accept a `symbols: list[str] | None`
+filter. The compiler instantiates **one sink per resolved symbol** — a
+three-symbol filter on a four-symbol exchange yields three sinks, and a
+`None` filter expands to one sink per exchange symbol. Unknown symbols
+fail-fast with `ConfigError`.
+
 ### Conflict rule
 
 When `event_sinks` is set explicitly, `exchange.book_logging` **must**
