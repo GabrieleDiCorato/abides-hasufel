@@ -731,6 +731,48 @@ class TestLogWriter:
         writer.write_agent_log("Foo", pd.DataFrame({"a": [1]}))
         assert (tmp_path / "lazy").exists()
 
+    def test_bz2_log_writer_atomic_write_does_not_overwrite_on_failure(
+        self, tmp_path, monkeypatch
+    ):
+        """Failed mid-write must leave the existing final file untouched.
+
+        The writer serialises via ``<path>.tmp`` and then ``os.replace``\\s
+        it into place; if the serialisation step raises before the
+        rename, the previously committed file must remain valid and the
+        final path must not contain a half-written payload.
+        """
+        import pytest
+
+        from abides_core.sinks.log_writer import BZ2PickleLogWriter
+
+        writer = BZ2PickleLogWriter(root=tmp_path, run_id="atomic")
+        good = pd.DataFrame({"a": [1, 2, 3]})
+        writer.write_agent_log("Agent", good)
+
+        target = tmp_path / "atomic" / "Agent.bz2"
+        original_bytes = target.read_bytes()
+        assert original_bytes
+
+        # Patch ``DataFrame.to_pickle`` so the second write blows up mid
+        # serialisation (after the .tmp file has been created but before
+        # ``os.replace`` runs).  The previous good payload must survive.
+        original_to_pickle = pd.DataFrame.to_pickle
+
+        def _explode(self, path, *args, **kwargs):
+            # Create the .tmp partial then raise — mimics a crash mid-IO.
+            with open(path, "wb") as fh:
+                fh.write(b"partial")
+            raise KeyboardInterrupt("simulated crash mid-write")
+
+        monkeypatch.setattr(pd.DataFrame, "to_pickle", _explode)
+        with pytest.raises(KeyboardInterrupt):
+            writer.write_agent_log("Agent", pd.DataFrame({"a": [99]}))
+
+        # The committed file must be byte-for-byte the original — no
+        # partial overwrite via os.replace.
+        monkeypatch.setattr(pd.DataFrame, "to_pickle", original_to_pickle)
+        assert target.read_bytes() == original_bytes
+
     def test_kernel_uses_injected_log_writer(self, tmp_path):
         import pandas as _pd
 
@@ -1483,6 +1525,28 @@ class TestEventSinksRuntimePlumbing:
         )
         # The supplied sink must be present on the bus.
         assert custom in kernel.event_bus._sinks
+
+    def test_agent_event_bus_identity_matches_kernel(self):
+        """After ``kernel_initializing``, every agent must observe the
+        exact same ``EventBus`` instance as the kernel.
+
+        Guards against any future refactor that hands out a per-agent
+        proxy or copy: events published via ``self.kernel.event_bus``
+        from inside an agent must land in the same bus the test code
+        introspects via ``kernel.event_bus``.
+        """
+        agent_a = _LoggingAgent(0)
+        agent_b = _LoggingAgent(1)
+        kernel = Kernel(
+            agents=[agent_a, agent_b],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=99),
+        )
+        kernel.run()
+        assert agent_a.kernel.event_bus is kernel.event_bus
+        assert agent_b.kernel.event_bus is kernel.event_bus
 
     def test_unknown_runtime_keys_silently_dropped(self):
         """Whitelist behavior — extra keys are tolerated (not forwarded)."""

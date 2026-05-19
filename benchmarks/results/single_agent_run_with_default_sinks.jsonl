@@ -1,5 +1,1 @@
-<<<<<<< Updated upstream
 {"commit": "75f1a3d", "timestamp_iso": "2026-05-15T21:56:50+00:00", "hostname": "fangorn", "platform": "Windows-11-AMD64", "python": "3.12.6", "end_time": "09:35:00", "seed": 12345, "log_orders": true, "book_logging": true, "skip_log_disk": true, "n_iter": 5, "n_warmup": 1, "mean_ns": 2417525620, "p50_ns": 2658480800, "p99_ns": 2835483800, "min_ns": 1705149300, "max_ns": 2835483800}
-=======
-{"commit": "75f1a3d", "timestamp_iso": "2026-05-15T21:56:50+00:00", "hostname": "fangorn", "platform": "Windows-11-AMD64", "python": "3.12.6", "end_time": "09:35:00", "seed": 12345, "log_orders": true, "book_logging": true, "skip_log_disk": true, "n_iter": 5, "n_warmup": 1, "mean_ns": 2417525620, "p50_ns": 2658480800, "p99_ns": 2835483800, "min_ns": 1705149300, "max_ns": 2835483800}
->>>>>>> Stashed changes
