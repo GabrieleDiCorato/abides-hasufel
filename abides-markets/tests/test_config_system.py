@@ -162,6 +162,31 @@ class TestBuilder:
         with pytest.raises(KeyError, match="Unknown template"):
             SimulationBuilder().from_template("nonexistent").build()
 
+    def test_event_sinks_method(self):
+        """event_sinks() sets SimulationMeta.event_sinks equivalently to .meta()."""
+        from abides_markets.config_system.models import (
+            MemorySinkConfig,
+            ParquetSinkConfig,
+        )
+
+        sinks = [MemorySinkConfig(), ParquetSinkConfig(compression="snappy")]
+        via_method = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .event_sinks(*sinks)
+            .seed(42)
+            .build()
+        )
+        via_meta = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .meta(event_sinks=sinks)
+            .seed(42)
+            .build()
+        )
+        assert via_method.simulation.event_sinks == via_meta.simulation.event_sinks
+        assert via_method.simulation.event_sinks == sinks
+
 
 # ---------------------------------------------------------------------------
 # Compiler tests

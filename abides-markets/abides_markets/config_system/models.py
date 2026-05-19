@@ -426,7 +426,10 @@ class MemorySinkConfig(_SinkConfigBase):
     a pickle stream.  Cheap; always-on in the default sink set.
     """
 
-    kind: Literal["memory"] = "memory"
+    kind: Literal["memory"] = Field(
+        default="memory",
+        description="Discriminator selecting the in-memory columnar sink.",
+    )
 
 
 class BZ2PickleSinkConfig(_SinkConfigBase):
@@ -443,7 +446,12 @@ class BZ2PickleSinkConfig(_SinkConfigBase):
     config takes no per-sink fields.
     """
 
-    kind: Literal["bz2_pickle"] = "bz2_pickle"
+    kind: Literal["bz2_pickle"] = Field(
+        default="bz2_pickle",
+        description=(
+            "Discriminator selecting the legacy bz2-pickled " "per-agent log sink."
+        ),
+    )
 
 
 class ParquetSinkConfig(_SinkConfigBase):
@@ -457,7 +465,10 @@ class ParquetSinkConfig(_SinkConfigBase):
     boundary.
     """
 
-    kind: Literal["parquet"] = "parquet"
+    kind: Literal["parquet"] = Field(
+        default="parquet",
+        description="Discriminator selecting the streaming Parquet sink.",
+    )
     compression: Literal["snappy", "zstd", "none"] = Field(
         default="zstd",
         description="Parquet column compression codec.",
@@ -500,7 +511,13 @@ class OrderBookSnapshotMemorySinkConfig(_SinkConfigBase):
     ``SimulationResult.l1_snapshots`` / ``.l2_snapshots`` extraction.
     """
 
-    kind: Literal["orderbook_snapshot_memory"] = "orderbook_snapshot_memory"
+    kind: Literal["orderbook_snapshot_memory"] = Field(
+        default="orderbook_snapshot_memory",
+        description=(
+            "Discriminator selecting the in-memory per-symbol "
+            "order-book snapshot sink."
+        ),
+    )
     symbols: list[str] | None = Field(
         default=None,
         description=(
@@ -521,7 +538,13 @@ class OrderBookHistoryMemorySinkConfig(_SinkConfigBase):
     ``.liquidity`` extraction.
     """
 
-    kind: Literal["orderbook_history_memory"] = "orderbook_history_memory"
+    kind: Literal["orderbook_history_memory"] = Field(
+        default="orderbook_history_memory",
+        description=(
+            "Discriminator selecting the in-memory per-symbol "
+            "order-book event-history sink."
+        ),
+    )
     symbols: list[str] | None = Field(
         default=None,
         description=(

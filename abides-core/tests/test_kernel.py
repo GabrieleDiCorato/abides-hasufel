@@ -1403,7 +1403,95 @@ class TestEventBusSinkFailureIsolation:
         assert bad.on_event_calls == 0
 
 
-class TestEventBusRegisterValidation:
+class _RaisingOnWakeupAgent(Agent):
+    """Agent whose first ``wakeup()`` raises a chosen exception."""
+
+    def __init__(self, id: int, exc: BaseException) -> None:
+        super().__init__(
+            id=id,
+            name=f"RaisingAgent_{id}",
+            type="RaisingAgent",
+            random_state=np.random.RandomState(seed=id + 200),
+            log_events=False,
+            log_to_file=False,
+        )
+        self._exc = exc
+
+    def kernel_starting(self, start_time):
+        super().kernel_starting(start_time)
+        # Schedule one wakeup so runner() picks us up immediately.
+        self.set_wakeup(start_time + 1)
+
+    def wakeup(self, current_time):
+        raise self._exc
+
+
+class TestRunFinalisesSinksOnRunnerFailure:
+    """``Kernel.run()`` must call ``terminate()`` even when ``runner()`` raises.
+
+    Without this guarantee, sinks miss ``on_simulation_end()`` and lose
+    their final buffered data (per-agent ``.bz2`` files, the last
+    Parquet batch, etc.).
+    """
+
+    def _build(self, exc: BaseException, recording_sink):
+        agent = _RaisingOnWakeupAgent(0, exc)
+        return Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=77),
+            event_sinks=[recording_sink],
+        )
+
+    def test_sink_receives_on_simulation_end_when_runner_raises(self):
+        import pytest
+
+        sink = _RaisingSink(raise_on="never")  # never raises; just records
+        kernel = self._build(RuntimeError("boom-runner"), sink)
+        with pytest.raises(RuntimeError, match="boom-runner"):
+            kernel.run()
+        assert sink.start_calls == 1, "on_simulation_start should fire"
+        assert sink.end_calls == 1, "on_simulation_end must fire even on failure"
+
+    def test_terminate_failure_does_not_mask_runner_exception(self, caplog):
+        """If ``terminate()`` itself raises during exception cleanup the
+        original ``runner()`` exception must still propagate and the
+        secondary failure must be logged.
+
+        ``EventBus.shutdown()`` already swallows sink-side failures, so
+        we provoke a ``terminate()`` failure via a kernel_terminating
+        hook on the agent instead.
+        """
+        import logging
+
+        import pytest
+
+        class _BadTerminateAgent(_RaisingOnWakeupAgent):
+            def kernel_terminating(self) -> None:
+                raise RuntimeError("boom-terminate")
+
+        sink = _RaisingSink(raise_on="never")
+        agent = _BadTerminateAgent(0, RuntimeError("boom-runner"))
+        kernel = Kernel(
+            agents=[agent],
+            start_time=str_to_ns("09:30:00"),
+            stop_time=str_to_ns("16:00:00"),
+            skip_log=True,
+            random_state=np.random.RandomState(seed=78),
+            event_sinks=[sink],
+        )
+        with (
+            caplog.at_level(logging.ERROR, logger="abides_core.engine.kernel"),
+            pytest.raises(RuntimeError, match="boom-runner"),
+        ):
+            kernel.run()
+        assert any(
+            "terminate() failed during exception cleanup" in rec.message
+            for rec in caplog.records
+        )
+
     """register() must reject objects that don't satisfy the EventSink Protocol."""
 
     def test_register_rejects_non_sink_object(self):

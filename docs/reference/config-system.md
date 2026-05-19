@@ -191,7 +191,9 @@ exchange symbol, one `OrderBookHistoryMemorySink` and (when
 No disk-backed sink is registered unless you ask for one.
 
 To override the default set, populate
-`SimulationMeta.event_sinks` via the `meta()` builder escape-hatch:
+`SimulationMeta.event_sinks`.  Use the typed
+`SimulationBuilder.event_sinks(*sinks)` method (preferred) or the
+`.meta(event_sinks=[...])` escape-hatch:
 
 ```python
 from abides_markets.config_system import SimulationBuilder
@@ -205,13 +207,11 @@ config = (SimulationBuilder()
     .from_template("rmsc04")
     # Explicit event_sinks requires book_logging=False — see below.
     .exchange(book_logging=False, book_capture="off")
-    .meta(
-        log_root="./runs",
-        event_sinks=[
-            MemorySinkConfig(),
-            ParquetSinkConfig(compression="zstd",
-                              checkpoint_every_rows=200_000),
-        ],
+    .meta(log_root="./runs")
+    .event_sinks(
+        MemorySinkConfig(),
+        ParquetSinkConfig(compression="zstd",
+                          checkpoint_every_rows=200_000),
     )
     .seed(42)
     .build())
@@ -246,6 +246,15 @@ Combining them raises `ConfigError` at `compile()` time. To keep book
 capture under the explicit-list path, add
 `OrderBookSnapshotMemorySinkConfig` / `OrderBookHistoryMemorySinkConfig`
 entries to your `event_sinks` list.
+
+### Sink finalisation guarantee
+
+`Kernel.run()` invokes every sink's `on_simulation_end()` via
+`terminate()` from a `finally`-style cleanup branch, so disk-backed
+sinks (`BZ2PickleSink`, `ParquetSink`) flush their final batch and
+the `EventBus` shuts down cleanly **even if the runner raises**. If
+`terminate()` itself fails during exception cleanup, the failure is
+logged and the original runner exception is re-raised unchanged.
 
 ---
 

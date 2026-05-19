@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from abides_markets.config_system.models import SimulationConfig
 from abides_markets.config_system.templates import get_template
 from abides_markets.oracles.oracle import Oracle
+
+if TYPE_CHECKING:
+    from abides_markets.config_system.models import SinkConfig
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -222,12 +225,24 @@ class SimulationBuilder:
         """Set arbitrary fields on ``SimulationMeta``.
 
         Convenience escape hatch for fields without a dedicated builder
-        method (``event_sinks``, ``log_root``, ``show_trace_messages``,
+        method (``log_root``, ``show_trace_messages``,
         ``disable_event_log_for``).  Keys are merged into the simulation
         section and validated by Pydantic at ``build()`` time.
         """
         sim = self._data.setdefault("simulation", {})
         sim.update(kwargs)
+        return self
+
+    def event_sinks(self, *sinks: SinkConfig) -> SimulationBuilder:
+        """Set the ``event_sinks`` list on ``SimulationMeta``.
+
+        Each positional argument is a sink config (e.g.
+        ``MemorySinkConfig()``, ``ParquetSinkConfig(...)``).  Replaces
+        any previously configured sink list.  Equivalent to
+        ``.meta(event_sinks=[...])`` but typed and discoverable.
+        """
+        sim = self._data.setdefault("simulation", {})
+        sim["event_sinks"] = list(sinks)
         return self
 
     def build(self) -> SimulationConfig:

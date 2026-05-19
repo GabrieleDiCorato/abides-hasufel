@@ -294,6 +294,14 @@ class Kernel:
           - Simulation Run
           - Simulation Termination
 
+        ``terminate()`` is invoked from a ``finally`` block so that
+        registered sinks always receive ``on_simulation_end()`` (and
+        therefore get to flush per-agent ``.bz2`` files, the final
+        Parquet batch, etc.) even when ``runner()`` raises mid-run. If
+        the cleanup ``terminate()`` itself raises, the secondary failure
+        is logged and the original exception is re-raised so callers see
+        the root cause.
+
         Returns:
             :class:`KernelRunResult` with scheduling facts. Agents are
             still accessible via ``self.agents``; domain metrics are
@@ -301,7 +309,17 @@ class Kernel:
         """
         self.initialize()
 
-        self.runner()
+        try:
+            self.runner()
+        except BaseException:
+            try:
+                self.terminate()
+            except Exception:
+                logger.exception(
+                    "Kernel.terminate() failed during exception cleanup; "
+                    "the original runner() exception will be re-raised."
+                )
+            raise
 
         return self.terminate()
 

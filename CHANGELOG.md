@@ -12,6 +12,17 @@ reference.
 
 ## [0.1.0] - Unreleased
 
+### Fixed
+- **`Kernel.run()` now finalises sinks even when the runner raises.**
+  The main loop is wrapped in `try` / `finally` semantics: if
+  `runner()` raises, `terminate()` is invoked from the cleanup branch
+  so every `EventSink.on_simulation_end()` callback fires (flushing
+  `BZ2PickleSink` / `ParquetSink` output and shutting the
+  `EventBus` down) before the original exception propagates. If
+  `terminate()` itself fails during cleanup, the failure is logged via
+  `logger.exception` and the original runner exception is re-raised
+  intact — never masked.
+
 ### Added
 - **Declarative event-sink configuration.**
   `SimulationMeta` now exposes `event_sinks`, `log_root`,
@@ -26,7 +37,9 @@ reference.
   validates symbol references against the exchange. When
   `event_sinks is None` (the default), behaviour is byte-identical to
   the prior auto-registered sink set. New `SimulationBuilder.meta(**kw)`
-  escape-hatch covers fields without a dedicated builder method.
+  escape-hatch covers fields without a dedicated builder method, and
+  the dedicated `SimulationBuilder.event_sinks(*sinks)` method offers
+  a typed, discoverable shortcut for configuring the sink list.
 - **`ConfigError`** (subclass of `ValueError`) raised by the compiler
   when an explicit `event_sinks` list is combined with
   `exchange.book_logging=True`, when an order-book sink references a
