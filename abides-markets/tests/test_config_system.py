@@ -1166,7 +1166,6 @@ class TestModelValidation:
         sink = OrderBookSnapshotMemorySinkConfig()
         assert sink.kind == "orderbook_snapshot_memory"
         assert sink.symbols is None
-        assert sink.sampling == "on_top_of_book_change"
 
     def test_sink_config_book_history_defaults(self):
         from abides_markets.config_system.models import (
@@ -1194,13 +1193,16 @@ class TestModelValidation:
         with pytest.raises(ValidationError):
             ParquetSinkConfig(compression="gzip")
 
-    def test_sink_config_rejects_invalid_sampling(self):
+    def test_sink_config_rejects_extra_field_on_book_snapshot(self):
+        """``extra=forbid`` must reject any unknown field on the strict
+        sink configs, including formerly-supported ones like ``sampling``
+        (removed because the underlying sink did not honour it)."""
         from abides_markets.config_system.models import (
             OrderBookSnapshotMemorySinkConfig,
         )
 
         with pytest.raises(ValidationError):
-            OrderBookSnapshotMemorySinkConfig(sampling="wat")
+            OrderBookSnapshotMemorySinkConfig(sampling="every_update")
 
     def test_event_sinks_discriminated_union_from_dict(self):
         """List of dicts with `kind` should round-trip into the union."""

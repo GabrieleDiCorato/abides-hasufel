@@ -360,7 +360,7 @@ def _build_event_sinks(config: SimulationConfig, agents: list) -> list[EventSink
 
     instances: list[EventSink] = []
     for sink_cfg in config.simulation.event_sinks:
-        instances.append(_instantiate_sink(sink_cfg, log_root, run_id, agents))
+        instances.extend(_instantiate_sink(sink_cfg, log_root, run_id, agents))
     return instances
 
 
@@ -369,49 +369,64 @@ def _instantiate_sink(
     log_root: str,
     run_id: str,
     agents: list,
-) -> EventSink:
-    """Translate a single :class:`SinkConfig` into a sink instance."""
+) -> list[EventSink]:
+    """Translate a single :class:`SinkConfig` into one or more sink instances.
+
+    Returns a list rather than a single instance because the per-symbol
+    book sinks expand one config into N sinks (one per resolved symbol).
+    All other sink kinds return a single-element list.
+    """
     if isinstance(sink_cfg, MemorySinkConfig):
-        return InMemorySink()
+        return [InMemorySink()]
 
     if isinstance(sink_cfg, BZ2PickleSinkConfig):
         log_writer = BZ2PickleLogWriter(log_root, run_id)
-        return BZ2PickleSink(log_writer, agents)
+        return [BZ2PickleSink(log_writer, agents)]
 
     if isinstance(sink_cfg, ParquetSinkConfig):
         # Lazy import: tolerate environments without pyarrow as long as
-        # no Parquet sink is requested.
-        from abides_core.sinks.parquet_sink import ParquetSink
+        # no Parquet sink is requested.  Wrap the ImportError in a
+        # ConfigError so callers get a single, actionable failure mode
+        # at config-compile time rather than an opaque module-not-found
+        # at sink-construction time.
+        try:
+            from abides_core.sinks.parquet_sink import ParquetSink
+        except ImportError as exc:
+            raise ConfigError(
+                "ParquetSinkConfig requested but pyarrow is not "
+                "installed; install the optional extra with "
+                "`pip install abides-ng[parquet]`."
+            ) from exc
 
-        return ParquetSink(
-            root=log_root,
-            run_id=run_id,
-            compression=sink_cfg.compression,
-            checkpoint_every_rows=sink_cfg.checkpoint_every_rows,
-            accept_events=sink_cfg.accept_events,
-            accept_metrics=sink_cfg.accept_metrics,
-            accept_book_snapshots=sink_cfg.accept_book_snapshots,
-        )
+        return [
+            ParquetSink(
+                root=log_root,
+                run_id=run_id,
+                compression=sink_cfg.compression,
+                checkpoint_every_rows=sink_cfg.checkpoint_every_rows,
+                accept_events=sink_cfg.accept_events,
+                accept_metrics=sink_cfg.accept_metrics,
+                accept_book_snapshots=sink_cfg.accept_book_snapshots,
+            )
+        ]
 
     if isinstance(sink_cfg, OrderBookSnapshotMemorySinkConfig):
         symbols = _resolve_book_symbols(sink_cfg.symbols, agents)
-        # The current sink class is per-symbol; if the config picks
-        # multiple symbols we return the first and rely on the caller
-        # to register additional configs.  Today we always have a
-        # single ticker so this is unambiguous.
-        sym = symbols[0]
+        # The sink class is per-symbol; expand one sink per requested
+        # symbol so a multi-symbol config never silently drops anything.
         depth = (
             agents[0].book_log_depth
             if isinstance(agents[0] if agents else None, ExchangeAgent)
             else 10
         )
-        return OrderBookSnapshotMemorySink(symbol=sym, depth=depth)
+        return [OrderBookSnapshotMemorySink(symbol=sym, depth=depth) for sym in symbols]
 
     if isinstance(sink_cfg, OrderBookHistoryMemorySinkConfig):
         symbols = _resolve_book_symbols(sink_cfg.symbols, agents)
-        return OrderBookHistoryMemorySink(
-            symbol=symbols[0], event_types=_BOOK_EVENT_TYPES
-        )
+        return [
+            OrderBookHistoryMemorySink(symbol=sym, event_types=_BOOK_EVENT_TYPES)
+            for sym in symbols
+        ]
 
     raise ConfigError(f"Unsupported SinkConfig kind: {type(sink_cfg).__name__}")
 

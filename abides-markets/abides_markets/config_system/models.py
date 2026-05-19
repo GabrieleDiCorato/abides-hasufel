@@ -432,11 +432,15 @@ class MemorySinkConfig(_SinkConfigBase):
 class BZ2PickleSinkConfig(_SinkConfigBase):
     """Legacy bz2-pickled per-agent log stream (``BZ2PickleSink``).
 
-    Writes ``<log_root>/<run_id>/EventLog`` at simulation end using the
-    same pickle layout the pre-EventBus code emitted.  Retained for
+    At simulation end, writes one ``<AgentName>.bz2`` file per agent
+    that produced events under ``<log_root>/<run_id>/`` (plus an
+    optional ``summary_log.bz2`` when the kernel's ``skip_log`` is
+    ``False``).  Each file is the bz2-compressed pickle of a
+    ``DataFrame`` with columns ``[EventType, Event]`` indexed by
+    ``EventTime``, matching the pre-EventBus layout.  Retained for
     backward compatibility; targeted for removal in Phase 5.  The
-    output path is derived from ``SimulationMeta.log_root`` (this
-    config takes no per-sink fields).
+    output path is derived from ``SimulationMeta.log_root``; this
+    config takes no per-sink fields.
     """
 
     kind: Literal["bz2_pickle"] = "bz2_pickle"
@@ -500,18 +504,10 @@ class OrderBookSnapshotMemorySinkConfig(_SinkConfigBase):
     symbols: list[str] | None = Field(
         default=None,
         description=(
-            "If set, only snapshots for these symbols are kept.  "
-            "``None`` means capture all symbols."
-        ),
-    )
-    sampling: Literal["every_update", "on_top_of_book_change"] = Field(
-        default="on_top_of_book_change",
-        description=(
-            "``on_top_of_book_change`` (default) suppresses snapshots "
-            "whose top-of-book price/size is unchanged versus the "
-            "previous emission — the cheapest mode that preserves L1 "
-            "fidelity.  ``every_update`` keeps one snapshot per book "
-            "mutation (full L2 trace)."
+            "If set, the compiler instantiates one sink per symbol in "
+            "this list (each ``OrderBookSnapshotMemorySink`` is "
+            "per-symbol).  ``None`` (default) expands to every symbol "
+            "on the exchange."
         ),
     )
 
@@ -529,8 +525,10 @@ class OrderBookHistoryMemorySinkConfig(_SinkConfigBase):
     symbols: list[str] | None = Field(
         default=None,
         description=(
-            "If set, only event history for these symbols is kept.  "
-            "``None`` means capture all symbols."
+            "If set, the compiler instantiates one sink per symbol in "
+            "this list (each ``OrderBookHistoryMemorySink`` is "
+            "per-symbol).  ``None`` (default) expands to every symbol "
+            "on the exchange."
         ),
     )
 
@@ -584,12 +582,18 @@ class SimulationMeta(BaseModel):
         description=(
             "Explicit list of event sinks for this run.  When ``None`` "
             "(default), the compiler synthesises the backward-compatible "
-            "default set: ``memory`` + ``bz2_pickle`` (always), plus "
-            "``orderbook_snapshot_memory`` and ``orderbook_history_memory`` "
-            "when ``market.exchange.book_logging=True``.  When set "
-            "explicitly, ``market.exchange.book_logging`` must be "
-            "``False`` — combining the two raises ``ConfigError`` because "
-            "their sink-registration intents conflict."
+            "default set: one ``memory`` sink, plus — for every exchange "
+            "symbol — one ``orderbook_history_memory`` sink (always) and "
+            "one ``orderbook_snapshot_memory`` sink when "
+            "``market.exchange.book_capture`` is not ``'off'``.  Note "
+            "that the ``bz2_pickle`` sink is *not* in the default set; "
+            "the kernel attaches it independently from its own "
+            "``LogWriter`` (so it appears in every run that uses the "
+            "default kernel ``log_writer`` regardless of the list "
+            "below).  When ``event_sinks`` is set explicitly, "
+            "``market.exchange.book_logging`` must be ``False`` — "
+            "combining the two raises ``ConfigError`` because their "
+            "sink-registration intents conflict."
         ),
     )
     show_trace_messages: bool = Field(
