@@ -13,6 +13,32 @@ reference.
 ## [0.1.0] - Unreleased
 
 ### Added
+- **Declarative event-sink configuration.**
+  `SimulationMeta` now exposes `event_sinks`, `log_root`,
+  `show_trace_messages`, and `disable_event_log_for` fields. A new
+  discriminated `SinkConfig` family (`MemorySinkConfig`,
+  `BZ2PickleSinkConfig`, `ParquetSinkConfig`,
+  `OrderBookSnapshotMemorySinkConfig`,
+  `OrderBookHistoryMemorySinkConfig`) lets users wire any sink layout
+  through the declarative config — including disk-backed `ParquetSink`
+  output — without dropping to the low-level `Kernel` API. The compiler
+  translates these into live sink instances at `compile()` time and
+  validates symbol references against the exchange. When
+  `event_sinks is None` (the default), behaviour is byte-identical to
+  the prior auto-registered sink set. New `SimulationBuilder.meta(**kw)`
+  escape-hatch covers fields without a dedicated builder method.
+- **`ConfigError`** (subclass of `ValueError`) raised by the compiler
+  when an explicit `event_sinks` list is combined with
+  `exchange.book_logging=True`, or when an order-book sink references a
+  symbol absent from the exchange.
+
+### Changed (Breaking)
+- **`Kernel.__init__` no longer accepts `log_root`.** Callers that need
+  a non-default log root must construct `BZ2PickleLogWriter(root, dir)`
+  themselves and pass it as `log_writer=...`. The compiler now wires
+  this from `SimulationMeta.log_root`, so users of `compile()` /
+  `run_simulation()` are unaffected.
+
 - **Phase 2b — payload schemas as a contract.**
   `abides_core.event_payloads.EVENT_TYPE_SCHEMA` is now a complete,
   frozen registry of every shipped event type. Each entry maps to a

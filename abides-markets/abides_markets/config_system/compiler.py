@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -17,22 +18,39 @@ import pandas as pd
 
 from abides_core import NanosecondTime
 from abides_core.sinks.event_sinks import (
+    BZ2PickleSink,
     EventSink,
     InMemorySink,
     OrderBookHistoryMemorySink,
     OrderBookSnapshotMemorySink,
 )
+from abides_core.sinks.log_writer import BZ2PickleLogWriter
 from abides_core.utils import str_to_ns
 from abides_markets.agents import ExchangeAgent
 from abides_markets.config_system.agent_configs import AgentCreationContext
 from abides_markets.config_system.models import (
+    BZ2PickleSinkConfig,
     ExternalDataOracleConfig,
     MeanRevertingOracleConfig,
+    MemorySinkConfig,
+    OrderBookHistoryMemorySinkConfig,
+    OrderBookSnapshotMemorySinkConfig,
+    ParquetSinkConfig,
     SimulationConfig,
+    SinkConfig,
     SparseMeanRevertingOracleConfig,
 )
 from abides_markets.config_system.registry import registry
 from abides_markets.utils import generate_latency_model
+
+
+class ConfigError(ValueError):
+    """Raised when a ``SimulationConfig`` has a compile-time conflict.
+
+    Subclasses :class:`ValueError` so existing ``except ValueError`` blocks
+    around ``compile()`` continue to catch it; tests and callers that want
+    to discriminate can ``except ConfigError`` instead.
+    """
 
 
 def derive_seed(master_seed: int, component: str, index: int = 0) -> int:
@@ -249,30 +267,17 @@ def compile(
         for agent_name, delay in name_overrides.items():
             agent_computation_delays[name_to_id[agent_name]] = delay
 
-    # ── Auto-register per-symbol book sinks ───────────────────────
-    # Walk the ExchangeAgent's symbols.  For every symbol register one
-    # ``OrderBookHistoryMemorySink`` (events feed the legacy
-    # ``OrderBook.history`` deprecated property, which the exchange
-    # agent reads to answer ``QueryOrderStreamMsg`` — this is a runtime
-    # dependency, not just analytics).  Additionally, when
-    # ``book_capture != "off"``, register one ``OrderBookSnapshotMemorySink``
-    # per symbol to capture book-depth snapshots.  These are *appended*
-    # to ``event_sinks``; user-supplied sinks (when the caller-side API
-    # surfaces them in future) survive.
-    event_sinks: list[EventSink] = [InMemorySink()]
-    exchange_agent = agents[0]
-    if isinstance(exchange_agent, ExchangeAgent):
-        capture_snapshots = exchange_agent.book_capture != "off"
-        for symbol in exchange_agent.symbols:
-            if capture_snapshots:
-                event_sinks.append(
-                    OrderBookSnapshotMemorySink(
-                        symbol=symbol, depth=exchange_agent.book_log_depth
-                    )
-                )
-            event_sinks.append(
-                OrderBookHistoryMemorySink(symbol=symbol, event_types=_BOOK_EVENT_TYPES)
-            )
+    # ── Build event-sink list ─────────────────────────────────────
+    # Two paths:
+    #
+    # * ``simulation.event_sinks is None`` — synthesise the
+    #   backward-compatible default set (in-memory + per-symbol
+    #   book sinks gated on the exchange's ``book_capture`` mode).
+    # * ``simulation.event_sinks`` set explicitly — the caller takes
+    #   over sink registration entirely.  When the exchange's
+    #   ``book_logging`` flag is also True, the two intents conflict
+    #   and we fail-fast with :class:`ConfigError`.
+    event_sinks = _build_event_sinks(config, agents)
 
     runtime: dict[str, Any] = {
         "seed": seed,
@@ -294,6 +299,143 @@ def compile(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _build_event_sinks(config: SimulationConfig, agents: list) -> list[EventSink]:
+    """Resolve ``SimulationMeta.event_sinks`` to a list of sink instances.
+
+    When ``simulation.event_sinks is None`` (the default), synthesise the
+    backward-compatible default set: one :class:`InMemorySink` plus, for
+    each ExchangeAgent symbol, one :class:`OrderBookHistoryMemorySink`
+    (always — the exchange's :class:`QueryOrderStreamMsg` handler depends
+    on it) and, when ``exchange.book_capture != "off"``, one
+    :class:`OrderBookSnapshotMemorySink`.
+
+    When set explicitly, ``exchange.book_logging`` **must** be False; the
+    two flags encode conflicting intents about who owns sink registration
+    and combining them raises :class:`ConfigError`.
+
+    The Parquet sink is imported lazily — environments without
+    ``pyarrow`` keep working unless the user actually asks for it.
+    """
+    exchange_agent = agents[0] if agents else None
+    exc = config.market.exchange
+
+    # ---- Default sink set (config.simulation.event_sinks is None) ----
+    if config.simulation.event_sinks is None:
+        sinks: list[EventSink] = [InMemorySink()]
+        if isinstance(exchange_agent, ExchangeAgent):
+            capture_snapshots = exchange_agent.book_capture != "off"
+            for symbol in exchange_agent.symbols:
+                if capture_snapshots:
+                    sinks.append(
+                        OrderBookSnapshotMemorySink(
+                            symbol=symbol, depth=exchange_agent.book_log_depth
+                        )
+                    )
+                sinks.append(
+                    OrderBookHistoryMemorySink(
+                        symbol=symbol, event_types=_BOOK_EVENT_TYPES
+                    )
+                )
+        return sinks
+
+    # ---- Explicit sink list path ----
+    if exc.book_logging:
+        raise ConfigError(
+            "ExchangeAgent.book_logging=True conflicts with an explicit "
+            "simulation.event_sinks list. Either set "
+            "market.exchange.book_logging=False (and add "
+            "orderbook_snapshot_memory / orderbook_history_memory sinks "
+            "to event_sinks to keep book capture), or remove the explicit "
+            "event_sinks list to fall back to the default sink set."
+        )
+
+    # Build a fresh per-run subdir for the disk-backed sinks.  The kernel
+    # generates its own ``log_dir`` for the legacy ``LogWriter`` path; the
+    # two need not match because explicit-event-sinks runs disable the
+    # kernel's auto-default sink (BZ2PickleSink) entirely.
+    run_id = uuid.uuid4().hex
+    log_root = config.simulation.log_root
+
+    instances: list[EventSink] = []
+    for sink_cfg in config.simulation.event_sinks:
+        instances.append(_instantiate_sink(sink_cfg, log_root, run_id, agents))
+    return instances
+
+
+def _instantiate_sink(
+    sink_cfg: SinkConfig,
+    log_root: str,
+    run_id: str,
+    agents: list,
+) -> EventSink:
+    """Translate a single :class:`SinkConfig` into a sink instance."""
+    if isinstance(sink_cfg, MemorySinkConfig):
+        return InMemorySink()
+
+    if isinstance(sink_cfg, BZ2PickleSinkConfig):
+        log_writer = BZ2PickleLogWriter(log_root, run_id)
+        return BZ2PickleSink(log_writer, agents)
+
+    if isinstance(sink_cfg, ParquetSinkConfig):
+        # Lazy import: tolerate environments without pyarrow as long as
+        # no Parquet sink is requested.
+        from abides_core.sinks.parquet_sink import ParquetSink
+
+        return ParquetSink(
+            root=log_root,
+            run_id=run_id,
+            compression=sink_cfg.compression,
+            checkpoint_every_rows=sink_cfg.checkpoint_every_rows,
+            accept_events=sink_cfg.accept_events,
+            accept_metrics=sink_cfg.accept_metrics,
+            accept_book_snapshots=sink_cfg.accept_book_snapshots,
+        )
+
+    if isinstance(sink_cfg, OrderBookSnapshotMemorySinkConfig):
+        symbols = _resolve_book_symbols(sink_cfg.symbols, agents)
+        # The current sink class is per-symbol; if the config picks
+        # multiple symbols we return the first and rely on the caller
+        # to register additional configs.  Today we always have a
+        # single ticker so this is unambiguous.
+        sym = symbols[0]
+        depth = (
+            agents[0].book_log_depth
+            if isinstance(agents[0] if agents else None, ExchangeAgent)
+            else 10
+        )
+        return OrderBookSnapshotMemorySink(symbol=sym, depth=depth)
+
+    if isinstance(sink_cfg, OrderBookHistoryMemorySinkConfig):
+        symbols = _resolve_book_symbols(sink_cfg.symbols, agents)
+        return OrderBookHistoryMemorySink(
+            symbol=symbols[0], event_types=_BOOK_EVENT_TYPES
+        )
+
+    raise ConfigError(f"Unsupported SinkConfig kind: {type(sink_cfg).__name__}")
+
+
+def _resolve_book_symbols(symbols: list[str] | None, agents: list) -> list[str]:
+    """Resolve a config-level symbols filter against the exchange's symbols.
+
+    When ``symbols is None`` returns the full list of exchange symbols.
+    Otherwise validates every requested symbol exists on the exchange.
+    """
+    if not agents or not isinstance(agents[0], ExchangeAgent):
+        raise ConfigError(
+            "Order-book sink requested but the runtime has no ExchangeAgent."
+        )
+    available = list(agents[0].symbols)
+    if symbols is None:
+        return available
+    unknown = [s for s in symbols if s not in available]
+    if unknown:
+        raise ConfigError(
+            f"Order-book sink references unknown symbol(s) {unknown}; "
+            f"exchange symbols are {available}."
+        )
+    return list(symbols)
 
 
 def _build_oracle(config, mkt_open, mkt_close, oracle_rng):

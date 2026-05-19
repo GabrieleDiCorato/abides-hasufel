@@ -1,6 +1,5 @@
 import heapq
 import logging
-import os
 import uuid
 import warnings
 from collections.abc import Sequence
@@ -116,7 +115,6 @@ class Kernel:
         agent_latency_model: LatencyModel | None = None,
         skip_log: bool = True,
         log_dir: str | None = None,
-        log_root: str | os.PathLike = "./log",
         log_writer: LogWriter | None = None,
         oracle: Oracle | None = None,
         observers: Sequence[KernelObserver] = (),
@@ -197,12 +195,16 @@ class Kernel:
         self.log_dir: str = log_dir or uuid.uuid4().hex
 
         # Resolve the log writer. Explicit ``log_writer=`` wins; otherwise
-        # build the default disk writer or a no-op based on ``skip_log``.
+        # build the default disk writer (under ``"./log"``) or a no-op
+        # based on ``skip_log``. Callers that need a non-default log root
+        # must construct ``BZ2PickleLogWriter`` themselves and pass it as
+        # ``log_writer=``; the compiler does this from
+        # ``SimulationMeta.log_root``.
         if log_writer is None:
             log_writer = (
                 NullLogWriter()
                 if skip_log
-                else BZ2PickleLogWriter(log_root, self.log_dir)
+                else BZ2PickleLogWriter("./log", self.log_dir)
             )
         self._log_writer: LogWriter = log_writer
 

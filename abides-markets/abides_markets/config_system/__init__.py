@@ -48,13 +48,19 @@ from abides_markets.config_system.compiler import compile
 from abides_markets.config_system.compiler import derive_seed as derive_seed
 from abides_markets.config_system.models import (
     AgentGroupConfig,
+    BZ2PickleSinkConfig,
     ExchangeConfig,
     InfrastructureConfig,
     LatencyConfig,
     MarketConfig,
     MeanRevertingOracleConfig,
+    MemorySinkConfig,
+    OrderBookHistoryMemorySinkConfig,
+    OrderBookSnapshotMemorySinkConfig,
+    ParquetSinkConfig,
     SimulationConfig,
     SimulationMeta,
+    SinkConfig,
     SparseMeanRevertingOracleConfig,
 )
 from abides_markets.config_system.registry import (
@@ -330,6 +336,12 @@ __all__ = [
     "SimulationMeta",
     "SparseMeanRevertingOracleConfig",
     "MeanRevertingOracleConfig",
+    "SinkConfig",
+    "MemorySinkConfig",
+    "BZ2PickleSinkConfig",
+    "ParquetSinkConfig",
+    "OrderBookSnapshotMemorySinkConfig",
+    "OrderBookHistoryMemorySinkConfig",
     # Registry
     "AgentRegistry",
     "register_agent",

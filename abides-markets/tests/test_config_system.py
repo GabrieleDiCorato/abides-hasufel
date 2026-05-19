@@ -1114,6 +1114,115 @@ class TestModelValidation:
         assert meta.seed == "random"
         assert meta.log_level == "INFO"
         assert meta.log_orders is True
+        assert meta.log_root == "./log"
+        assert meta.event_sinks is None
+        assert meta.show_trace_messages is False
+        assert meta.disable_event_log_for == []
+
+    # ------------------------------------------------------------------
+    # SinkConfig tagged-union tests
+    # ------------------------------------------------------------------
+    def test_sink_config_memory_defaults(self):
+        from abides_markets.config_system.models import MemorySinkConfig
+
+        sink = MemorySinkConfig()
+        assert sink.kind == "memory"
+
+    def test_sink_config_parquet_defaults_and_overrides(self):
+        from abides_markets.config_system.models import ParquetSinkConfig
+
+        sink = ParquetSinkConfig()
+        assert sink.kind == "parquet"
+        assert sink.compression == "zstd"
+        assert sink.checkpoint_every_rows is None
+        assert sink.accept_events is True
+        assert sink.accept_metrics is True
+        assert sink.accept_book_snapshots is True
+
+        sink2 = ParquetSinkConfig(
+            compression="snappy",
+            checkpoint_every_rows=10,
+            accept_events=False,
+            accept_metrics=False,
+            accept_book_snapshots=False,
+        )
+        assert sink2.compression == "snappy"
+        assert sink2.checkpoint_every_rows == 10
+        assert sink2.accept_events is False
+
+    def test_sink_config_parquet_rejects_nonpositive_checkpoint(self):
+        from abides_markets.config_system.models import ParquetSinkConfig
+
+        with pytest.raises(ValidationError):
+            ParquetSinkConfig(checkpoint_every_rows=0)
+        with pytest.raises(ValidationError):
+            ParquetSinkConfig(checkpoint_every_rows=-5)
+
+    def test_sink_config_book_snapshot_defaults(self):
+        from abides_markets.config_system.models import (
+            OrderBookSnapshotMemorySinkConfig,
+        )
+
+        sink = OrderBookSnapshotMemorySinkConfig()
+        assert sink.kind == "orderbook_snapshot_memory"
+        assert sink.symbols is None
+        assert sink.sampling == "on_top_of_book_change"
+
+    def test_sink_config_book_history_defaults(self):
+        from abides_markets.config_system.models import (
+            OrderBookHistoryMemorySinkConfig,
+        )
+
+        sink = OrderBookHistoryMemorySinkConfig()
+        assert sink.kind == "orderbook_history_memory"
+        assert sink.symbols is None
+
+    def test_sink_config_rejects_extra_fields(self):
+        from abides_markets.config_system.models import MemorySinkConfig
+
+        with pytest.raises(ValidationError):
+            MemorySinkConfig(extra_field="nope")
+
+    def test_sink_config_rejects_invalid_kind_in_list(self):
+        """A bogus kind in event_sinks should fail validation."""
+        with pytest.raises(ValidationError):
+            SimulationMeta(event_sinks=[{"kind": "nonexistent"}])
+
+    def test_sink_config_rejects_invalid_compression(self):
+        from abides_markets.config_system.models import ParquetSinkConfig
+
+        with pytest.raises(ValidationError):
+            ParquetSinkConfig(compression="gzip")
+
+    def test_sink_config_rejects_invalid_sampling(self):
+        from abides_markets.config_system.models import (
+            OrderBookSnapshotMemorySinkConfig,
+        )
+
+        with pytest.raises(ValidationError):
+            OrderBookSnapshotMemorySinkConfig(sampling="wat")
+
+    def test_event_sinks_discriminated_union_from_dict(self):
+        """List of dicts with `kind` should round-trip into the union."""
+        from abides_markets.config_system.models import (
+            BZ2PickleSinkConfig,
+            MemorySinkConfig,
+            ParquetSinkConfig,
+        )
+
+        meta = SimulationMeta(
+            event_sinks=[
+                {"kind": "memory"},
+                {"kind": "bz2_pickle"},
+                {"kind": "parquet", "compression": "snappy"},
+            ]
+        )
+        assert meta.event_sinks is not None
+        assert len(meta.event_sinks) == 3
+        assert isinstance(meta.event_sinks[0], MemorySinkConfig)
+        assert isinstance(meta.event_sinks[1], BZ2PickleSinkConfig)
+        assert isinstance(meta.event_sinks[2], ParquetSinkConfig)
+        assert meta.event_sinks[2].compression == "snappy"
 
     def test_market_config_defaults(self):
         market = MarketConfig(oracle=None, opening_price=100_000)
@@ -1300,6 +1409,146 @@ class TestCompilerBookSinkAutoRegistration:
         hist = [s for s in sinks if isinstance(s, OrderBookHistoryMemorySink)]
         assert len(snap) == 0  # snapshot capture disabled
         assert len(hist) == 1  # history sink always registered
+
+
+class TestCompilerExplicitEventSinks:
+    """``compile()`` honours an explicit ``simulation.event_sinks`` list.
+
+    Contract:
+      - Explicit list replaces the default sink set entirely (no implicit
+        in-memory or book sinks are appended).
+      - Explicit list combined with ``exchange.book_logging=True`` raises
+        :class:`ConfigError` — the two encode conflicting intents.
+      - Each sink kind maps to its expected runtime class.
+      - Order-book sink configs validate against the exchange's symbols.
+    """
+
+    def test_explicit_memory_only_replaces_defaults(self):
+        from abides_core.sinks.event_sinks import (
+            InMemorySink,
+            OrderBookHistoryMemorySink,
+            OrderBookSnapshotMemorySink,
+        )
+        from abides_markets.config_system.models import MemorySinkConfig
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .exchange(book_logging=False, book_capture="off")
+            .meta(event_sinks=[MemorySinkConfig()])
+            .seed(42)
+            .build()
+        )
+        runtime = compile(config)
+        sinks = runtime["event_sinks"]
+        assert len(sinks) == 1
+        assert isinstance(sinks[0], InMemorySink)
+        # No auto-appended book sinks when the list is explicit.
+        assert not any(isinstance(s, OrderBookSnapshotMemorySink) for s in sinks)
+        assert not any(isinstance(s, OrderBookHistoryMemorySink) for s in sinks)
+
+    def test_explicit_with_book_logging_true_raises_config_error(self):
+        from abides_markets.config_system.compiler import ConfigError
+        from abides_markets.config_system.models import MemorySinkConfig
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .exchange(book_logging=True)
+            .meta(event_sinks=[MemorySinkConfig()])
+            .seed(42)
+            .build()
+        )
+        with pytest.raises(ConfigError, match="book_logging=True conflicts"):
+            compile(config)
+
+    def test_explicit_book_sinks_instantiate(self):
+        from abides_core.sinks.event_sinks import (
+            OrderBookHistoryMemorySink,
+            OrderBookSnapshotMemorySink,
+        )
+        from abides_markets.config_system.models import (
+            OrderBookHistoryMemorySinkConfig,
+            OrderBookSnapshotMemorySinkConfig,
+        )
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .exchange(book_logging=False, book_capture="off")
+            .meta(
+                event_sinks=[
+                    OrderBookSnapshotMemorySinkConfig(),
+                    OrderBookHistoryMemorySinkConfig(),
+                ]
+            )
+            .seed(42)
+            .build()
+        )
+        runtime = compile(config)
+        sinks = runtime["event_sinks"]
+        assert len(sinks) == 2
+        assert isinstance(sinks[0], OrderBookSnapshotMemorySink)
+        assert isinstance(sinks[1], OrderBookHistoryMemorySink)
+        exchange = runtime["agents"][0]
+        assert sinks[0].symbol == exchange.symbols[0]
+        assert sinks[1].symbol == exchange.symbols[0]
+
+    def test_explicit_book_sink_unknown_symbol_raises(self):
+        from abides_markets.config_system.compiler import ConfigError
+        from abides_markets.config_system.models import (
+            OrderBookHistoryMemorySinkConfig,
+        )
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .exchange(book_logging=False, book_capture="off")
+            .meta(event_sinks=[OrderBookHistoryMemorySinkConfig(symbols=["NOPE"])])
+            .seed(42)
+            .build()
+        )
+        with pytest.raises(ConfigError, match="unknown symbol"):
+            compile(config)
+
+
+class TestParquetSinkIntegration:
+    """End-to-end smoke test: explicit Parquet sink writes files to disk.
+
+    Skipped automatically when ``pyarrow`` isn't installed.
+    """
+
+    def test_parquet_sink_writes_files(self, tmp_path):
+        pa = pytest.importorskip("pyarrow")  # noqa: F841
+        from abides_markets.config_system.models import (
+            MemorySinkConfig,
+            ParquetSinkConfig,
+        )
+        from abides_markets.simulation import ResultProfile, run_simulation
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .market(end_time="09:35:00")  # 5-min window
+            .exchange(book_logging=False, book_capture="off")
+            .meta(
+                log_root=str(tmp_path),
+                event_sinks=[MemorySinkConfig(), ParquetSinkConfig()],
+            )
+            .seed(42)
+            .build()
+        )
+        result = run_simulation(config, profile=ResultProfile.SUMMARY)
+        assert result is not None
+
+        # ParquetSink generates a uuid run_id subdirectory under log_root.
+        # We don't know the uuid (compile picks it), so assert at least
+        # one Parquet file exists somewhere under tmp_path.
+        parquet_files = list(tmp_path.rglob("*.parquet"))
+        assert parquet_files, (
+            f"expected at least one Parquet file under {tmp_path}; "
+            f"found {list(tmp_path.rglob('*'))}"
+        )
 
 
 # ---------------------------------------------------------------------------

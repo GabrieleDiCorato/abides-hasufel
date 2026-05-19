@@ -16,11 +16,7 @@ from . import NanosecondTime
 
 @runtime_checkable
 class Oracle(Protocol):
-    """Minimal contract a market-data oracle must satisfy.
-
-    Concrete oracles in :mod:`abides_markets` already conform to this
-    Protocol structurally and need no inheritance change.
-    """
+    """Minimal contract a market-data oracle must satisfy."""
 
     f_log: dict[str, list[dict[str, Any]]]
 

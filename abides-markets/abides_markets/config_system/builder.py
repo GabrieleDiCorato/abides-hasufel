@@ -218,6 +218,18 @@ class SimulationBuilder:
         sim["log_orders"] = enabled
         return self
 
+    def meta(self, **kwargs: Any) -> SimulationBuilder:
+        """Set arbitrary fields on ``SimulationMeta``.
+
+        Convenience escape hatch for fields without a dedicated builder
+        method (``event_sinks``, ``log_root``, ``show_trace_messages``,
+        ``disable_event_log_for``).  Keys are merged into the simulation
+        section and validated by Pydantic at ``build()`` time.
+        """
+        sim = self._data.setdefault("simulation", {})
+        sim.update(kwargs)
+        return self
+
     def build(self) -> SimulationConfig:
         """Validate and return the SimulationConfig.
 

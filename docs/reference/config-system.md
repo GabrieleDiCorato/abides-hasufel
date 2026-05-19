@@ -180,6 +180,69 @@ config = (SimulationBuilder()
 
 ---
 
+## Event Sinks
+
+Every simulation publishes events through an `EventBus`; sinks decide
+what to do with them (keep them in memory, spill to disk, materialise
+order-book history, …).  By default the compiler synthesises a
+backward-compatible sink set: one `InMemorySink` plus, for every
+exchange symbol, one `OrderBookHistoryMemorySink` and (when
+`exchange.book_capture != "off"`) one `OrderBookSnapshotMemorySink`.
+No disk-backed sink is registered unless you ask for one.
+
+To override the default set, populate
+`SimulationMeta.event_sinks` via the `meta()` builder escape-hatch:
+
+```python
+from abides_markets.config_system import SimulationBuilder
+from abides_markets.config_system.models import (
+    MemorySinkConfig,
+    ParquetSinkConfig,
+)
+from abides_markets.simulation import run_simulation
+
+config = (SimulationBuilder()
+    .from_template("rmsc04")
+    # Explicit event_sinks requires book_logging=False — see below.
+    .exchange(book_logging=False, book_capture="off")
+    .meta(
+        log_root="./runs",
+        event_sinks=[
+            MemorySinkConfig(),
+            ParquetSinkConfig(compression="zstd",
+                              checkpoint_every_rows=200_000),
+        ],
+    )
+    .seed(42)
+    .build())
+
+result = run_simulation(config)
+# Parquet files land under ./runs/<uuid>/.
+```
+
+The available `SinkConfig` kinds:
+
+| `kind` | Class | Purpose |
+|--------|-------|---------|
+| `memory` | `MemorySinkConfig` | Buffer events in memory (powers `SimulationResult.logs`). |
+| `bz2_pickle` | `BZ2PickleSinkConfig` | Legacy bz2-pickled per-agent log under `<log_root>/<uuid>/`. |
+| `parquet` | `ParquetSinkConfig` | Streaming Parquet output. Requires `pip install abides-ng[parquet]`. |
+| `orderbook_snapshot_memory` | `OrderBookSnapshotMemorySinkConfig` | In-memory book-depth snapshots per symbol. |
+| `orderbook_history_memory` | `OrderBookHistoryMemorySinkConfig` | In-memory order-event history per symbol. |
+
+### Conflict rule
+
+When `event_sinks` is set explicitly, `exchange.book_logging` **must**
+be `False`. The two flags encode opposing intents: `book_logging=True`
+asks the compiler to manage book-capture sinks on your behalf, while an
+explicit `event_sinks` list takes ownership of the entire registration.
+Combining them raises `ConfigError` at `compile()` time. To keep book
+capture under the explicit-list path, add
+`OrderBookSnapshotMemorySinkConfig` / `OrderBookHistoryMemorySinkConfig`
+entries to your `event_sinks` list.
+
+---
+
 ## Oracle Configuration
 
 The oracle field in `market` is **required** — there is no implicit default.
