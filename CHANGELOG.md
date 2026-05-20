@@ -47,12 +47,18 @@ reference.
   requested in an environment that does not have `pyarrow` installed.
 
 ### Changed
-- **Per-symbol book-sink configs now expand to one sink per resolved
-  symbol.** Previously the compiler silently kept only the first symbol
-  when `OrderBookSnapshotMemorySinkConfig(symbols=[...])` or
-  `OrderBookHistoryMemorySinkConfig(symbols=[...])` listed more than
-  one. The underlying sink classes are per-symbol, so the compiler now
-  emits N sinks instead.
+- **`SinkConfig` is now a tagged (discriminated) union** built with
+  `Annotated[..., Field(discriminator="kind")]`. The set of accepted
+  kinds is unchanged; validation errors are sharper (mentioning the
+  offending `kind`) and dispatch is faster.
+
+### Changed (Breaking)
+- **Book-sink configs use singular `symbol: str | None`** instead of
+  `symbols: list[str] | None`. `OrderBookSnapshotMemorySinkConfig` and
+  `OrderBookHistoryMemorySinkConfig` now describe exactly one sink:
+  `symbol=None` still expands to one sink per exchange symbol, and a
+  non-`None` `symbol` must exist on the exchange. For multi-symbol
+  capture, supply one config per symbol.
 
 ### Removed
 - **`OrderBookSnapshotMemorySinkConfig.sampling`** field. The

@@ -13,7 +13,7 @@ a ``SimulationConfig`` into the runtime dict that ``Kernel`` expects.
 from __future__ import annotations
 
 import re
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -518,13 +518,15 @@ class OrderBookSnapshotMemorySinkConfig(_SinkConfigBase):
             "order-book snapshot sink."
         ),
     )
-    symbols: list[str] | None = Field(
+    symbol: str | None = Field(
         default=None,
         description=(
-            "If set, the compiler instantiates one sink per symbol in "
-            "this list (each ``OrderBookSnapshotMemorySink`` is "
-            "per-symbol).  ``None`` (default) expands to every symbol "
-            "on the exchange."
+            "Symbol this sink captures.  When ``None`` (default), the "
+            "compiler expands the config into one sink per exchange "
+            "symbol.  When set, the symbol must exist on the "
+            "ExchangeAgent or compilation fails with ``ConfigError``.  "
+            "To capture more than one specific symbol, add one config "
+            "per symbol to ``event_sinks``."
         ),
     )
 
@@ -545,24 +547,27 @@ class OrderBookHistoryMemorySinkConfig(_SinkConfigBase):
             "order-book event-history sink."
         ),
     )
-    symbols: list[str] | None = Field(
+    symbol: str | None = Field(
         default=None,
         description=(
-            "If set, the compiler instantiates one sink per symbol in "
-            "this list (each ``OrderBookHistoryMemorySink`` is "
-            "per-symbol).  ``None`` (default) expands to every symbol "
-            "on the exchange."
+            "Symbol this sink captures.  When ``None`` (default), the "
+            "compiler expands the config into one sink per exchange "
+            "symbol.  When set, the symbol must exist on the "
+            "ExchangeAgent or compilation fails with ``ConfigError``.  "
+            "To capture more than one specific symbol, add one config "
+            "per symbol to ``event_sinks``."
         ),
     )
 
 
-SinkConfig = (
+SinkConfig = Annotated[
     MemorySinkConfig
     | BZ2PickleSinkConfig
     | ParquetSinkConfig
     | OrderBookSnapshotMemorySinkConfig
-    | OrderBookHistoryMemorySinkConfig
-)
+    | OrderBookHistoryMemorySinkConfig,
+    Field(discriminator="kind"),
+]
 
 
 # ---------------------------------------------------------------------------

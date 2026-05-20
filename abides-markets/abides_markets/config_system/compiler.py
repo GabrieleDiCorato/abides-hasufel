@@ -411,9 +411,10 @@ def _instantiate_sink(
         ]
 
     if isinstance(sink_cfg, OrderBookSnapshotMemorySinkConfig):
-        symbols = _resolve_book_symbols(sink_cfg.symbols, agents)
-        # The sink class is per-symbol; expand one sink per requested
-        # symbol so a multi-symbol config never silently drops anything.
+        symbols = _resolve_book_symbol(sink_cfg.symbol, agents)
+        # The sink class is per-symbol; ``symbol=None`` expands to one
+        # sink per exchange symbol so a fan-out config never silently
+        # drops anything.
         depth = (
             agents[0].book_log_depth
             if isinstance(agents[0] if agents else None, ExchangeAgent)
@@ -422,7 +423,7 @@ def _instantiate_sink(
         return [OrderBookSnapshotMemorySink(symbol=sym, depth=depth) for sym in symbols]
 
     if isinstance(sink_cfg, OrderBookHistoryMemorySinkConfig):
-        symbols = _resolve_book_symbols(sink_cfg.symbols, agents)
+        symbols = _resolve_book_symbol(sink_cfg.symbol, agents)
         return [
             OrderBookHistoryMemorySink(symbol=sym, event_types=_BOOK_EVENT_TYPES)
             for sym in symbols
@@ -431,26 +432,27 @@ def _instantiate_sink(
     raise ConfigError(f"Unsupported SinkConfig kind: {type(sink_cfg).__name__}")
 
 
-def _resolve_book_symbols(symbols: list[str] | None, agents: list) -> list[str]:
-    """Resolve a config-level symbols filter against the exchange's symbols.
+def _resolve_book_symbol(symbol: str | None, agents: list) -> list[str]:
+    """Resolve a config-level symbol against the exchange's symbols.
 
-    When ``symbols is None`` returns the full list of exchange symbols.
-    Otherwise validates every requested symbol exists on the exchange.
+    When ``symbol is None`` returns the full list of exchange symbols
+    (the compiler expands the config into one sink per symbol).
+    Otherwise validates the requested symbol exists on the exchange and
+    returns a single-element list.
     """
     if not agents or not isinstance(agents[0], ExchangeAgent):
         raise ConfigError(
             "Order-book sink requested but the runtime has no ExchangeAgent."
         )
     available = list(agents[0].symbols)
-    if symbols is None:
+    if symbol is None:
         return available
-    unknown = [s for s in symbols if s not in available]
-    if unknown:
+    if symbol not in available:
         raise ConfigError(
-            f"Order-book sink references unknown symbol(s) {unknown}; "
+            f"Order-book sink references unknown symbol {symbol!r}; "
             f"exchange symbols are {available}."
         )
-    return list(symbols)
+    return [symbol]
 
 
 def _build_oracle(config, mkt_open, mkt_close, oracle_rng):

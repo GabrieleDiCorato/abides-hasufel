@@ -1190,7 +1190,7 @@ class TestModelValidation:
 
         sink = OrderBookSnapshotMemorySinkConfig()
         assert sink.kind == "orderbook_snapshot_memory"
-        assert sink.symbols is None
+        assert sink.symbol is None
 
     def test_sink_config_book_history_defaults(self):
         from abides_markets.config_system.models import (
@@ -1199,7 +1199,7 @@ class TestModelValidation:
 
         sink = OrderBookHistoryMemorySinkConfig()
         assert sink.kind == "orderbook_history_memory"
-        assert sink.symbols is None
+        assert sink.symbol is None
 
     def test_sink_config_rejects_extra_fields(self):
         from abides_markets.config_system.models import MemorySinkConfig
@@ -1521,6 +1521,27 @@ class TestCompilerExplicitEventSinks:
         assert sinks[0].symbol == exchange.symbols[0]
         assert sinks[1].symbol == exchange.symbols[0]
 
+    def test_explicit_book_sink_single_symbol(self):
+        """``symbol="ABM"`` produces exactly one sink for that symbol."""
+        from abides_core.sinks.event_sinks import OrderBookHistoryMemorySink
+        from abides_markets.config_system.models import (
+            OrderBookHistoryMemorySinkConfig,
+        )
+
+        config = (
+            SimulationBuilder()
+            .from_template("rmsc04")
+            .exchange(book_logging=False, book_capture="off")
+            .event_sinks(OrderBookHistoryMemorySinkConfig(symbol="ABM"))
+            .seed(42)
+            .build()
+        )
+        runtime = compile(config)
+        sinks = runtime["event_sinks"]
+        assert len(sinks) == 1
+        assert isinstance(sinks[0], OrderBookHistoryMemorySink)
+        assert sinks[0].symbol == "ABM"
+
     def test_explicit_book_sink_unknown_symbol_raises(self):
         from abides_markets.config_system.compiler import ConfigError
         from abides_markets.config_system.models import (
@@ -1531,7 +1552,7 @@ class TestCompilerExplicitEventSinks:
             SimulationBuilder()
             .from_template("rmsc04")
             .exchange(book_logging=False, book_capture="off")
-            .meta(event_sinks=[OrderBookHistoryMemorySinkConfig(symbols=["NOPE"])])
+            .meta(event_sinks=[OrderBookHistoryMemorySinkConfig(symbol="NOPE")])
             .seed(42)
             .build()
         )
