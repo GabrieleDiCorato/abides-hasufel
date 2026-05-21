@@ -48,9 +48,7 @@ The `Message` and `Order` ID generators use `itertools.count()`, which is GIL-sa
 
 | # | Issue | Location | Severity |
 |---|---|---|---|
-| 1 | Default `log_dir` is wall-clock seconds — can collide | `kernel.py` | **MEDIUM** |
-| 2 | No simulation ID in log format — concurrent logs are interleaved | All modules | **LOW** |
-| 3 | `Kernel.__init__` fallback uses global `np.random.randint()` when no `random_state` is provided | `kernel.py` | **LOW** |
+| 1 | No simulation ID in log format — concurrent logs are interleaved | All modules | **LOW** |
 
 **Use `multiprocessing` for parallel runs.** Each process gets its own memory space, eliminating all shared-state concerns.
 
@@ -103,57 +101,38 @@ directly with the low-level `compile()` → `abides.run()` path.
 
 ```python
 import multiprocessing as mp
-from abides_markets.configs import rmsc04
+from abides_markets.config_system import SimulationBuilder
+from abides_markets.simulation import run_simulation
 
-from abides_core.abides import run
 
-
-def run_one_simulation(args: dict) -> dict:
+def run_one_simulation(seed: int) -> dict:
     """
     Entry point for a single simulation in a worker process.
     Each process gets its own memory space — no shared state concerns.
     """
-    seed = args["seed"]
-    log_dir = args["log_dir"]
-
-    # Build a config with a unique seed
-    config = rmsc04.build_config(
-        seed=seed,
-        # Override any parameters as needed:
-        # end_time="10:00:00",
+    config = (
+        SimulationBuilder()
+        .from_template("rmsc04")
+        .seed(seed)
+        .build()
     )
+    result = run_simulation(config)
 
-    # Run the simulation
-    end_state = run(
-        config=config,
-        log_dir=log_dir,           # MUST be unique per simulation
-        kernel_seed=seed,
-    )
-
-    # Extract any results you need (end_state["agents"], etc.)
-    # NOTE: return values must be picklable for multiprocessing
+    # Return only what you need — result is a frozen Pydantic model, picklable.
     return {
         "seed": seed,
-        "elapsed": str(end_state.get("kernel_event_queue_elapsed_wallclock", "")),
+        "l1_close": result.markets["ABM"].l1_close,
     }
 
 
 def main():
-    num_simulations = 8
-    seeds = list(range(1, num_simulations + 1))
+    seeds = list(range(1, 9))
 
-    # Prepare arguments with unique log_dir per simulation
-    sim_args = [
-        {"seed": s, "log_dir": f"parallel_run/sim_{s}"}
-        for s in seeds
-    ]
-
-    # Launch in parallel using a process pool
     with mp.Pool(processes=mp.cpu_count()) as pool:
-        results = pool.map(run_one_simulation, sim_args)
+        results = pool.map(run_one_simulation, seeds)
 
     for r in results:
-        print(f"Seed {r['seed']}: elapsed {r['elapsed']}")
+        print(f"Seed {r['seed']}: l1_close={r['l1_close']}")
 
 
 if __name__ == "__main__":
@@ -163,37 +142,19 @@ if __name__ == "__main__":
 ### 3.2 Using `concurrent.futures.ProcessPoolExecutor`
 
 ```python
+import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 def main():
-    num_simulations = 8
-    seeds = list(range(1, num_simulations + 1))
+    seeds = list(range(1, 9))
 
     with ProcessPoolExecutor(max_workers=mp.cpu_count()) as executor:
-        futures = {
-            executor.submit(
-                run_one_simulation,
-                {"seed": s, "log_dir": f"parallel_run/sim_{s}"}
-            ): s
-            for s in seeds
-        }
+        futures = {executor.submit(run_one_simulation, s): s for s in seeds}
 
         for future in as_completed(futures):
             seed = futures[future]
             result = future.result()
             print(f"Seed {seed}: done")
-```
-
-### 3.3 Using `p_tqdm` (already used in codebase for testing)
-
-```python
-from p_tqdm import p_map
-
-results = p_map(
-    run_one_simulation,
-    [{"seed": s, "log_dir": f"parallel_run/sim_{s}"} for s in range(1, 9)],
-    num_cpus=8,
-)
 ```
 
 ---
@@ -202,28 +163,28 @@ results = p_map(
 
 ### 4.1 Always pass a unique `log_dir`
 
-The Kernel defaults `log_dir` to `str(int(datetime.now().timestamp()))`. Two simulations started within the same second will **overwrite each other's log files**. Always provide an explicit, unique `log_dir`:
+When using the low-level `abides.run()` path, the Kernel defaults `log_dir` to a UUID (`uuid.uuid4().hex`), which is collision-free. When writing to a shared results directory, pass an explicit `log_dir` to keep runs organised:
 
 ```python
 run(config=config, log_dir=f"experiment_42/seed_{seed}")
 ```
 
-### 4.2 Always pass an explicit seed or `random_state`
+With `run_simulation()` / `run_batch()`, the log directory is managed internally and does not need to be set by the caller.
 
-The config builders (`rmsc03.build_config()`, `rmsc04.build_config()`) accept a `seed` parameter and derive all component-level `RandomState` objects from it deterministically. Always provide it:
+### 4.2 Always pass an explicit seed
+
+`SimulationBuilder.seed(n)` sets the master seed from which all component seeds are derived (see §5). With `run_simulation()`, the seed is part of the compiled config:
 
 ```python
-config = rmsc04.build_config(seed=42)
-end_state = run(config=config, kernel_seed=42)
+config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+result = run_simulation(config)
 ```
 
-If you omit the seed/random_state, fallback paths hit the **global numpy PRNG** (`np.random.randint()`), which is not reproducible and not safe even across sequential runs.
+When using the low-level `abides.run()` path, omitting `kernel_seed` gives `kernel_seed=0` — deterministic, but if you run multiple low-level simulations without seeding them individually you will get identical outcomes. Always set an explicit seed.
 
 ### 4.3 Both oracles use injected `RandomState`
 
-Both `MeanRevertingOracle` and `SparseMeanRevertingOracle` accept and use an injected `random_state` parameter — neither calls the global `np.random` PRNG. Results are fully deterministic given the seed.
-
-`SparseMeanRevertingOracle` (used by `rmsc03` and `rmsc04`) additionally derives per-symbol `RandomState` objects. **Either oracle is safe for parallel runs.**
+Both `MeanRevertingOracle` and `SparseMeanRevertingOracle` accept and use an injected `random_state` parameter — neither calls the global `np.random` PRNG. Results are fully deterministic given the seed. Both are safe for parallel runs.
 
 ### 4.4 Configure logging at the top level
 
@@ -234,37 +195,29 @@ For clean per-simulation log files:
 ```python
 import logging
 
-def run_one_simulation(args):
-    seed = args["seed"]
-    log_dir = args["log_dir"]
-
+def run_one_simulation(seed: int):
     # Set up a per-process file handler
-    handler = logging.FileHandler(f"./log/{log_dir}/simulation.log")
+    handler = logging.FileHandler(f"./log/sim_{seed}/simulation.log")
     handler.setFormatter(logging.Formatter(
         f"[sim_{seed}] %(levelname)s %(name)s %(message)s"
     ))
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(logging.INFO)
 
-    config = rmsc04.build_config(seed=seed)
-    return run(config=config, log_dir=log_dir, kernel_seed=seed)
+    config = SimulationBuilder().from_template("rmsc04").seed(seed).build()
+    return run_simulation(config)
 ```
 
 ### 4.5 Return values must be picklable
 
-`multiprocessing` serializes return values via `pickle`. The full `end_state` dictionary contains `Agent` objects, pandas DataFrames, and numpy arrays — these are generally picklable, but large. Extract only what you need:
+`multiprocessing` serialises return values via `pickle`. `SimulationResult` is a frozen Pydantic model and is always picklable. If you use the low-level `abides.run()` path, the `end_state` dict contains `Agent` objects, DataFrames, and numpy arrays — picklable but large. Extract only what you need:
 
 ```python
-def run_one_simulation(args):
-    end_state = run(config=config, log_dir=log_dir, kernel_seed=seed)
-
-    # Extract only needed results
-    return {
-        "seed": seed,
-        "elapsed": str(end_state["kernel_event_queue_elapsed_wallclock"]),
-        # Agent states, if needed:
-        # "agent_state": end_state.get("agent_state", {}),
-    }
+def run_one_simulation(seed: int) -> dict:
+    config = SimulationBuilder().from_template("rmsc04").seed(seed).build()
+    result = run_simulation(config)
+    # SimulationResult is picklable — return it directly, or extract fields:
+    return {"seed": seed, "l1_close": result.markets["ABM"].l1_close}
 ```
 
 ### 4.6 Gym environments
@@ -289,45 +242,34 @@ def run_gym_episode(seed):
 
 ## 5. RNG Hierarchy (How Seeds Flow)
 
-Understanding the RNG design helps ensure reproducibility:
+Every component derives its seed independently from the master seed via SHA-256:
 
 ```
-build_config(seed=42)
+SimulationBuilder().seed(42).build()  →  compile(config)
 │
-├── master_rng = np.random.RandomState(seed=42)     ← local, not global
-│
-├── oracle_seed = master_rng.randint(...)
-│   └── SparseMeanRevertingOracle(random_state=np.random.RandomState(oracle_seed))
-│       └── per-symbol RandomState derived from oracle's random_state
-│
-├── agent_seeds = [master_rng.randint(...) for each agent]
-│   └── Agent(random_state=np.random.RandomState(agent_seed))
-│
-├── kernel_seed = master_rng.randint(...)
-│   └── Kernel(random_state=np.random.RandomState(kernel_seed))
-│
-└── latency_seed = master_rng.randint(...)
-    └── LatencyModel(random_state=np.random.RandomState(latency_seed))
+├── oracle     → sha256("42:oracle:0")    → np.random.RandomState
+├── exchange   → sha256("42:exchange:0")  → np.random.RandomState
+├── kernel     → sha256("42:kernel:0")    → np.random.RandomState
+├── latency    → sha256("42:latency:0")   → np.random.RandomState
+└── agent groups (per registered name + index)
+    ├── "noise" group
+    │   ├── agent 0 → sha256("42:agent:noise:0")
+    │   ├── agent 1 → sha256("42:agent:noise:1")
+    │   └── ...
+    └── "value" group  ← independent of "noise" group
+        ├── agent 0 → sha256("42:agent:value:0")
+        └── ...
 ```
 
-**Every component gets its own `RandomState`, derived deterministically from the master seed.** Given the same seed, the same simulation produces identical results — provided no global PRNG is used.
+**Every component gets its own `RandomState`, derived deterministically from the master seed. Adding or removing an agent group does not shift any other component's seed.** Given the same master seed, the same simulation produces identical results.
 
 ---
 
 ## 6. File Layout for Logs
 
-When `skip_log=False`, each simulation writes:
+See [logging-architecture.md](logging-architecture.md) for the current log-writer and sink pipeline. In brief: the recommended path is event-bus sinks (`ParquetSink`, `MemorySink`) configured per-simulation via `SimulationBuilder.add_sink(...)`. The legacy bz2 per-agent pickle layout (`ExchangeAgent0.bz2`, etc.) is deprecated and may be removed in a future release.
 
-```
-./log/{log_dir}/
-├── summary_log.bz2                    # Kernel summary (agent types, final values)
-├── ExchangeAgent0.bz2                 # Per-agent event logs (pandas DataFrames)
-├── NoiseAgent1.bz2
-├── ValueAgent2.bz2
-├── ...
-```
-
-For parallel runs, ensure each simulation has a unique `log_dir` to avoid file collisions.
+For parallel runs, each `run_simulation()` call manages its own sinks. If you configure a `ParquetSink` with a file path, ensure the path includes a seed or run-id component to avoid collisions across workers.
 
 ---
 
@@ -335,8 +277,7 @@ For parallel runs, ensure each simulation has a unique `log_dir` to avoid file c
 
 | Pitfall | Consequence | Prevention |
 |---|---|---|
-| Not passing `log_dir` | Multiple sims overwrite same directory | Always pass unique `log_dir` |
-| Not passing `seed` | Hits global PRNG, non-reproducible | Always pass explicit seed |
+| Not passing `seed` | Non-reproducible results (kernel_seed defaults to 0) | Always call `.seed(n)` on the builder |
 | Sharing gym env across threads | Undefined behavior | One env per process |
 | Returning full `end_state` from workers | Large pickle overhead | Extract only needed fields |
 | Using `ThreadPoolExecutor` | Shared class-level counters across threads | Use `ProcessPoolExecutor` |

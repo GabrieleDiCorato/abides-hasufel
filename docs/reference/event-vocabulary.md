@@ -1,71 +1,22 @@
-# Event vocabulary audit
-
-> **Status:** Inventory only. Every entry is dispositioned `keep`.
-> Suggested consolidations are marked `[REVIEW]` and require explicit
-> sign-off before any rename, merge, or deletion lands.
->
-> **Conservative-default rule.** ABIDES is consumed as a library by
-> external researchers who parse pickled `agent.log` lists, raw
-> `parse_logs_df` output, and the `EventType` strings emitted to
-> `OrderLogsSchema`. Renaming or removing a public-facing event type is
-> a breaking change. This audit therefore renames nothing on its own; it
-> is a *map* of the current vocabulary, plus a list of candidates a
-> future phase can take to a deprecation cycle.
-
-> **Schema update (schemas are now current, not proposed).** The
-> per-event "proposed schema" column below is no longer aspirational
-> for the entries that have been migrated. The canonical, build-time
-> enforced contract now lives in
-> [`abides_core.event_payloads.EVENT_TYPE_SCHEMA`][esrc] and is
-> validated by [`test_event_payload_schema.py`][asrc].
-> Key shape changes shipped:
->
-> * **`ORDER_EVENT` family** (`ORDER_SUBMITTED`, `ORDER_ACCEPTED`,
->   `ORDER_EXECUTED`, `ORDER_CANCELLED`, `PARTIAL_CANCELLED`,
->   `ORDER_MODIFIED`, `ORDER_REPLACED`, `CANCEL_SUBMITTED`,
->   `CANCEL_PARTIAL_ORDER`, `MODIFY_ORDER`, `REPLACE_ORDER`,
->   `STOP_ORDER_SUBMITTED`, `STOP_TRIGGERED`, `STOP_ORDER_ACCEPTED`,
->   plus the dynamic `<message.type()>` echoes from `ExchangeAgent`)
->   now ship the 11-field `ORDER_EVENT` positional tuple produced by
->   `order.to_payload_tuple()`. `Side` and `TimeInForce` are `IntEnum`
->   and cross the wire as integers (legacy text via
->   `Side.legacy_str()` / `TimeInForce.legacy_str()`).
-> * **`BEST_BID` / `BEST_ASK`** now ship `(symbol, price, qty)`;
->   **`LAST_TRADE`** now ships `(symbol, avg_price_cents, qty)`. The
->   CSV-in-string forms are gone.
-> * **`CIRCUIT_BREAKER_TRIPPED`** now ships `(reason, value)` — the
->   second slot is the previously asymmetric `loss` / `orders` integer,
->   harmonised under one field.
-> * **`MARK_TO_MARKET`** now ships a bare integer (cents) under the
->   `CASH` schema; the per-symbol breakdown that used to share the name
->   is now a `logger.debug` line, not a logged event.
-> * **`FILL_PNL`** ships `(nav, peak_nav, symbol)`.
-> * **`MKT_CLOSED`**, **`AGENT_TYPE`** and all bare receipt echoes on
->   `ExchangeAgent` ship the `EMPTY_PAYLOAD` singleton (`()`), routed
->   through the `EMPTY` schema.
-> * **`EXECUTION_SUMMARY`**, **`SLICE_DECISION`**, **`POV_SUMMARY`**
->   and **`AMM_FLATTEN`** now ship positional tuples matching their
->   registered schemas.
->
-> Producers whose payload remains a `dict` (the dynamic
-> `<tag>_POST_ONLY` rejection events) intentionally fall through to
-> the `GENERIC` schema. `HOLDINGS_UPDATED` was reshaped to the
-> `HOLDINGS_DELTA` schema: the payload is now the
-> positional tuple `(symbol, delta_qty, qty_after, cash_after_cents)`.
-> Use `abides_markets.utils.reconstruct_holdings` to fold per-fill
-> deltas back into a holdings snapshot.
->
-> `parse_logs_df()` projects each schema back into per-field DataFrame
-> columns so existing notebook code keeps working. See
-> [`docs/reference/logging-architecture.md`](logging-architecture.md)
-> §4.3.1 for the projection rules and the build-time AST audit.
->
-> [esrc]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/event_payloads.py
-> [asrc]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_event_payload_schema.py
+# Event Vocabulary
 
 This document is a complete, source-anchored enumeration of every
 `Agent.logEvent(...)` and `Agent.report_metric(...)` call site shipped
 with ABIDES, grouped by producer category.
+
+Payload shapes are enforced at build time via the `EVENT_TYPE_SCHEMA`
+registry in
+[`abides_core.event_payloads`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/event_payloads.py).
+Every registered entry is validated by
+[`test_event_payload_schema.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_event_payload_schema.py).
+`parse_logs_df()` projects each schema back into per-field DataFrame
+columns. See [logging-architecture.md](logging-architecture.md) §4.3.1
+for the projection rules.
+
+Entry renames and merges are breaking changes for external consumers who
+parse pickled `agent.log` lists or `parse_logs_df` output. No entry in
+this table is renamed or removed without a deprecation cycle. Items
+marked `[REVIEW]` are candidates for a future release.
 
 ## How to read the tables
 
@@ -138,14 +89,13 @@ All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.co
 All in [abides-markets/abides_markets/agents/trading_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py).
 Payload is `order.to_dict()` unless noted.
 
-> **Order slotting.** `Order` and its subclasses are now
-> slotted and expose `to_payload_tuple()` returning an 11-field tuple
-> aligned with the `ORDER_EVENT` schema in
-> `abides_core.event_payloads`. Publish sites still emit `to_dict()`
-> for backwards compatibility with existing consumers; the tuple
-> migration ships in a follow-up PR. Authors of new producers should
-> prefer `to_payload_tuple()` so downstream `ParquetSink` can serialise
-> typed Arrow columns without unpickling.
+> **Order slotting.** `Order` and its subclasses are slotted and expose
+> `to_payload_tuple()` returning an 11-field tuple aligned with the
+> `ORDER_EVENT` schema in `abides_core.event_payloads`. Publish sites
+> emit `to_dict()` for backwards compatibility with existing consumers.
+> Authors of new producers should prefer `to_payload_tuple()` so
+> downstream `ParquetSink` can serialise typed Arrow columns without
+> unpickling.
 
 | event_type | producer (lines) | freq | payload shape | consumers | proposed schema | disposition | notes |
 |---|---|---|---|---|---|---|---|
@@ -196,12 +146,12 @@ In [abides-markets/abides_markets/order_book.py](https://github.com/GabrieleDiCo
 The order book holds a back-reference to its owning exchange and routes
 events through `self.owner.logEvent()`.
 
-| event_type | producer (line) | freq | payload shape | consumers | proposed schema | disposition | notes |
-|---|---|---|---|---|---|---|---|
-| `BEST_BID` | [212](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | `O` (after every order processed) | `str` `"{symbol},{price},{qty}"` | external | `{"symbol": str, "price": int, "qty": int}` | `[REVIEW]` change to dict | Hot path. CSV-in-string is parser-hostile and harder to schema. |
-| `BEST_ASK` | [218](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | `O` | `str` `"{symbol},{price},{qty}"` | external | as above | `[REVIEW]` see `BEST_BID` | |
-| `LAST_TRADE` | [234](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | per fill | `str` `"{trade_qty},${avg_price:0.4f}"` | external | `{"qty": int, "avg_price_cents": int}` | `[REVIEW]` change to dict; **drops dollar formatting** | Format includes `$` and 4 decimal places — pure display logic in the log row. |
-| `<order.tag>_POST_ONLY` | [289](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | `O` (post-only rejections only) | `dict[{"order_id": int}]` | external | unchanged | `[REVIEW]` settle dynamic prefix | Like the exchange's dynamic message-type case: the `EventType` string is built from `order.tag` at runtime. |
+| event_type | producer (line) | freq | payload shape | consumers | disposition |
+|---|---|---|---|---|---|
+| `BEST_BID` | [212](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | `O` (after every order processed) | `(symbol, price_cents, qty)` (QUOTE schema) | external | keep |
+| `BEST_ASK` | [218](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | `O` | `(symbol, price_cents, qty)` (QUOTE schema) | external | keep |
+| `LAST_TRADE` | [234](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | per fill | `(symbol, avg_price_cents, trade_qty)` (QUOTE schema) | external | keep |
+| `<order.tag>_POST_ONLY` | [289](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/order_book.py) | `O` (post-only rejections only) | `dict[{"order_id": int}]` | external | `[REVIEW]` settle dynamic prefix |
 
 ---
 
@@ -231,32 +181,16 @@ than `logEvent`.
 
 ---
 
-## Aggregate observations
+## Structural observations
 
-* **Conservative-default rule applied throughout.** No row is
-  dispositioned `delete`, `rename`, or `merge` outright. All
-  consolidation suggestions are `[REVIEW]` flags for a future release
-  with explicit scope.
 * **Two structural patterns dominate the consolidation candidates:**
-  1. **String payloads where dicts would do.** `BEST_BID`, `BEST_ASK`,
-     `LAST_TRADE`, `FINAL_HOLDINGS`, `MARK_TO_MARKET`. All on hot
-     paths; all force consumers to re-parse a CSV-in-string. Migration
-     would be a typed-dict event with a deprecation cycle for the
-     string form.
-  2. **Multi-call redundancy at one logical site.** `BID_DEPTH` +
-     `ASK_DEPTH` + `IMBALANCE` (three rows per spread response);
-     `HOLDINGS_UPDATED` reshaped — call sites consolidated to two (first_wake + order_executed);
-     `ORDER_SUBMITTED` (three call sites). Consolidation would route
-     through a helper but keep the on-disk vocabulary stable.
-* **Two dynamic-name producers** prevent fully static enumeration of
-  the `EventType` set:
+  1. **String payloads where structured types would do.** `FINAL_HOLDINGS`, `MARK_TO_MARKET`. Migration would need a deprecation cycle for the string form.
+  2. **Multi-call redundancy at one logical site.** `BID_DEPTH` + `ASK_DEPTH` + `IMBALANCE` (three rows per spread response); `ORDER_SUBMITTED` (three call sites). Consolidation would route through a helper but keep the on-disk vocabulary stable.
+* **Two dynamic-name producers** prevent fully static enumeration of the `EventType` set:
   * `ExchangeAgent` writes `msg.type()` at runtime.
   * `OrderBook` writes `f"{order.tag}_POST_ONLY"` at runtime.
-  Any future schema-validation work needs to either enumerate every
-  `Message` subclass or accept that the vocabulary is open.
-* **Tests are a binding consumer.** `test_simulation.py:469-472`
-  asserts the exact order-lifecycle event set; `test_market_boundaries.py`
-  asserts `ENDING_CASH`. Renames would require coordinated test churn.
+  Any future schema-validation work must either enumerate every `Message` subclass or accept that the vocabulary is open.
+* **Tests are a binding consumer.** `test_simulation.py:469-472` asserts the exact order-lifecycle event set; `test_market_boundaries.py` asserts `ENDING_CASH`. Renames require coordinated test changes.
 
 ## OrderBook events on the EventBus
 

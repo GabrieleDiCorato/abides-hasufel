@@ -617,10 +617,6 @@ This provides two guarantees:
 See [parallel-simulation.md](parallel-simulation.md) for the
 full derivation tree.
 
-> **Breaking change from v2.3.0:** the same master seed produces different
-> agent `random_state` objects than before.  This is intentional — the old
-> sequential scheme had order-dependent and composition-dependent bugs.
-
 ---
 
 ## Runtime Lifecycle
