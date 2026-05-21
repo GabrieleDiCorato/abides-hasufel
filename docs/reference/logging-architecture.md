@@ -1,581 +1,132 @@
 # ABIDES Logging — Architecture Reference
 
 **Status:** Architecture reference.
-**Scope:** Every form of "logging" present in `abides-core`, `abides-markets`,
-`abides-gym`. The standard Python `logging` module, the per-agent
-`Agent.logEvent()` system, the centralized `summary_log`, and how each
-flows through to disk and downstream consumers.
-**Audience:** A developer who needs the full picture before making changes.
+**Scope:** The three logging subsystems present in `abides-core`,
+`abides-markets` and `abides-gym`: the standard Python `logging`
+module, the per-agent event stream that flows through `EventBus` to
+registered `EventSink` implementations, and the deprecated
+`summary_log` path. Includes the `OrderBook` capture flow that rides
+on the same bus.
+**Audience:** Developers writing or consuming logs from a simulation.
 
 ---
 
-## 0. Executive summary — three independent systems, one bus
+## 1. Overview — three subsystems, one bus
 
-ABIDES has **three logging subsystems** that share the name "logging" but
-do completely different things and barely interact:
+ABIDES has three logging subsystems that share the name "logging" but
+do different things and barely interact.
 
-| System | What it logs | Where it goes | Who reads it |
+| Subsystem | What it logs | Where it goes | Who reads it |
 |---|---|---|---|
 | **Python `logging`** | Lifecycle, periodic stats, debug traces | stdout (via `basicConfig`) | Operator watching the console |
-| **Per-agent event log** (`Agent.logEvent`) | Every business event the agent emits | `EventBus` → registered `EventSink` implementations → `InMemorySink` (in-memory) and/or `BZ2PickleSink` (disk) | `InMemorySink.agent_log()`, `parse_logs_df()`, notebooks, metrics |
-| **Summary log** (`Kernel.append_summary_log`) | A handful of "important" events (cash, holdings, valuation) | In-memory `kernel.summary_log` list → `./log/<run_id>/summary_log.bz2` | Deprecated — use `MetricsObserverSink` or any `EventSink` on `Kernel.event_bus` instead. |
+| **`EventBus` event stream** ([`Agent.logEvent`][lev]) | Every business event an agent emits, plus metrics and order-book snapshots | `EventBus` → registered `EventSink` implementations | [`InMemorySink.agent_log()`][ims], [`parse_logs_df()`][pld], `MetricsObserverSink`, `ParquetSink`, notebooks |
+| **`summary_log`** *(deprecated)* | A handful of "final state" events | `kernel.summary_log` list → `summary_log.bz2` | No in-tree consumer; pending removal |
 
-The per-agent event log flows through the `EventBus`
-rather than being stored directly on `agent.log`. See [§4](#4-eventbus-architecture).
+The event-stream subsystem is the load-bearing one. Everything
+downstream — metrics, plots, `SimulationResult.logs`, replay tooling —
+reads from it.
 
-### 0.1 Deprecation status
+[lev]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py
+[ims]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/event_sinks.py
+[pld]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py
 
-The legacy bzip2-pickle path and the `summary_log` opt-in are in the
-deprecation window. Each surface emits a `DeprecationWarning` once per
-process on first use:
-
-| Surface | Replacement |
-|---|---|
-| `BZ2PickleLogWriter` (legacy on-disk format) | `abides_core.parquet_sink.ParquetSink` or any EventBus sink |
-| `BZ2PickleSink` (legacy event sink) | `ParquetSink` or any EventBus sink |
-| `Agent.logEvent(append_summary_log=True)` | `MetricsObserverSink` (or any custom `EventSink`) |
-| `Kernel.append_summary_log` | `MetricsObserverSink` (or any custom `EventSink`) |
-
-Full timeline is tracked in the project backlog.
+> **See also:** [event-vocabulary.md](event-vocabulary.md) for the
+> source-anchored inventory of every shipped `event_type` and its
+> payload schema.
 
 ---
 
-## 1. System A — Python `logging` module
+## 2. Python `logging`
 
-### 1.1 Loggers
+### 2.1 Motivation
+
+Operator output. Tells you the simulation is alive and roughly how
+fast it is progressing. It is not a record of the simulation.
+
+### 2.2 Concept
 
 Every module follows the standard `logger = logging.getLogger(__name__)`
-pattern. **18 named loggers** across the three packages
-([abides-core/abides_core/kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py),
-[abides-core/abides_core/agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py),
-oracles, every agent type, `order_book.py`, etc.).
+pattern. The kernel emits three classes of message:
 
-Two CLI entry points use a hardcoded `"abides"` name instead:
-[abides-core/abides_core/abides.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py)
-and [abides-core/scripts/abides](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/scripts/abides).
-
-### 1.2 Configuration
-
-There is exactly one configuration call, replicated in three places:
-
-```python
-logging.basicConfig(
-    level=config["stdout_log_level"],
-    format="[%(process)d] %(levelname)s %(name)s %(message)s",
-)
-```
-
-Sites: [abides.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py),
-[abides.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py),
-[scripts/abides](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/scripts/abides).
-
-`stdout_log_level` is plumbed from `SimulationConfig.simulation.log_level`
-(default `"INFO"`, one of `DEBUG/INFO/WARNING/ERROR/CRITICAL`).
-
-**No `FileHandler`, no `RotatingFileHandler`, nothing else is attached
-by ABIDES.** Standard Python logging output goes to stdout/stderr only.
-The kernel does not write a `simulation.log` file anywhere.
-
-### 1.3 What the kernel logs
-
-Categorized by purpose ([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)):
-
-- **Lifecycle (DEBUG):** `Kernel initialized`, `Kernel started`,
-  `Agent.kernel_initializing/starting/stopping/terminating`,
-  `Kernel Event Queue begins/empty`. Useful for tracing setup, mostly
-  silent at INFO.
-- **Periodic checkpoint (INFO):** Every 100,000 messages,
-  [kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)
-  emits a one-line snapshot:
+- **Lifecycle (DEBUG)** — kernel init, agent attach/detach, queue
+  begin/empty. Silent at INFO.
+- **Periodic checkpoint (INFO)** — every 100 000 messages, one line:
   `--- Simulation time: ..., messages processed: ..., wallclock elapsed: ...s ---`.
-  This is the only INFO output during the hot loop. For a 7-million
-  message sim this fires ~70 times.
-- **Trace (DEBUG):** Per-pop, per-dispatch, per-requeue debug lines.
-  ~6 sites in `runner()` and `_enqueue()`. Gated by
-  `logger.isEnabledFor(logging.DEBUG)` so the cost is one cheap branch
-  when DEBUG is off. Very expensive when on.
-- **Termination summary (INFO):** Event-queue elapsed, msgs/sec,
-  per-agent-type mean ending value (the financial leak — see system C),
-  `Simulation ending!`.
+  The only INFO output during the hot loop.
+- **Trace (DEBUG)** — per-pop, per-dispatch, per-requeue lines inside
+  `runner()` and `_enqueue()`. Gated by
+  `logger.isEnabledFor(logging.DEBUG)` so the cost is one branch when
+  DEBUG is off; very expensive when on.
+- **Termination summary (INFO)** — event-queue elapsed, messages per
+  second, per-agent-type mean ending value.
 
-### 1.4 Trace logging
+### 2.3 Configuration
 
-Trace lines inside the hot loop are emitted via standard
-`logger.debug()` calls, gated by
-`logger.isEnabledFor(logging.DEBUG)`. To enable them, set the
-`abides_core.kernel` logger to `DEBUG`:
+`SimulationConfig.simulation.log_level` (default `"INFO"`) is plumbed
+through to `logging.basicConfig(level=...)`. The format string is
+fixed: `"[%(process)d] %(levelname)s %(name)s %(message)s"`.
+
+There is no `FileHandler`, `RotatingFileHandler`, or any other handler
+attached by ABIDES — output goes to stdout/stderr only. To capture
+stdout to a file, attach a `FileHandler` yourself before
+`run_simulation()`; the pattern is shown in
+[parallel-simulation.md](parallel-simulation.md).
+
+To enable trace lines, raise the kernel logger:
 
 ```python
 import logging
-logging.getLogger("abides_core.kernel").setLevel(logging.DEBUG)
+logging.getLogger("abides_core.engine.kernel").setLevel(logging.DEBUG)
 ```
 
-There is no Kernel attribute toggle.
-
-### 1.5 Verdict on system A
-
-Mostly fine. Standard, predictable, well-behaved Python logging. Two
-gaps:
-
-- No way to send stdout logs to a file alongside the per-agent `.bz2`
-  files. Documentation in
-  [parallel-simulation.md](parallel-simulation.md)
-  shows users how to attach a `FileHandler` themselves.
+There is no kernel attribute toggle.
 
 ---
 
-## 2. System B — per-agent event log (`Agent.logEvent`)
+## 3. EventBus and sinks
 
-This is the **real** log: the per-event business record that downstream
-analytics consume. Don't confuse it with system A.
+### 3.1 Motivation
 
-> **See also:** [`event-vocabulary.md`](event-vocabulary.md) — full
-> source-anchored inventory of every shipped `event_type`, payload
-> shape, and known consumer.
+The simulation's record. Every agent business event, every metric,
+and every order-book snapshot flows through a single
+[`EventBus`][eb] instance owned by the `Kernel`. Storage policy
+(memory, disk, Parquet, metrics observer) is decoupled from the
+producer: callers register one or more [`EventSink`][es]
+implementations and the bus fans events out to them.
 
-### 2.1 Method
+[eb]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/telemetry/event_bus.py
+[es]: https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/event_sinks.py
 
-[agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py):
+### 3.2 The three wire kinds
 
-```python
-def logEvent(
-    self,
-    event_type: str,
-    event: Any = "",
-    append_summary_log: bool = False,
-    deepcopy_event: bool = False,
-) -> None:
-```
+The bus carries three kinds of records, each as an index-ordered tuple
+with a sink-side hook:
 
-Each agent owns `self.log: list[tuple[NanosecondTime, str, Any]]`
-([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py)). On every
-`logEvent` call, a tuple `(current_time, event_type, event)` is appended.
+| Kind | Producer call | Sink hook | Used for |
+|---|---|---|---|
+| Event | `bus.publish_event(...)` (via `Agent.logEvent`) | `on_event` | Business events: orders, fills, holdings, etc. |
+| Metric | `bus.publish_metric(...)` (via `Agent.report_metric`) | `on_metric` | Per-agent scalar metrics consumed by `KernelObserver`s. |
+| Book snapshot | `bus.publish_book_snapshot(...)` (via `OrderBook`) | `on_book_snapshot` | L1 / L2 order-book snapshots. |
 
-Two flags:
-- `deepcopy_event=True` — copy the event payload before storing, so
-  later mutation of the original dict doesn't poison historical
-  entries. Default `False` for performance. Used at 5 call sites
-  where holdings dicts are logged
-  ([trading_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py)
-  + [noise_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/noise_agent.py)
-  + [value_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/value_agent.py)).
-- `append_summary_log=True` — also push to the kernel's central
-  summary list (system C). Used at the same handful of "final state"
-  call sites.
+**Event wire tuple** (six fields, index-ordered — see
+`WIRE_FIELDS_EVENT` in
+[`event_records.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/telemetry/event_records.py)):
 
-### 2.2 Event vocabulary (~25 unique types)
-
-**Core lifecycle:** `AGENT_TYPE`.
-**Cash & holdings:** `STARTING_CASH`, `ENDING_CASH`,
-`FINAL_CASH_POSITION`, `FINAL_VALUATION`, `HOLDINGS_UPDATED`,
-`MARKED_TO_MARKET`.
-**Order submission:** `ORDER_SUBMITTED`, `STOP_ORDER_SUBMITTED`,
-`ORDER_ACCEPTED`, `STOP_ORDER_ACCEPTED`.
-**Order execution & cancellation:** `ORDER_EXECUTED`, `ORDER_CANCELLED`,
-`PARTIAL_CANCELLED`, `CANCEL_SUBMITTED`, `CANCEL_PARTIAL_ORDER`.
-**Order modification:** `MODIFY_ORDER`, `ORDER_MODIFIED`,
-`REPLACE_ORDER`.
-**Market data:** `BID_DEPTH`, `ASK_DEPTH`, `LAST_TRADE`,
-`STOP_TRIGGERED`, `MKT_CLOSED`.
-**Exchange:** raw `Message.type()` strings — exchange logs every
-incoming message at
-[exchange_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py).
-**Execution algos:** custom strings from `BaseExecutionAgent` and
-subclasses.
-
-### 2.3 Disk persistence
-
-Per-agent: at termination, each agent's `self.log` is converted to a
-DataFrame `(EventTime, EventType, Event)` indexed by `EventTime`
-([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py)),
-then handed to
-[kernel.py write_log()](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py).
-
-`write_log()`:
-- Skips if `self.skip_log`.
-- Builds path `./log/<log_dir>/<agent_name_no_spaces>.bz2`.
-- Calls `df.to_pickle(path, compression="bz2")`.
-
-Both the path and the format are hardcoded. The kernel decides
-filesystem layout, choice of pickle, choice of bz2.
-
-A handful of agents call `write_log()` again with a custom `filename` for
-extra artifacts — e.g.
-[exchange_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py)
-writes `fundamental_<symbol>.bz2`.
-
-### 2.4 Two control flags on `Agent` itself
-
-- `log_events: bool = True` ([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py))
-  — if `False`, `logEvent()` becomes a no-op. The agent records
-  nothing.
-- `log_to_file: bool = True` ([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py))
-  — if `False`, the agent's log stays in memory and is never written
-  to disk (but is still exposed via `agent.log`).
-
-These are **per-agent-instance** flags. There is no global way to
-"disable order logs across all agents". Configs that want to suppress
-order logs for, say, noise agents must set the flag per-agent-type at
-build time. The config system has helpers (`log_orders` override at
-[test_config_system.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_config_system.py)).
-
-### 2.5 Downstream: `parse_logs_df`
-
-[abides-core/abides_core/utils.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py):
-
-```python
-def parse_logs_df(end_state: dict) -> pd.DataFrame:
-    # iterate end_state["agents"], walk each agent.log,
-    # flatten the Event payload (dict-expanded if dict),
-    # add agent_id and agent_type columns,
-    # concat one row at a time into a single DataFrame.
-```
-
-This is the **canonical reader** of system B. It is called from:
-
-- [abides-markets/abides_markets/simulation/runner.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/runner.py)
-  — populates `SimulationResult.logs` when the requested `ResultProfile`
-  includes agent logs.
-- [data-extraction.md](data-extraction.md) — the
-  documented public API for users.
-- Notebook examples (e.g. `demo_ABIDES-Markets.ipynb`).
-
-`parse_logs_df` operates on **in-memory `agent.log` lists**, not on the
-written `.bz2` files. The `.bz2` files are an export artifact, not the
-runtime data path.
-
-The metrics system in
-[abides-markets/abides_markets/simulation/metrics.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/metrics.py)
-consumes the *parsed* DataFrame, not the raw logs.
-
-### 2.6 Performance and memory
-
-- **Per-event allocation:** every `logEvent` call appends a 3-tuple.
-  Cheap. `deepcopy_event=True` is more expensive but rare.
-- **End-of-simulation conversion:** `pd.DataFrame(...)` over
-  potentially millions of rows, then `to_pickle(compression="bz2")`.
-  Both serial, both slow for large sims. No incremental flushing. No
-  streaming format.
-- **`parse_logs_df` builds one DataFrame per agent then concats** —
-  was O(N) but allocated an intermediate frame for every agent. Now
-  rebuilt around a single `pd.DataFrame.from_records` over the flat
-  row list, eliminating the per-agent allocation. A further
-  optimisation that builds the DataFrame directly from `InMemorySink`
-  column arrays is still pending.
-
-### 2.7 Verdict on system B
-
-This is the **load-bearing** logging system. Everything downstream
-(metrics, plots, replay tooling) depends on it. It works, but has three
-real issues:
-
-1. **Format is fused into the kernel.** No way to swap pickle for
-   parquet, no way to mock the writer for tests.
-2. **`parse_logs_df` allocates an intermediate DataFrame per agent.**
-   The single `from_records` rewrite eliminated the per-agent frame; a
-   deeper rewrite over `InMemorySink` columnar arrays remains a
-   pending optimisation.
-3. **`log_events` / `log_to_file` are per-instance**, awkward to set
-   globally.
-
----
-
-## 3. System C — `summary_log` (deprecated)
-
-`Kernel.append_summary_log` and `Agent.logEvent(append_summary_log=True)` are
-deprecated and pending removal — register a `MetricsObserverSink` (or any
-`EventSink`) on `Kernel.event_bus` instead; see the
-[Deprecated section in CHANGELOG.md](../changelog.md#deprecated) for the
-removal timeline.
-
----
-
-## 4. Filesystem layout
-
-A run produces a directory `./log/<log_dir>/` containing:
-
-```
-./log/<log_dir>/
-├── summary_log.bz2                    # System C — deprecated; pending removal
-├── ExchangeAgent0.bz2                 # System B — per-agent log (DataFrame)
-├── NoiseAgent1.bz2
-├── ValueAgent2.bz2
-├── ...                                # one .bz2 per agent that has log_to_file=True
-└── fundamental_<symbol>.bz2           # ad-hoc artifacts via custom filename
-```
-
-`<log_dir>` defaults to `str(int(wall_clock_seconds))`
-([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)). This
-**collides** if two simulations start in the same second. The high-level
-`run_simulation()` wrapper avoids this by generating a UUID when
-`log_dir is None`; the low-level `Kernel(...)` and CLI do not.
-
-The path root `./log/` is hardcoded
-([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)).
-There is no `log_root` parameter; the kernel writes into the current
-working directory.
-
-There is no `simulation.log` for stdout — system A goes only to stdout.
-
----
-
-## 5. Configuration knobs (every flag, one table)
-
-| Flag | Where defined | Default | Controls | System |
-|---|---|---|---|---|
-| `Kernel.skip_log` | [kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py) | `True` | Suppress disk writes for B + C (but see bug 3.3 — C ignores it today) | B + C |
-| `Kernel.log_dir` | [kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py) | `uuid.uuid4().hex` | Subdirectory under `./log/` | B + C |
-| `Agent.log_events` | [agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py) | `True` | Whether `logEvent()` records anything in memory | B |
-| `Agent.log_to_file` | [agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py) | `True` | Whether the agent's log is written at termination | B |
-| `SimulationConfig.simulation.log_level` | [config_system/models.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/config_system/models.py) | `"INFO"` | `basicConfig(level=...)` for stdout | A |
-
-Notable: the user-facing config system exposes `log_level` (system A)
-and `log_orders` overrides per agent (system B), but **does not expose**
-`skip_log` or `log_dir`. Those are reachable only by passing them to
-`Kernel(...)` directly or by post-construction mutation. Trace logging
-is enabled by setting the `abides_core.kernel` logger level to `DEBUG`.
-
----
-
-## 6. Tests
-
-Tests confirm the load-bearing behaviour but reveal the asymmetry:
-
-- **System A:** no tests. `basicConfig` is fire-and-forget.
-- **System B:** rich coverage —
-  [test_pandas_integration.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_pandas_integration.py)
-  covers `parse_logs_df`, end-to-end disk round-trip, type coercion;
-  [test_simulation.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_simulation.py)
-  covers `SimulationResult.logs` shape and presence per profile;
-  [test_replace_order_regression.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_replace_order_regression.py)
-  covers REPLACE/MODIFY/CANCEL log records; config-system tests at
-  [test_config_system.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_config_system.py)
-  exercise `log_level()` and `log_orders` overrides.
-- **System C:** deprecated; no tests.
-
-Most kernel tests construct with `skip_log=True` to avoid touching the
-filesystem ([test_kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_kernel.py)).
-
----
-
-## 7. Issues, smells, and risks (consolidated)
-
-### 7.1 Real correctness bugs
-
-- **`write_summary_log()` ignores `skip_log`**
-  ([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)).
-  Severity: low (surface is deprecated and has no consumer); will be
-  removed along with the `summary_log` path.
-
-### 7.2 Real performance issues
-
-- **`parse_logs_df` allocated one intermediate DataFrame per agent.**
-  The single `pd.DataFrame.from_records` rewrite eliminated that
-  intermediate; a further rewrite over `InMemorySink` columnar arrays
-  is still pending.
-- **`to_pickle(compression="bz2")`** is the slowest pickle path.
-  Acceptable for a one-shot serialization but compounds when many
-  agents log a lot.
-
-### 7.3 Architectural smells
-
-- **Kernel owns filesystem.** Path construction, format choice,
-  directory creation, error handling were all inside
-  `kernel.write_log` / `kernel.write_summary_log`. **Resolved by PR 7**:
-  the kernel now delegates to an injectable `LogWriter` Protocol
-  (`abides_core.log_writer`); the legacy bz2-pickle path is one
-  implementation among several.
-- **Hardcoded `./log/`** — the kernel used to write into CWD with no
-  override. **Resolved by PR 7**: `Kernel(log_root=...)` is now a
-  first-class kwarg, and the run directory is created lazily on the
-  first write rather than at construction time.
-- **Three logging systems share one `./log/<run_id>/` directory** with
-  different lifecycles and consumers. Not separated, not labelled in
-  the directory layout. A user looking at the folder cannot tell what
-  is what without reading source.
-- **`summary_log` is deprecated** — use `MetricsObserverSink` (or any
-  `EventSink`) on `Kernel.event_bus` instead. See
-  [CHANGELOG.md](../changelog.md) for the removal timeline.
-- **`log_events` / `log_to_file` are per-instance, not per-type.**
-  Setting them across "all noise agents" requires loop-and-mutate at
-  build time.
-
-### 7.4 Robustness
-
-- **No error handling around log writes.** Disk full, permission
-  denied, pickle failure → kernel crash at the very end of a run, after
-  hours of simulation. No try/except, no temp-file-then-rename.
-- **No incremental flushing.** Memory usage grows linearly with event
-  count. Not observed as a problem today (most sims < 1M events) but a
-  hard ceiling for ABIDES-gym training that runs many episodes.
-- **Pickle deserialization is untrusted-input-unsafe.** Loading a
-  `.bz2` from a third party can execute arbitrary code. ABIDES does
-  not advertise the file as portable, but users do share them.
-
-### 7.5 What is *not* a problem
-
-- Standard Python logging is well-behaved. Lazy formatting in the hot
-  loop landed in PR 3.
-- The `Agent.logEvent` API is good. Cheap, simple, lossless.
-- `parse_logs_df` is the right shape (DataFrame), just implemented
-  poorly.
-- Test coverage of system B is solid.
-
----
-
-## 8. The mental model someone should leave with
-
-> **System A** is operator output. It tells you the simulation is alive
-> and roughly how fast. It is not a record of the simulation.
->
-> **System B** is the simulation's record. Every agent appends to its
-> own list at every event; at the end, lists become DataFrames and (if
-> not skipped) get pickled to disk. `parse_logs_df` is the official
-> reader.
->
-> **System C** (`summary_log`) is deprecated and pending removal — use
-> `MetricsObserverSink` or any `EventSink` on `Kernel.event_bus` instead.
->
-> The kernel used to entangle all three: it owned the format, the
-> filesystem path, the lifecycle, and a financial-summary leak from
-> the markets layer. **PR 4 moved financial metrics out of core**, and
-> **PR 7 introduced the `LogWriter` Protocol** so the kernel no longer
-> owns format or path. The lifecycle is now governed by `KernelState`
-> (`abides_core.lifecycle`).
-
----
-
-## 9. Open questions — what a redesign would have to decide
-
-These are *not* recommendations. They are the choices a redesign cannot
-avoid:
-
-1. **Format pluggability.** PR 7 provided the seam (`log_writer=`
-   kwarg + `LogWriter` Protocol). The *choice* of additional formats
-   (parquet, JSONL, sqlite) is still open — only `NullLogWriter` and
-   `BZ2PickleLogWriter` ship today.
-2. **Incremental writes.** Do long simulations need streaming flush, or
-   is "all at terminate" forever good enough?
-3. **`./log/` root.** Resolved by PR 7: `Kernel(log_root=...)` is now
-   a kwarg with `"./log"` as default. CWD-relative remains the default
-   for backwards compatibility.
-4. **`log_dir` collision.** Resolved: `Kernel.log_dir` defaults to
-   `uuid.uuid4().hex` to avoid wall-clock collisions under
-   multiprocessing.
-5. **Per-instance vs per-type log flags.** Add a config-system
-   convenience for "disable order logs for this agent type globally",
-   or accept the loop-and-mutate idiom?
-6. **Standard logging to file.** Should ABIDES attach a `FileHandler`
-   that writes `simulation.log` next to the per-agent files, or keep
-   stdout-only and let users add it themselves?
-7. **Pickle vs portable format.** Is the `.bz2` file an internal cache
-   (pickle is fine) or an interchange artifact (parquet/arrow is
-   safer)?
-8. **Error handling on write.** Best-effort write with warning, or
-    fail-fast and crash the run?
-
-These are decisions for a separate plan. This document is the picture,
-not the prescription.
-
----
-
-## A. Original intent of `summary_log` (archaeology)
-
-`summary_log` is **not new**. It was inherited verbatim from the
-upstream JPMorgan ABIDES public release (commit `3abbd6f` — "ABIDES
-public commit") and has not been touched since. The upstream
-`Kernel.py` carries the answer in two comments that did not survive the
-fork's reformatting.
-
-### A.1 The mission statement (upstream `Kernel.__init__`)
-
-```python
-# The Kernel maintains a summary log to which agents can write
-# information that should be centralized for very fast access
-# by separate statistical summary programs.  Detailed event
-# logging should go only to the agent's individual log.  This
-# is for things like "final position value" and such.
-self.summary_log: List[Dict[str, Any]] = []
-```
-
-### A.2 The contract (upstream `append_summary_log` docstring)
-
-```
-We don't even include a timestamp, because this log is for
-one-time-only summary reporting, like starting cash, or ending cash.
-
-Arguments:
-    sender_id: The ID of the agent making the call.
-    event_type: The type of the event.
-    event:      The event to append to the log.
-```
-
-### A.3 What this tells us
-
-The original design carved out a **deliberate two-tier logging split**:
-
-| Tier | Per-agent `agent.log` | Central `summary_log` |
+| Index | Field | Type |
 |---|---|---|
-| **Granularity** | Every event, with timestamp | One-shot final-state events, no timestamp |
-| **Audience** | Per-run diagnostics, replay, microstructure analysis | "Separate statistical summary programs" (i.e. cross-run batch analytics) |
-| **Cost** | One file per agent per run | One small file per run |
-| **Why centralized** | N/A | A batch tool can `pd.read_pickle` one file per run instead of N agent files, and get a denormalized, ready-to-aggregate table of "everyone's bottom line" |
+| 0 | `agent_id` | `int` |
+| 1 | `agent_type` | `str` |
+| 2 | `sim_time_ns` | `int` (nanoseconds) |
+| 3 | `event_type` | `str` |
+| 4 | `payload` | `Any` (shape depends on schema; see §3.4) |
+| 5 | `seq` | `int` (monotonically increasing) |
 
-The intent makes sense for a research workflow that runs many parallel
-simulations from a shell script (which is how upstream ABIDES was
-operated — `summary_log.bz2` was the **cross-simulation roll-up
-artifact**).
+Metric and book-snapshot tuples have the same shape with different
+field meanings (`WIRE_FIELDS_METRIC`, `WIRE_FIELDS_BOOK_SNAPSHOT`).
+Typed views — `EventRecord.from_tuple(t)`, `MetricRecord.from_tuple(t)`,
+`BookSnapshotRecord.from_tuple(t)` — are provided for readability.
 
-### A.4 Why no readers exist in this fork
-
-Three plausible explanations, in decreasing order of likelihood:
-
-1. **The "separate statistical summary programs" were never released.**
-   The upstream public repo ships the producer half of the contract
-   without the consumer half. The aggregation tool likely existed
-   inside JPMorgan and was not open-sourced. The fork inherited an
-   API with no reachable consumer.
-2. **`parse_logs_df` superseded it in practice.** Once the high-level
-   `run_simulation()` wrapper landed and returned a parsed DataFrame
-   in memory, downstream code in this fork (notebooks, metrics,
-   `SimulationResult`) standardized on **the per-agent path**.
-   `summary_log.bz2` became redundant for in-process consumers and
-   nobody built the cross-run consumer.
-3. **Schema friction.** The summary record has no timestamp and no
-   uniform schema for `event` (each event type stuffs a different
-   dict shape in there). Even an external tool would need
-   per-event-type unpacking logic — at which point reading the
-   per-agent logs gives strictly more information for similar effort.
-
-### A.5 Current status
-
-The deprecation path has been chosen: `summary_log` is pending removal.
-`summary_log` was not orphaned because it was ill-conceived — it was
-orphaned because the consumer half of the original contract was never
-open-sourced. Cross-run aggregation of final agent state is now served
-by `report_metric()` / `MetricsObserverSink` (within a run) and by
-querying `InMemorySink` or `ParquetSink` output across multiple
-`SimulationResult` objects (across runs).
-
----
-
-## 4. EventBus architecture
-
-The `EventBus` replaced the direct `agent.log` list and the direct observer
-calls with a single-threaded, per-simulation `EventBus`. This section
-is the authoritative reference for the bus architecture.
-
-### 4.1 Key modules
-
-| Module | Purpose |
-|--------|---------|
-| `abides_core/event_bus.py` | `EventBus` — dispatch hub |
-| `abides_core/event_sinks.py` | `EventSink` Protocol + three shipped sinks |
-| `abides_core/event_records.py` | Wire field constants and typed record views |
-| `abides_core/event_payloads.py` | `PayloadSchema` registry + `EVENT_TYPE_SCHEMA` map |
-| `abides_core/parquet_sink.py` | Optional `ParquetSink` + `read_parquet_logs` reader (requires `[parquet]` extra) |
-
-### 4.2 EventSink Protocol
+### 3.3 `EventSink` Protocol
 
 ```python
 @runtime_checkable
@@ -585,314 +136,318 @@ class EventSink(Protocol):
     accept_book_snapshots: bool
 
     def on_simulation_start(self, meta: dict) -> None: ...
-    def on_event(self, t: tuple) -> None: ...       # 6-field wire tuple
-    def on_metric(self, t: tuple) -> None: ...      # 6-field wire tuple
-    def on_book_snapshot(self, t: tuple) -> None: ... # 6-field wire tuple
+    def on_event(self, t: tuple) -> None: ...           # 6-field wire tuple
+    def on_metric(self, t: tuple) -> None: ...          # 6-field wire tuple
+    def on_book_snapshot(self, t: tuple) -> None: ...   # 6-field wire tuple
     def flush(self) -> None: ...
     def on_simulation_end(self, meta: dict) -> None: ...
 ```
 
-### 4.3 Wire tuple formats
+`EventBus.register(sink)` validates the Protocol at registration time
+and raises `TypeError` with a missing-method list if the object does
+not conform. The three `accept_*` class attributes are checked
+explicitly and gate which `on_*` hooks the bus calls.
 
-**Event wire tuple** (6 fields, index-ordered):
-
-| Index | Field | Type |
-|-------|-------|------|
-| 0 | `agent_id` | `int` |
-| 1 | `agent_type` | `str` |
-| 2 | `sim_time_ns` | `int` (nanoseconds) |
-| 3 | `event_type` | `str` |
-| 4 | `payload` | `Any` |
-| 5 | `seq` | `int` (monotonically increasing) |
-
-Constants: `WIRE_FIELDS_EVENT`, `WIRE_FIELDS_METRIC`, `WIRE_FIELDS_BOOK_SNAPSHOT`.
-Typed views: `EventRecord.from_tuple(t)`, `MetricRecord.from_tuple(t)`, `BookSnapshotRecord.from_tuple(t)`.
-
-### 4.3.1 Payload shapes
+### 3.4 Payload schemas
 
 Every `event_type` shipped by in-tree agents is registered in
-`abides_core.event_payloads.EVENT_TYPE_SCHEMA`, mapping the string key
-to a frozen `PayloadSchema(name, version, fields)`. The `fields` tuple
-determines the on-wire payload shape:
+[`EVENT_TYPE_SCHEMA`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/telemetry/event_payloads.py),
+mapping the string key to a frozen `PayloadSchema(name, version, fields)`.
+The `fields` tuple determines the on-wire payload shape:
 
 | Arity (`len(fields)`) | On-wire payload | Example schema | Example call |
-|-----------------------|------------------|----------------|--------------|
+|---|---|---|---|
 | 0 | `EMPTY_PAYLOAD` (the empty tuple `()`) | `EMPTY` | `self.logEvent("MKT_CLOSED", EMPTY_PAYLOAD)` |
 | 1 | bare scalar (no tuple wrapping) | `CASH = (cents,)` | `self.logEvent("STARTING_CASH", 10_000_000)` |
 | ≥ 2 | positional tuple of length `arity` | `ORDER_EVENT = (...)` | `self.logEvent("ORDER_ACCEPTED", order.to_payload_tuple())` |
 
-The `Order`, `LimitOrder` and `StopOrder` value objects expose
-`to_payload_tuple()` returning an `ORDER_EVENT`-shaped tuple
-(`Side`/`TimeInForce` are `IntEnum` so they cross the wire as ints;
-`Side.legacy_str()` / `TimeInForce.legacy_str()` are provided for
-human-readable reporting). The legacy `to_dict()` method is retained
-as a deprecation-window wrapper that converts the tuple back to a
-dict and will be removed in a future legacy-logging cleanup.
+`Order`, `LimitOrder` and `StopOrder` expose `to_payload_tuple()`
+returning an `ORDER_EVENT`-shaped tuple. `Side` and `TimeInForce` are
+`IntEnum`, so they cross the wire as integers;
+`Side.legacy_str()` / `TimeInForce.legacy_str()` are available for
+human-readable reporting.
 
 Dynamic-name events that cannot appear in the static registry are
 still bounded:
 
-* `ExchangeAgent` echoes incoming `OrderMsg` subclasses under
+- `ExchangeAgent` echoes incoming `OrderMsg` subclasses under
   `message.type()` (e.g. `"LimitOrderMsg"`); every such class is
   registered in `EVENT_TYPE_SCHEMA` against `ORDER_EVENT`.
-* Non-order ExchangeAgent receipts (query / subscription requests)
-  log an `EMPTY` payload under the message class name (allowlist of
-  `QueryMsg`, `MarketHoursRequestMsg`, `MarketClosePriceRequestMsg`,
-  `MarketDataSubReqMsg`); anything else is warn-and-dropped via the
-  stdlib logger so no raw `Message` instance can leak onto the bus.
-* `OrderBook` post-only rejections emit dynamic
+- Non-order ExchangeAgent receipts (query and subscription requests)
+  log an `EMPTY` payload under the message class name; an allowlist
+  bounds which classes are accepted, and anything else is
+  warn-and-dropped via the stdlib logger.
+- `OrderBook` post-only rejections emit dynamic
   `<order.tag>_POST_ONLY` events with a small dict payload; these
-  intentionally fall through to the `GENERIC` bucket.
+  fall through to the `GENERIC` bucket.
 
-`InMemorySink` enforces both halves of the contract at append time:
-unregistered event types are routed to `GENERIC` with a one-time
-warning, and rows whose payload does not match the chosen schema's
-arity are diverted to a per-type `"<event_type>::generic"` fallback
-bucket rather than torn-written into the typed bucket. The
-`parse_logs_df()` consumer mirrors the same projection: arity 0 →
-`{"EmptyEvent": True}`, arity 1 → `{fields[0]: payload}`, arity ≥ 2 →
-`dict(zip(fields, payload))`, dict payloads passed through unchanged.
-
-The build-time invariant is enforced by
-`abides-core/tests/test_event_payload_schema.py`, which walks every
-`.py` file under `abides-core/`, `abides-markets/` and `abides-gym/`
-and inspects calls to `logEvent`, `publish_event`, `publish_metric`
-and `publish_book_snapshot`. The test fails if a string-literal
+The schema is enforced at build time by
+[`test_event_payload_schema.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_event_payload_schema.py),
+which walks every `.py` file in the three packages and inspects calls
+to `logEvent`, `publish_event`, `publish_metric` and
+`publish_book_snapshot`. The test fails if a string-literal
 `event_type` is missing from `EVENT_TYPE_SCHEMA` or if the payload
-argument is an f-string (`ast.JoinedStr`) or a literal `str(x)` call.
+argument is an f-string or a literal `str(x)` call.
 
-### 4.4 Shipped sinks
+### 3.5 Bus lifecycle
 
-**`InMemorySink`** — registered by default when `event_sinks` is not
-explicitly passed to `Kernel`. Stores events in a schema-driven
-columnar layout (`_cols: dict[event_type, dict[column, list]]`) and
-metrics / book snapshots as raw wire-tuple lists. Each event-type
-bucket carries the four common wire columns (`agent_id`, `agent_type`,
-`sim_time_ns`, `seq`) plus one column per
-`PayloadSchema` field; events whose `event_type` is missing from
-`EVENT_TYPE_SCHEMA` fall through to a single `payload` column under
-the `GENERIC` schema with a one-time warning. Payload shape is
-validated against the chosen schema before any column is touched, so
-appends are transactional: a mismatched row is diverted to a per-type
-`"<event_type>::generic"` fallback bucket rather than leaving a typed
-bucket torn. Key API:
-- `agent_log(agent_id)` → `list[tuple[int, str, Any]]` — `(sim_time_ns, event_type, payload)` triples, matching the old `agent.log` format. Reconstructed from the columnar buckets and sorted by `seq`.
-- `events`, `metrics`, `book_snapshots` — wire tuple lists (`events` is rebuilt on demand from the columns; cache the result if you scan it more than once).
-- `columns` → the raw `dict[event_type, dict[column, list]]` mapping for zero-copy analytics paths (e.g. Arrow exporters).
-- `bucket_schema(event_type)` → the `PayloadSchema` chosen for a given bucket, or `None`.
-- `to_dataframe()` → wide-flat `pd.DataFrame` of all events with `WIRE_FIELDS_EVENT` columns.
+```
+Kernel.__init__()        → EventBus() created; sinks registered.
+Kernel.initialize()      → bus.start(meta)
+                            • calls on_simulation_start on all sinks
+                            • drains pre-start queue (e.g. AGENT_TYPE events)
+                            • rebinds publish_* to real or no-op methods
+Kernel.runner() per-tick → bus.drain()   (after each message dispatch)
+Kernel.terminate()       → bus.shutdown(meta)
+                            • drain() + on_simulation_end on all sinks
+                            • rebinds publish_* to pre-start stubs
+```
 
-**`BZ2PickleSink`** — accepts events only. Writes
-`<agent_name>.bz2` files on `on_simulation_end()` in the legacy
-format: a DataFrame indexed by `EventTime` with columns `EventType` and
-`Event`. Respects `agent.log_to_file=False` — agents with the flag
-cleared produce no disk file. Constructed with `(log_writer, agents)`.
+Events are **not** dispatched synchronously on `logEvent()`. They are
+buffered and drained once per message dispatch in `runner()` and once
+at `terminate()`. Code reading `InMemorySink` data outside the normal
+lifecycle (e.g. tests that call only `initialize()`) must call
+`kernel.event_bus.drain()` first.
 
-**`MetricsObserverSink`** — accepts metrics only. On each `on_metric()`
-call, forwards `(agent_id, agent_type, key, value)` to each
-`KernelObserver` in the observer list. Replaces the old direct call
-from `agent.report_metric()`.
+### 3.6 Pre-init bootstrap
 
-**`ParquetSink`** — optional columnar persistence sink. Accepts all
-three wire kinds by default; toggle individual kinds via
-`accept_events=`, `accept_metrics=`, `accept_book_snapshots=` on the
-constructor. Lives in `abides_core.parquet_sink` and requires the
-`[parquet]` extra:
+`Agent.__init__()` does not publish on the bus — it only allocates an
+empty `_pre_init_log` buffer for subclasses that call `logEvent()`
+from their own `__init__`. Each call to `Agent.kernel_initializing()`
+publishes a fresh `AGENT_TYPE` event and flushes the pre-init buffer
+to the bus it has just attached to. This guarantees `AGENT_TYPE` is
+re-emitted on every kernel attach (the gym-reset pattern of building
+a new `Kernel` with the same agent). All bootstrap events carry
+`sim_time_ns=0`.
+
+Because `bus.start()` has not been called yet, these events enter the
+pre-start queue and are drained automatically when `bus.start()`
+runs. The pre-start queue exists for all three wire kinds, so book
+snapshots published before `start()` (e.g. by an oracle warm-up step)
+are also delivered.
+
+### 3.7 Failure isolation
+
+A single `try/except` wraps the tuple loop for each sink in
+`_drain_buffers()`. On exception:
+
+- The sink is added to `_failed_sinks` and the failure tuple is
+  appended to `_sink_failures` once; subsequent batches for the same
+  sink are skipped entirely.
+- The remaining tuples of the current batch are dropped for that sink
+  only; other sinks see the full batch.
+- The exception is logged at `ERROR` with `exc_info`.
+- `bus.shutdown()` raises `RuntimeError` summarising all failed sinks;
+  `Kernel.terminate()` catches and logs this rather than re-raising
+  (conservative current behaviour).
+- Failures are surfaced programmatically on
+  `KernelRunResult.sink_failures` as a tuple of `SinkFailure` records
+  (`sink_index`, `sink_type`, `exception_repr`). Callers that want to
+  fail the run on any sink failure check this field after
+  `kernel.run()`.
+
+Per-batch (rather than per-tuple) wrapping avoids the overhead of
+millions of `try/except` frames in the hot dispatch path and prevents
+a known-broken sink from being re-invoked for every remaining tuple.
+
+---
+
+## 4. Shipped sinks
+
+### 4.1 `InMemorySink`
+
+Registered by default when `event_sinks=` is not passed to `Kernel`.
+Stores events in a schema-driven columnar layout
+(`_cols: dict[event_type, dict[column, list]]`) and metrics and book
+snapshots as raw wire-tuple lists. Each event-type bucket carries the
+four common wire columns (`agent_id`, `agent_type`, `sim_time_ns`,
+`seq`) plus one column per `PayloadSchema` field; events whose
+`event_type` is missing from `EVENT_TYPE_SCHEMA` fall through to a
+single `payload` column under the `GENERIC` schema with a one-time
+warning.
+
+Payload shape is validated against the chosen schema before any column
+is touched, so appends are transactional: a mismatched row is diverted
+to a per-type `"<event_type>::generic"` fallback bucket rather than
+leaving a typed bucket torn.
+
+Key API:
+
+- `agent_log(agent_id)` → `list[tuple[int, str, Any]]` of
+  `(sim_time_ns, event_type, payload)` triples, sorted by `seq`.
+- `events`, `metrics`, `book_snapshots` — wire-tuple lists. `events`
+  is rebuilt on demand from the columns; cache the result if you scan
+  it more than once.
+- `columns` → the raw `dict[event_type, dict[column, list]]` mapping
+  for zero-copy analytics paths (e.g. Arrow exporters).
+- `bucket_schema(event_type)` → the `PayloadSchema` chosen for a
+  given bucket, or `None`.
+- `to_dataframe()` → wide-flat `pd.DataFrame` of all events with
+  `WIRE_FIELDS_EVENT` columns.
+
+The convenience accessor `kernel.event_bus.in_memory_sink` returns the
+first registered `InMemorySink` (cached at registration) or `None`.
+
+### 4.2 `BZ2PickleSink` *(deprecated)*
+
+Legacy per-agent disk path. Accepts events only. On
+`on_simulation_end()`, writes one `<agent_name>.bz2` file per agent
+in the legacy format: a DataFrame indexed by `EventTime` with columns
+`EventType` and `Event`. Respects `agent.log_to_file=False` — agents
+with the flag cleared produce no disk file. Constructed with
+`(log_writer, agents)`.
+
+Emits a one-shot `DeprecationWarning` per process; replacement is
+`ParquetSink` (or any custom EventBus sink).
+
+### 4.3 `MetricsObserverSink`
+
+Accepts metrics only. On each `on_metric()` call, forwards
+`(agent_id, agent_type, key, value)` to each `KernelObserver` in the
+observer list. Registered automatically when the `Kernel` is
+constructed with one or more `observers=`.
+
+### 4.4 `ParquetSink`
+
+Optional columnar persistence sink. Lives in
+[`abides_core.sinks.parquet_sink`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/parquet_sink.py)
+and requires the `[parquet]` extra:
 
 ```bash
 pip install 'abides-ng[parquet]'
 ```
 
-Buffers each bus emission per `(kind, key)` bucket and flushes to a
-Parquet file at `<root>/<run_id>/{events,metrics,book_snapshots}/<key>.parquet`:
+Accepts all three wire kinds by default; toggle individual kinds via
+`accept_events=`, `accept_metrics=`, `accept_book_snapshots=` on the
+constructor.
+
+Buffers each emission per `(kind, key)` bucket and flushes to
+`<root>/<run_id>/{events,metrics,book_snapshots}/<key>.parquet`:
 
 - **events** — bucketed by `event_type` (one file per schema)
 - **metrics** — bucketed by metric `key`
 - **book_snapshots** — bucketed by `symbol`
 
 Files are written atomically: each bucket is staged under
-`<run_id>/.partial/<kind>/` and finalized with `os.replace`. The
-`.partial/` directory is wiped on `on_simulation_start()`, so a crashed
-prior run leaves no stale data behind. Set
-`checkpoint_every_rows=<int>` to rotate large buckets into numbered
-shards (`<key>.<seq_lo>-<seq_hi>.parquet`) instead of one monolithic
-file; without checkpointing, a single unnumbered file per bucket is
-produced.
+`<run_id>/.partial/<kind>/` and finalised with `os.replace`. The
+`.partial/` directory is wiped on `on_simulation_start()`, so a
+crashed prior run leaves no stale data behind.
 
-**Schema (`BUS_FORMAT_VERSION = "2"`):** Each known
-`event_type` now gets its own typed Arrow schema built from the
-corresponding `PayloadSchema.fields`, so that each column has a
-meaningful name and a precise Arrow dtype (see `_FIELD_TYPE` in
-`parquet_sink.py` for the mapping). The three common columns
-`(agent_id, agent_type, sim_time_ns)` appear first, then one column
-per field, then `seq`. Unknown event types (those absent from
-`EVENT_TYPE_SCHEMA`) are still pooled into `__generic__.parquet` with
-a pickled `payload` column plus an extra `event_type` column. Book
-snapshots continue to store `bids`/`asks` as pickled binaries pending
-structured list<struct> support.
+Set `checkpoint_every_rows=<int>` to rotate large buckets into
+numbered shards (`<key>.<seq_lo>-<seq_hi>.parquet`) instead of one
+monolithic file.
+
+**Schema (`BUS_FORMAT_VERSION = "2"`).** Each known `event_type` gets
+its own typed Arrow schema built from the corresponding
+`PayloadSchema.fields`, so each column has a meaningful name and a
+precise Arrow dtype (see `_FIELD_TYPE` in `parquet_sink.py` for the
+mapping). The three common columns `(agent_id, agent_type,
+sim_time_ns)` appear first, then one column per field, then `seq`.
+Unknown event types (those absent from `EVENT_TYPE_SCHEMA`) are
+pooled into `__generic__.parquet` with a pickled `payload` column
+plus an extra `event_type` column.
 
 The reader rejects files whose `abides.bus_format_version` metadata
-does not match the current constant. `unpickle_payloads(df, column)`
-still works for the `__generic__` bucket and for `bids`/`asks` in
-book-snapshot DataFrames, but for typed-Arrow event buckets the
-columns are already materialized and no unpickling is needed.
+does not match the current constant.
 
-**Exceptions:** Two field types remain pickled for now:
-- `DEPTH.levels` — typed Arrow list<struct> conversion is deferred.
-- book-snapshot `bids`/`asks` — same reason.
+**Pickled-field exceptions.** Two field types remain pickled:
 
-Unknown event types warn once and pool into `__generic__.parquet`.
+- `DEPTH.levels` — typed Arrow list&lt;struct&gt; conversion deferred.
+- Book-snapshot `bids` / `asks` — same reason.
 
-**Reader:** `read_parquet_logs(run_dir)` walks the on-disk layout,
+`unpickle_payloads(df, column)` materialises a pickled binary column;
+it is a no-op when `column` is absent.
+
+**Reader.** `read_parquet_logs(run_dir)` walks the on-disk layout,
 groups shards back into their logical bucket, validates file metadata,
 and returns `dict[str, dict[str, pd.DataFrame]]` keyed by
 `{events, metrics, book_snapshots} → bucket_key → DataFrame`, sorted
-by `(sim_time_ns, seq)`. A companion `unpickle_payloads(df, column)`
-helper materializes a pickled binary column; it is a no-op when
-`column` is absent from the DataFrame.
+by `(sim_time_ns, seq)`.
 
-### 4.5 Bus lifecycle
+### 4.5 `OrderBookSnapshotMemorySink` and `OrderBookHistoryMemorySink`
 
-```
-Kernel.__init__()          → EventBus() created; sinks registered.
-Kernel.initialize()        → bus.start(meta)
-                              • calls on_simulation_start on all sinks
-                              • drains pre-start queue (AGENT_TYPE events etc.)
-                              • rebinds publish_* to real or no-op methods
-Kernel.runner() per-tick   → bus.drain()   (after each message dispatch)
-Kernel.terminate()         → bus.shutdown(meta)
-                              • drain() + on_simulation_end on all sinks
-                              • rebinds to pre-start stubs (for gym reuse)
-```
-
-**Drain cadence:** Once per message dispatch in `runner()`, and once
-at `terminate()`. Events are **not** dispatched synchronously on
-`logEvent()`. If you read `InMemorySink` data outside the normal
-lifecycle (e.g. in tests that call only `initialize()`), call
-`kernel.event_bus.drain()` first.
-
-### 4.6 Pre-init bootstrap and `AGENT_TYPE`
-
-`Agent.__init__()` does **not** publish `AGENT_TYPE`.  It only allocates
-an empty `_pre_init_log` buffer for any subclass that calls
-``logEvent()`` from its own ``__init__``.  Each call to
-``Agent.kernel_initializing()`` publishes a fresh
-``AGENT_TYPE`` event to the bus it has just attached to, then flushes
-the pre-init buffer.  This guarantees ``AGENT_TYPE`` is re-emitted on
-every kernel attach (the gym-reset pattern of constructing a new
-``Kernel`` with the same agent).  All bootstrap events carry
-``sim_time_ns=0``.
-
-Because ``bus.start()`` has not been called yet, these events enter the
-pre-start queue and are drained automatically when ``bus.start()`` is
-called.  The pre-start queue exists for all three wire kinds
-(``publish_event``, ``publish_metric``, ``publish_book_snapshot``), so
-book snapshots published before ``start()`` (e.g. by an oracle warm-up
-step) are also delivered.
-
-### 4.7 Custom sinks
-
-Pass `event_sinks: list[EventSink]` to `Kernel(...)` to replace all
-default sinks. Pass `event_sinks=[]` to disable all sinks (no-op mode).
-Each sink is registered with `bus.register(sink)` and must implement
-the `EventSink` Protocol.  ``register()`` validates the Protocol at
-registration time and raises ``TypeError`` with a missing-method list
-if the object does not conform; the ``accept_*`` class attributes are
-checked explicitly.
-
-### 4.8 Failure isolation
-
-A single ``try/except`` wraps the whole tuple loop for each sink in
-``_drain_buffers()``.  On exception:
-
-- The sink is added to ``_failed_sinks`` and the failure tuple is
-  appended to ``_sink_failures`` once (subsequent batches for the same
-  sink are skipped entirely).
-- The remaining tuples of the *current* batch are dropped for that
-  sink only.
-- Other sinks see the full batch.
-- The exception is logged at ``ERROR`` with ``exc_info``.
-- ``bus.shutdown()`` raises ``RuntimeError`` summarising all failed
-  sinks; ``Kernel.terminate()`` catches and logs this rather than
-  re-raising (conservative current behaviour).
-- The failures are also surfaced programmatically on
-  ``KernelRunResult.sink_failures`` as a tuple of ``SinkFailure``
-  records (``sink_index``, ``sink_type``, ``exception_repr``).  Callers
-  that want to fail the run on any sink failure can check this field
-  after ``kernel.run()``.
-
-The per-batch (rather than per-tuple) wrapping avoids the overhead of
-millions of ``try/except`` frames in the hot dispatch path and prevents
-a known-broken sink from being re-invoked for every remaining tuple.
-
-### 4.9 Deprecated `agent.log` property
-
-Accessing `agent.log` emits a `DeprecationWarning` and
-returns `InMemorySink.agent_log(agent.id)` (or `[]` if no sink is
-registered). Update callers to use
-`kernel.event_bus.in_memory_sink.agent_log(agent_id)` directly, or use
-`parse_logs_df()` which already reads from the sink.
+Per-symbol sinks that absorb the `OrderBook` capture flow. See §6.
 
 ---
 
-## 5. OrderBook capture on the EventBus
+## 5. Custom sinks
 
-Historically, every `OrderBook` instance owned two per-instance Python
-lists: `book_log2` (snapshots of the L2 book after each mutation) and
-`history` (a dict per `LIMIT` / `EXEC` / `CANCEL` / `CANCEL_PARTIAL` /
-`MODIFY` / `REPLACE` event).  The runner read those lists directly to
-produce `SimulationResult.l1_series`, `l2_series`, `trades`, and
-`liquidity`.  This coupled storage policy to the producer and forced
-every consumer onto the same in-memory format.
+Pass `event_sinks: list[EventSink]` to `Kernel(...)` to replace **all**
+default sinks. Pass `event_sinks=[]` to disable all sinks (no-op
+mode). Each sink is registered via `bus.register(sink)` and must
+implement the `EventSink` Protocol.
 
-Both flows now move onto the same `EventBus` used for
-agent events and metrics.
+```python
+from abides_core.engine.kernel import Kernel
+from abides_core.sinks.event_sinks import EventSink, InMemorySink
 
-### 5.1 The `book_capture` config field
+class CountingSink:
+    accept_events = True
+    accept_metrics = False
+    accept_book_snapshots = False
 
-`ExchangeAgent` now takes
-``book_capture: Literal["off","l1","l2"] | None``.  When `None`, it
-falls back to the legacy ``book_logging`` boolean (``True → "l2"``,
-``False → "off"``) so existing configs keep working.
+    def __init__(self) -> None:
+        self.n = 0
+
+    def on_simulation_start(self, meta: dict) -> None: ...
+    def on_event(self, t: tuple) -> None:
+        self.n += 1
+    def on_metric(self, t: tuple) -> None: ...
+    def on_book_snapshot(self, t: tuple) -> None: ...
+    def flush(self) -> None: ...
+    def on_simulation_end(self, meta: dict) -> None: ...
+
+kernel = Kernel(..., event_sinks=[InMemorySink(), CountingSink()])
+```
+
+---
+
+## 6. `OrderBook` capture on the bus
+
+`OrderBook` no longer owns capture state. Snapshot and event writes
+flow through the same `EventBus` used for agent events and metrics,
+and are absorbed by per-symbol sinks installed at compile time.
+
+### 6.1 The `book_capture` config field
+
+`ExchangeAgent` takes
+`book_capture: Literal["off", "l1", "l2"] | None`. When `None`, it
+falls back to the legacy `book_logging` boolean (`True → "l2"`,
+`False → "off"`).
 
 | Value | Snapshot publish behaviour | Snapshot sink registered? |
 |---|---|---|
 | `"off"` | `_publish_snapshot` returns immediately. No bus traffic. | No |
-| `"l1"` | Top-of-book only, with publisher-side dedup: skip publish when `(bid_top, ask_top)` is unchanged. | Yes (depth=1) |
-| `"l2"` | Full `stream_history` depth. Byte-equivalent to the legacy `book_logging=True` path. | Yes (depth=`stream_history`) |
+| `"l1"` | Top-of-book only, with publisher-side dedup: skip publish when `(bid_top, ask_top)` is unchanged. | Yes (depth 1) |
+| `"l2"` | Full `stream_history` depth. Byte-equivalent to the legacy `book_logging=True` path. | Yes (depth `stream_history`) |
 
-The history sink is **always** registered (regardless of
-`book_capture`) because `ExchangeAgent._handle_query_order_stream`
-answers `QueryOrderStreamMsg` from it; the legacy `book_logging` flag
-never gated history either.
+The history sink is **always** registered, regardless of
+`book_capture`, because `ExchangeAgent._handle_query_order_stream`
+answers `QueryOrderStreamMsg` from it.
 
-### 5.2 Two new sinks
+### 6.2 Sinks
 
-In `abides_core.event_sinks`:
+In [`abides_core.sinks.event_sinks`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/event_sinks.py):
 
-- **`OrderBookSnapshotMemorySink(symbol, depth)`** — `accept_book_snapshots = True`.
-  Filters incoming snapshots by `symbol`.  Stores parallel column
-  arrays (`times`, `bids`, `asks`).  Exposes
-  `as_book_log2() -> tuple[dict, ...]` in the legacy
-  `{"QuoteTime", "bids", "asks"}` shape for the deprecated
-  `OrderBook.book_log2` property and for code paths that need the
-  numpy arrays.
+- **`OrderBookSnapshotMemorySink(symbol, depth)`** —
+  `accept_book_snapshots = True`. Filters incoming snapshots by
+  `symbol`. Stores parallel column arrays (`times`, `bids`, `asks`).
+  `as_book_log2()` returns the legacy `{"QuoteTime", "bids", "asks"}`
+  list-of-dicts shape.
 
 - **`OrderBookHistoryMemorySink(symbol)`** — `accept_events = True`.
   Filters by `event_type in BOOK_EVENT_TYPES` and by payload
-  `.symbol == symbol`.  Stores the payload `NamedTuple`s.  Exposes
-  `as_history_dicts() -> tuple[dict, ...]` in the legacy
-  `{"time", "type", **payload_fields}` shape (with `symbol` stripped,
-  since the legacy history list never carried it).
+  `.symbol == symbol`. Stores payload `NamedTuple`s.
+  `as_history_dicts()` returns the legacy
+  `{"time", "type", **payload_fields}` shape (with `symbol`
+  stripped).
 
-One pair is registered per symbol; the compile path (and
-`ExchangeAgent.kernel_initializing` as a backstop for the legacy
-`build_config()` path) installs them on `kernel.event_bus`.
+One pair is registered per symbol.
 
-### 5.3 Book event vocabulary and payload schema
+### 6.3 Book event vocabulary
 
 Six bare-string event types are published by `OrderBook`, defined in
-`abides_markets.book_events`:
+[`abides_markets.book_events`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/book_events.py):
 
 | `event_type` | `NamedTuple` payload | Fired at |
 |---|---|---|
@@ -903,73 +458,172 @@ Six bare-string event types are published by `OrderBook`, defined in
 | `MODIFY` | `ModifyPayload(symbol, order_id, new_side, new_quantity)` | In-place quantity / side modify. |
 | `REPLACE` | `ReplacePayload(symbol, old_order_id, new_order_id, quantity, price)` | Cancel-and-replace. |
 
-`symbol` is the **first** field of every payload so a single history
-sink can demultiplex events from a multi-symbol exchange.  Bare strings
+`symbol` is the first field of every payload so a single history
+sink can demultiplex events from a multi-symbol exchange. Bare strings
 match the historical `history["type"]` literals — zero migration for
 consumers that switch from reading `OrderBook.history` to walking the
 sink.
 
-The `BOOK_EVENT_PAYLOAD_CLASSES` dict in `abides_markets.book_events`
-maps event types to their `NamedTuple` classes.
+`BOOK_EVENT_PAYLOAD_CLASSES` maps event types to their `NamedTuple`
+classes.
 
-### 5.4 Producer side
-
-`OrderBook` no longer owns capture state.  All snapshot writes flow
-through `OrderBook._publish_snapshot(t)`:
-
-```
-mode = exchange.book_capture
-if mode == "off": return
-if mode == "l1":
-    if (bid_top, ask_top) == cache: return     # publisher-side dedup
-    cache = (bid_top, ask_top)
-    bus.publish_book_snapshot(symbol, t, ((bid_p, bid_q),), ((ask_p, ask_q),), 1)
-else:  # "l2"
-    bus.publish_book_snapshot(symbol, t, l2_bids, l2_asks, stream_history)
-```
-
-All event writes flow through `OrderBook._publish_event(t, type_str,
-payload)`:
-
-```
-bus.publish_event(exchange.id, "ExchangeAgent", t, type_str, payload)
-```
-
-Agent attribution lives **inside** the payload (`agent_id`,
-`oppos_agent_id`); the producer field on the wire tuple is the
-exchange.  When no kernel/bus is attached (standalone unit tests
-constructing `OrderBook` against a stub agent), both methods append to
-internal fallback buffers that the deprecated properties read instead.
-
-### 5.5 Deprecated `OrderBook.book_log2` and `OrderBook.history`
-
-Both attributes are now `@property` shims.  Each:
-
-1. Walks `kernel.event_bus._sinks` to find the matching per-symbol
-   `OrderBookSnapshotMemorySink` / `OrderBookHistoryMemorySink`.
-2. Materializes the legacy list-of-dicts shape via `as_book_log2()` /
-   `as_history_dicts()`.
-3. Caches the result on the `OrderBook` instance; invalidates the
-   cache when the sink length changes (so the cached list stays live
-   across the whole simulation — `ExchangeAgent` re-reads
-   `history[1:length+1]` on every `QueryOrderStreamMsg`).
-4. Emits `DeprecationWarning` once per instance.
-
-When no kernel/bus is attached, the properties fall back to the
-in-process buffers populated by `_publish_snapshot` / `_publish_event`.
-
-New code should read directly from the sinks via
-`ExchangeAgent._get_snapshot_sink(symbol)` /
-`ExchangeAgent._get_history_sink(symbol)`, or via
-`SimulationResult.logs` once the relevant sink type is exposed there.
-
-### 5.6 Reproducibility contract
+### 6.4 Reproducibility
 
 With `book_capture="l2"` and a fixed seed, all
 `SimulationResult.markets[symbol]` fields are byte-equivalent to a
 pre-EventBus baseline pickled at
 `abides-markets/tests/data/book_capture_baseline_l2.pkl` (asserted by
-`test_book_capture_reproducibility::test_l2_byte_equivalent`).  With
+`test_book_capture_reproducibility::test_l2_byte_equivalent`). With
 `book_capture="l1"`, the L1 series equals the L2 series after
 consecutive-duplicate removal (with the empty initial snapshot
 dropped), and the L2 series is empty.
+
+---
+
+## 7. `Agent.logEvent` — the producer side
+
+```python
+def logEvent(
+    self,
+    event_type: str,
+    event: Any = "",
+    append_summary_log: bool = False,   # deprecated
+    deepcopy_event: bool = False,
+) -> None:
+```
+
+Publishes one event tuple on `self.kernel.event_bus`. Cheap: every
+in-tree call site uses a registered `event_type` from
+`EVENT_TYPE_SCHEMA`, so the payload is either an empty tuple, a bare
+scalar, or a pre-built positional tuple (no allocation in the hot
+path).
+
+Two flags:
+
+- `deepcopy_event=True` — copy the payload before publishing, so later
+  mutation of the original (e.g. a holdings dict) does not poison the
+  historical entry. Default `False` for performance.
+- `append_summary_log=True` — **deprecated**. Also pushes to
+  `Kernel.summary_log`. Emits a one-shot `DeprecationWarning`.
+
+Two control flags on `Agent` itself:
+
+- `log_events: bool = True` — if `False`, `logEvent()` returns
+  immediately. Nothing reaches the bus.
+- `log_to_file: bool = True` — interpreted by `BZ2PickleSink` only:
+  agents with the flag cleared produce no `.bz2` file. `InMemorySink`
+  ignores it.
+
+Both are per-agent-instance flags. The declarative config exposes a
+`log_orders` override per agent.
+
+---
+
+## 8. Reading the event stream
+
+### 8.1 In-process: `parse_logs_df`
+
+[`abides_core.utils.parse_logs_df`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py)
+is the canonical reader. It walks `end_state["agents"]`, reads each
+agent's events from `InMemorySink.agent_log(agent_id)`, flattens the
+payload (positional-tuple → dict via the registered schema; dict
+passthrough; scalar → `{field_name: value}`), adds `agent_id` and
+`agent_type` columns, and concatenates into a single `pd.DataFrame`.
+
+Called from:
+
+- [`abides_markets.simulation.runner`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/runner.py),
+  which populates `SimulationResult.logs` when the requested
+  `ResultProfile` includes agent logs.
+- Notebook examples and the [data-extraction guide](data-extraction.md).
+
+The metrics system in
+[`abides_markets.simulation.metrics`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/metrics.py)
+consumes the parsed DataFrame, not the raw event tuples.
+
+### 8.2 On disk: `read_parquet_logs`
+
+`abides_core.sinks.parquet_sink.read_parquet_logs(run_dir)` is the
+canonical reader for `ParquetSink` output. See §4.4.
+
+### 8.3 Deprecated: `Agent.log` property
+
+`agent.log` is a deprecation shim that materialises
+`kernel.event_bus.in_memory_sink.agent_log(agent_id)` on every access
+and emits a `DeprecationWarning`. Migrate to the explicit sink call
+or to `SimulationResult.logs`.
+
+---
+
+## 9. `summary_log` — deprecated
+
+`Kernel.append_summary_log` and
+`Agent.logEvent(append_summary_log=True)` are deprecated and pending
+removal. The path was a centralised "final state" log inherited from
+upstream JPMorgan ABIDES whose intended consumer ("separate
+statistical summary programs" — see the upstream `Kernel.__init__`
+comment) was never open-sourced; in-process consumers in this fork
+standardised on the per-agent path via `parse_logs_df`.
+
+Replacement is `MetricsObserverSink` (or any custom `EventSink`) on
+`Kernel.event_bus`. Removal timeline tracked in the
+[Deprecated section of CHANGELOG.md](../changelog.md#deprecated).
+
+Each surface emits a one-shot `DeprecationWarning` per process:
+
+| Surface | Replacement |
+|---|---|
+| `BZ2PickleLogWriter` | `ParquetSink` |
+| `BZ2PickleSink` | `ParquetSink` |
+| `Agent.logEvent(append_summary_log=True)` | `MetricsObserverSink` |
+| `Kernel.append_summary_log` | `MetricsObserverSink` |
+| `Agent.log` property | `kernel.event_bus.in_memory_sink.agent_log(agent_id)` |
+| `OrderBook.book_log2`, `OrderBook.history` | per-symbol bus sinks (§6.2) |
+
+---
+
+## 10. Filesystem layout
+
+A run with disk persistence produces a directory `<log_root>/<run_id>/`
+containing:
+
+```
+<log_root>/<run_id>/
+├── summary_log.bz2                    # deprecated; pending removal
+├── ExchangeAgent0.bz2                 # legacy per-agent BZ2PickleSink output
+├── NoiseAgent1.bz2                    # one file per agent with log_to_file=True
+├── ValueAgent2.bz2
+├── fundamental_<symbol>.bz2           # ad-hoc artefacts via custom filename
+└── events/                            # ParquetSink output (if registered)
+    ├── ORDER_ACCEPTED.parquet
+    ├── ...
+    └── __generic__.parquet
+```
+
+`log_root` defaults to `"./log"` (created lazily on the first write)
+and is passed to `Kernel(log_root=...)` by the compile path from
+`SimulationMeta.log_root`. `log_dir` defaults to `uuid.uuid4().hex`,
+which avoids wall-clock collisions under multiprocessing.
+
+There is no `simulation.log` for stdout — Python logging output goes
+to stdout/stderr only.
+
+---
+
+## 11. Configuration flags
+
+| Flag | Defined in | Default | Controls | Subsystem |
+|---|---|---|---|---|
+| `Kernel.skip_log` | [`engine/kernel.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/engine/kernel.py) | `True` | Suppress disk writes for the legacy per-agent path and `summary_log` | EventBus disk sinks |
+| `Kernel.log_dir` | [`engine/kernel.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/engine/kernel.py) | `uuid.uuid4().hex` | Subdirectory under `log_root` | EventBus disk sinks |
+| `Kernel.log_root` | [`engine/kernel.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/engine/kernel.py) | `"./log"` (via `BZ2PickleLogWriter`) | Filesystem root for the legacy per-agent path | EventBus disk sinks |
+| `Agent.log_events` | [`agent.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py) | `True` | Whether `logEvent()` publishes at all | EventBus event stream |
+| `Agent.log_to_file` | [`agent.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py) | `True` | Whether `BZ2PickleSink` writes the agent's `.bz2` file | Legacy per-agent path |
+| `SimulationConfig.simulation.log_level` | [`config_system/models.py`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/config_system/models.py) | `"INFO"` | `basicConfig(level=...)` for stdout | Python logging |
+| `SimulationMeta.log_orders` (per agent) | config system | varies | `log_events` / `log_to_file` override per agent type | EventBus event stream |
+| `ExchangeAgent.book_capture` | config system | `None` (falls back to `book_logging`) | `OrderBook` snapshot flow (§6.1) | EventBus book snapshots |
+
+The declarative config exposes `log_level` (Python logging) and
+`log_orders` overrides (event stream). `skip_log`, `log_dir`, and
+`log_root` are reachable only via direct `Kernel(...)` construction
+or via `SimulationMeta` plumbing.

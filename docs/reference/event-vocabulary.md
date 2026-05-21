@@ -281,7 +281,7 @@ history sink can demultiplex events from a multi-symbol exchange.
 Snapshot publishes use the separate `publish_book_snapshot` wire kind
 (not `publish_event`) and have no `event_type` string; they carry
 `(symbol, sim_time_ns, bids, asks, depth, seq)`.  See
-[logging-architecture.md §5](logging-architecture.md#5-orderbook-capture-on-the-eventbus)
+[logging-architecture.md §6](logging-architecture.md#6-orderbook-capture-on-the-bus)
 for the full producer / sink contract and the `book_capture` config
 field.
 
