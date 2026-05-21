@@ -34,7 +34,8 @@ repos:
       - id: nb-clean
         name: nb-clean
         entry: nb-clean clean
-        language: system
+        language: python
+        additional_dependencies: ["nb-clean>=4.0.1"]
         files: \.ipynb$
         pass_filenames: true
 

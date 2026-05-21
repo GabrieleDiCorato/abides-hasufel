@@ -860,7 +860,7 @@ class SimulationResult(BaseModel):
 
     def to_json(self) -> str:
         """Return a JSON string representation of this result."""
-        return self.model_dump_json()
+        return cast(str, self.model_dump_json())
 
     def summary_dict(self) -> dict[str, Any]:
         """Return structured summary data for dashboard widgets.
