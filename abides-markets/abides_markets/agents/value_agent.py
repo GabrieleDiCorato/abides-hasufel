@@ -4,6 +4,7 @@ import math
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.telemetry.event_payloads import EventType
 
 from ..messages.query import QuerySpreadResponseMsg
 from ..models.risk_config import RiskConfig
@@ -117,7 +118,7 @@ class ValueAgent(TradingAgent):
         surplus += self.holdings["CASH"] - self.starting_cash
         surplus = float(surplus) / self.starting_cash
 
-        self.logEvent("FINAL_VALUATION", surplus, True)
+        self.logEvent(EventType.FINAL_VALUATION, surplus, True)
 
         logger.debug(
             "{} final report.  Holdings: {}, end cash: {}, start cash: {}, final fundamental: {}, surplus: {}",

@@ -6,6 +6,7 @@ from math import ceil, floor
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.telemetry.event_payloads import EventType
 
 from ...messages.marketdata import (
     BookImbalanceDataMsg,
@@ -565,7 +566,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             self.place_market_order(self.symbol, abs(position), Side.BID)
 
         self.logEvent(
-            "AMM_FLATTEN",
+            EventType.AMM_FLATTEN,
             (self.symbol, position),
             deepcopy_event=False,
         )

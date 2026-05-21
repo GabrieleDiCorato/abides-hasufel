@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from abides_core import Kernel, Message, NanosecondTime
-from abides_core.telemetry.event_payloads import EMPTY_PAYLOAD
+from abides_core.telemetry.event_payloads import EMPTY_PAYLOAD, EventType
 
 from ..messages.market import (
     MarketClosedMsg,
@@ -865,7 +865,7 @@ class ExchangeAgent(FinancialAgent):
                 # Harmonise with the rest of the STOP_ORDER_* / order
                 # lifecycle family: emit the structured dict instead of
                 # the legacy free-form ``str(order)`` representation.
-                self.logEvent("STOP_ORDER_ACCEPTED", order.to_payload_tuple())
+                self.logEvent(EventType.STOP_ORDER_ACCEPTED, order.to_payload_tuple())
 
     def _check_stop_orders(self, symbol: str) -> None:
         """Evaluate all pending stop orders for *symbol* against ``last_trade``.

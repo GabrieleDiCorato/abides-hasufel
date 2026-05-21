@@ -8,6 +8,7 @@ import pandas as pd
 
 from . import NanosecondTime
 from .messaging.message import Message, MessageBatch
+from .telemetry.event_payloads import EventType
 from .utils import fmt_ts
 
 if TYPE_CHECKING:
@@ -126,7 +127,7 @@ class Agent:
         # the pre-init queue flush so AGENT_TYPE is always the first event
         # for each agent.
         self.kernel.event_bus.publish_event(
-            self.id, self.type, 0, "AGENT_TYPE", self.type
+            self.id, self.type, 0, EventType.AGENT_TYPE, self.type
         )
 
         # Flush pre-init events (published during __init__ before the bus was
@@ -181,20 +182,21 @@ class Agent:
 
     def logEvent(
         self,
-        event_type: str,
+        event_type: EventType | str,
         event: Any = "",
         append_summary_log: bool = False,
         deepcopy_event: bool = False,
     ) -> None:
-        """
-        Adds an event to this agent's log.
-
-        The deepcopy of the Event field, often an object, ensures later state
-        changes to the object will not retroactively update the logged event.
+        """Publish an event to the event bus for this agent.
 
         Arguments:
-            event_type: label of the event (e.g., Order submitted, order accepted last trade etc....)
-            event: actual event to be logged
+            event_type: A :class:`~abides_core.telemetry.event_payloads.EventType`
+                member, or a raw ``str`` for dynamic event types such as
+                ``<order_tag>_POST_ONLY``.  Raw strings that are not
+                :class:`~abides_core.telemetry.event_payloads.EventType` members
+                emit a :class:`UserWarning` at runtime.
+            event: The payload to attach.  Schema is governed by
+                :data:`~abides_core.telemetry.event_payloads.EVENT_TYPE_SCHEMA`.
             append_summary_log:
                 .. deprecated::
                     The ``summary_log`` path is slated for removal in
@@ -207,6 +209,15 @@ class Agent:
 
         if not self.log_events:
             return
+
+        if not isinstance(event_type, EventType):
+            warnings.warn(
+                f"logEvent() called with unknown event_type {event_type!r}; "
+                "use EventType members for statically-known events. "
+                "Only dynamic event types (e.g. <tag>_POST_ONLY) should pass raw strings.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # We can make a single copy of the object (in case it is an arbitrary
         # class instance) for both potential log targets, because we don't

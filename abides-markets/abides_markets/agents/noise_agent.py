@@ -3,6 +3,7 @@ import logging
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.telemetry.event_payloads import EventType
 from abides_core.utils import str_to_ns
 from abides_markets.models.order_size_model import OrderSizeModel
 from abides_markets.models.risk_config import RiskConfig
@@ -121,7 +122,7 @@ class NoiseAgent(TradingAgent):
 
         if bid is None and ask is None and self.symbol not in self.last_trade:
             # Agent never received any market data — log starting cash as-is.
-            self.logEvent("FINAL_VALUATION", self.starting_cash, True)
+            self.logEvent(EventType.FINAL_VALUATION, self.starting_cash, True)
         else:
             H = self.get_holdings(self.symbol)
             rT = (bid + ask) // 2 if bid and ask else self.last_trade[self.symbol]
@@ -129,7 +130,7 @@ class NoiseAgent(TradingAgent):
             surplus_cents = rT * H + self.holdings["CASH"] - self.starting_cash
             surplus_frac = surplus_cents / self.starting_cash
 
-            self.logEvent("FINAL_VALUATION", surplus_frac, True)
+            self.logEvent(EventType.FINAL_VALUATION, surplus_frac, True)
 
             logger.debug(
                 "{} final report.  Holdings: {}, end cash: {}, start cash: {}, final fundamental: {}, surplus: {}",

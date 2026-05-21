@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from abides_core import Message, NanosecondTime
-from abides_core.telemetry.event_payloads import EMPTY_PAYLOAD
+from abides_core.telemetry.event_payloads import EMPTY_PAYLOAD, EventType
 from abides_core.utils import fmt_ts
 
 from ..messages.market import (
@@ -229,7 +229,7 @@ class TradingAgent(FinancialAgent):
         """
 
         # self.kernel is set in Agent.kernel_initializing()
-        self.logEvent("STARTING_CASH", self.starting_cash, True)
+        self.logEvent(EventType.STARTING_CASH, self.starting_cash, True)
 
         # Find an exchange with which we can place orders.  It is guaranteed
         # to exist by now (if there is one).
@@ -248,14 +248,16 @@ class TradingAgent(FinancialAgent):
 
         # Print end of day holdings.
         self.logEvent(
-            "FINAL_HOLDINGS", self.fmt_holdings(self.holdings), deepcopy_event=False
+            EventType.FINAL_HOLDINGS,
+            self.fmt_holdings(self.holdings),
+            deepcopy_event=False,
         )
-        self.logEvent("FINAL_CASH_POSITION", self.holdings["CASH"], True)
+        self.logEvent(EventType.FINAL_CASH_POSITION, self.holdings["CASH"], True)
 
         # Mark to market.
         cash = self.mark_to_market(self.holdings)
 
-        self.logEvent("ENDING_CASH", cash, True)
+        self.logEvent(EventType.ENDING_CASH, cash, True)
         logger.debug(
             f"Final holdings for {self.name}: {self.fmt_holdings(self.holdings)}. Marked to market: {cash}"
         )
@@ -288,7 +290,7 @@ class TradingAgent(FinancialAgent):
             for sym, qty in self.holdings.items():
                 if sym == "CASH":
                     continue
-                self.logEvent("HOLDINGS_UPDATED", (sym, qty, qty, cash_after))
+                self.logEvent(EventType.HOLDINGS_UPDATED, (sym, qty, qty, cash_after))
             self.first_wake = False
 
             # Tell the exchange we want to be sent the final prices when the market closes.
@@ -641,7 +643,7 @@ class TradingAgent(FinancialAgent):
                     f"loss={loss} >= max_drawdown={self.max_drawdown}"
                 )
                 self.logEvent(
-                    "CIRCUIT_BREAKER_TRIPPED",
+                    EventType.CIRCUIT_BREAKER_TRIPPED,
                     ("max_drawdown", loss),
                 )
                 return True
@@ -660,7 +662,7 @@ class TradingAgent(FinancialAgent):
                 f">= max_order_rate={self.max_order_rate}"
             )
             self.logEvent(
-                "CIRCUIT_BREAKER_TRIPPED",
+                EventType.CIRCUIT_BREAKER_TRIPPED,
                 ("max_order_rate", self._order_count_in_window),
             )
             return True
@@ -822,7 +824,9 @@ class TradingAgent(FinancialAgent):
 
             if self.log_orders:
                 self.logEvent(
-                    "ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                    EventType.ORDER_SUBMITTED,
+                    order.to_payload_tuple(),
+                    deepcopy_event=False,
                 )
 
     def place_market_order(
@@ -887,7 +891,9 @@ class TradingAgent(FinancialAgent):
             self._record_order_for_rate_check()
             if self.log_orders:
                 self.logEvent(
-                    "ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                    EventType.ORDER_SUBMITTED,
+                    order.to_payload_tuple(),
+                    deepcopy_event=False,
                 )
 
         else:
@@ -929,7 +935,9 @@ class TradingAgent(FinancialAgent):
         self.send_message(self.exchange_id, StopOrderMsg(order))
         if self.log_orders:
             self.logEvent(
-                "STOP_ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                EventType.STOP_ORDER_SUBMITTED,
+                order.to_payload_tuple(),
+                deepcopy_event=False,
             )
 
     def place_multiple_orders(self, orders: list[LimitOrder | MarketOrder]) -> None:
@@ -977,7 +985,9 @@ class TradingAgent(FinancialAgent):
 
             if self.log_orders:
                 self.logEvent(
-                    "ORDER_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                    EventType.ORDER_SUBMITTED,
+                    order.to_payload_tuple(),
+                    deepcopy_event=False,
                 )
 
         if len(messages) > 0:
@@ -1005,7 +1015,9 @@ class TradingAgent(FinancialAgent):
             self.send_message(self.exchange_id, CancelOrderMsg(order, tag, metadata))
             if self.log_orders:
                 self.logEvent(
-                    "CANCEL_SUBMITTED", order.to_payload_tuple(), deepcopy_event=False
+                    EventType.CANCEL_SUBMITTED,
+                    order.to_payload_tuple(),
+                    deepcopy_event=False,
                 )
         else:
             warnings.warn(f"Order {order} of type, {type(order)} cannot be cancelled")
@@ -1045,7 +1057,9 @@ class TradingAgent(FinancialAgent):
 
         if self.log_orders:
             self.logEvent(
-                "CANCEL_PARTIAL_ORDER", order.to_payload_tuple(), deepcopy_event=False
+                EventType.CANCEL_PARTIAL_ORDER,
+                order.to_payload_tuple(),
+                deepcopy_event=False,
             )
 
     def modify_order(self, order: LimitOrder, new_order: LimitOrder) -> None:
@@ -1065,7 +1079,7 @@ class TradingAgent(FinancialAgent):
 
         if self.log_orders:
             self.logEvent(
-                "MODIFY_ORDER", order.to_payload_tuple(), deepcopy_event=False
+                EventType.MODIFY_ORDER, order.to_payload_tuple(), deepcopy_event=False
             )
 
     def replace_order(self, order: LimitOrder, new_order: LimitOrder) -> None:
@@ -1106,7 +1120,7 @@ class TradingAgent(FinancialAgent):
 
         if self.log_orders:
             self.logEvent(
-                "REPLACE_ORDER", order.to_payload_tuple(), deepcopy_event=False
+                EventType.REPLACE_ORDER, order.to_payload_tuple(), deepcopy_event=False
             )
 
     def order_executed(self, order: Order) -> None:
@@ -1124,7 +1138,7 @@ class TradingAgent(FinancialAgent):
 
         if self.log_orders:
             self.logEvent(
-                "ORDER_EXECUTED", order.to_payload_tuple(), deepcopy_event=False
+                EventType.ORDER_EXECUTED, order.to_payload_tuple(), deepcopy_event=False
             )
 
         # At the very least, we must update CASH and holdings at execution time.
@@ -1160,7 +1174,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"After order execution, agent open orders: {self.orders}")
 
         self.logEvent(
-            "HOLDINGS_UPDATED",
+            EventType.HOLDINGS_UPDATED,
             (sym, qty, self.holdings.get(sym, 0), self.holdings["CASH"]),
         )
 
@@ -1175,7 +1189,7 @@ class TradingAgent(FinancialAgent):
         if nav > self._peak_nav:
             self._peak_nav = nav
         self.logEvent(
-            "FILL_PNL",
+            EventType.FILL_PNL,
             (nav, self._peak_nav, sym),
         )
 
@@ -1197,7 +1211,7 @@ class TradingAgent(FinancialAgent):
 
         if self.log_orders:
             self.logEvent(
-                "ORDER_ACCEPTED", order.to_payload_tuple(), deepcopy_event=False
+                EventType.ORDER_ACCEPTED, order.to_payload_tuple(), deepcopy_event=False
             )
 
         # We may later wish to add a status to the open orders so an agent can tell whether
@@ -1217,7 +1231,9 @@ class TradingAgent(FinancialAgent):
 
         if self.log_orders:
             self.logEvent(
-                "ORDER_CANCELLED", order.to_payload_tuple(), deepcopy_event=False
+                EventType.ORDER_CANCELLED,
+                order.to_payload_tuple(),
+                deepcopy_event=False,
             )
 
         # Remove the cancelled order from the open orders list.  We may of course wish to have
@@ -1243,7 +1259,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of partial cancellation for: {order}")
 
         if self.log_orders:
-            self.logEvent("PARTIAL_CANCELLED", order.to_payload_tuple())
+            self.logEvent(EventType.PARTIAL_CANCELLED, order.to_payload_tuple())
 
         # if orders still in the list of agent's order update agent's knowledge of
         # current state of the order
@@ -1272,7 +1288,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of modification for: {order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_MODIFIED", order.to_payload_tuple())
+            self.logEvent(EventType.ORDER_MODIFIED, order.to_payload_tuple())
 
         # if orders still in the list of agent's order update agent's knowledge of
         # current state of the order
@@ -1297,7 +1313,7 @@ class TradingAgent(FinancialAgent):
         logger.debug(f"Received notification of replacement for: {old_order}")
 
         if self.log_orders:
-            self.logEvent("ORDER_REPLACED", old_order.to_payload_tuple())
+            self.logEvent(EventType.ORDER_REPLACED, old_order.to_payload_tuple())
 
         # replace_order() pre-registered the new order but left the old order
         # in self.orders so that any pending OrderExecutedMsg for the old order
@@ -1321,7 +1337,7 @@ class TradingAgent(FinancialAgent):
         logger.debug("Received notification of market closure.")
 
         # Log this activity.
-        self.logEvent("MKT_CLOSED", EMPTY_PAYLOAD)
+        self.logEvent(EventType.MKT_CLOSED, EMPTY_PAYLOAD)
 
     def stop_triggered(self, order: StopOrder) -> None:
         """Called when the exchange triggers one of this agent's stop orders.
@@ -1338,7 +1354,7 @@ class TradingAgent(FinancialAgent):
             del self.orders[order.order_id]
         if self.log_orders:
             self.logEvent(
-                "STOP_TRIGGERED", order.to_payload_tuple(), deepcopy_event=False
+                EventType.STOP_TRIGGERED, order.to_payload_tuple(), deepcopy_event=False
             )
 
         # Remember that this has happened.
@@ -1406,10 +1422,10 @@ class TradingAgent(FinancialAgent):
             f"Received spread of {best_bid_qty} @ {best_bid} / {best_ask_qty} @ {best_ask} for {symbol}"
         )
 
-        self.logEvent("BID_DEPTH", bids)
-        self.logEvent("ASK_DEPTH", asks)
+        self.logEvent(EventType.BID_DEPTH, bids)
+        self.logEvent(EventType.ASK_DEPTH, asks)
         self.logEvent(
-            "IMBALANCE", [sum([x[1] for x in bids]), sum([x[1] for x in asks])]
+            EventType.IMBALANCE, [sum([x[1] for x in bids]), sum([x[1] for x in asks])]
         )
 
         self.book = book
@@ -1571,7 +1587,7 @@ class TradingAgent(FinancialAgent):
             # Per-symbol contribution to portfolio value, in integer cents.
             # The structured payload is the CASH-schema int; a human-
             # readable line is emitted via the stdlib logger for operators.
-            self.logEvent("MARK_TO_MARKET", value)
+            self.logEvent(EventType.MARK_TO_MARKET, value)
             logger.debug(
                 "MARK_TO_MARKET %d %s @ %s == %d",
                 shares,
@@ -1580,7 +1596,7 @@ class TradingAgent(FinancialAgent):
                 value,
             )
 
-        self.logEvent("MARKED_TO_MARKET", cash)
+        self.logEvent(EventType.MARKED_TO_MARKET, cash)
 
         return cash
 

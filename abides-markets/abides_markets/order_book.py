@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from abides_core import Agent, NanosecondTime
+from abides_core.telemetry.event_payloads import EventType
 from abides_core.utils import ns_date, str_to_ns
 
 from .book_events import (
@@ -237,13 +238,13 @@ class OrderBook:
         # Now that we are done executing or accepting this order, log the new best bid and ask.
         if self.bids:
             self.owner.logEvent(
-                "BEST_BID",
+                EventType.BEST_BID,
                 (self.symbol, self.bids[0].price, self.bids[0].total_quantity),
             )
 
         if self.asks:
             self.owner.logEvent(
-                "BEST_ASK",
+                EventType.BEST_ASK,
                 (self.symbol, self.asks[0].price, self.asks[0].total_quantity),
             )
 
@@ -258,7 +259,9 @@ class OrderBook:
 
             avg_price = int(round(trade_price / trade_qty))
             logger.debug(f"Avg: {trade_qty} @ ${avg_price:0.4f}")
-            self.owner.logEvent("LAST_TRADE", (self.symbol, avg_price, trade_qty))
+            self.owner.logEvent(
+                EventType.LAST_TRADE, (self.symbol, avg_price, trade_qty)
+            )
 
             self.last_trade = avg_price
 

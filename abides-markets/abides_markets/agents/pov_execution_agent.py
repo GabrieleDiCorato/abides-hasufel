@@ -13,6 +13,7 @@ import logging
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.telemetry.event_payloads import EventType
 from abides_core.utils import str_to_ns
 
 from ..messages.query import QueryTransactedVolResponseMsg
@@ -120,7 +121,7 @@ class POVExecutionAgent(BaseSlicingExecutionAgent):
             else 0
         )
         self.logEvent(
-            "POV_SUMMARY",
+            EventType.POV_SUMMARY,
             (effective_pov, self.total_market_volume_observed),
         )
         super().kernel_stopping()

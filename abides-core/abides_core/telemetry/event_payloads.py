@@ -7,10 +7,13 @@ Schemas are **module-level singletons** — one instance per logical
 payload shape, shared across many ``event_type`` strings.  No allocation
 happens at publish time.
 
-Public contract (semver-stable, see §3.10 of the refactor plan):
+Public contract (semver-stable):
+    - :class:`EventType` — :class:`~enum.StrEnum` of all statically-known
+      event type strings.  Use these constants at call sites instead of raw
+      string literals so typos become import-time errors.
     - :class:`PayloadSchema` — the schema descriptor.
     - :data:`EVENT_TYPE_SCHEMA` — the single source of truth mapping
-      ``event_type → schema``.
+      ``EventType → schema``.
     - Named schema instances: ``ORDER_EVENT``, ``HOLDINGS_DELTA``,
       ``CASH``, ``DEPTH``, ``QUOTE``, ``AGENT_TYPE_SCHEMA``, ``EMPTY``.
 """
@@ -18,6 +21,94 @@ Public contract (semver-stable, see §3.10 of the refactor plan):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class EventType(StrEnum):
+    """All statically-known event type strings produced by shipped agents.
+
+    Because :class:`EventType` is a :class:`~enum.StrEnum`, every member
+    *is* a ``str`` — existing comparisons such as
+    ``logs_df[logs_df.EventType == "ORDER_SUBMITTED"]`` continue to work
+    without change.
+
+    Dynamic event types that cannot be enumerated statically (e.g.
+    ``<order_tag>_POST_ONLY`` from the order book) are passed as plain
+    ``str`` to :meth:`~abides_core.agent.Agent.logEvent` and are not
+    listed here.
+    """
+
+    # --- Order lifecycle (TradingAgent) ---
+    ORDER_SUBMITTED = "ORDER_SUBMITTED"
+    ORDER_ACCEPTED = "ORDER_ACCEPTED"
+    ORDER_EXECUTED = "ORDER_EXECUTED"
+    ORDER_CANCELLED = "ORDER_CANCELLED"
+    PARTIAL_CANCELLED = "PARTIAL_CANCELLED"
+    ORDER_MODIFIED = "ORDER_MODIFIED"
+    ORDER_REPLACED = "ORDER_REPLACED"
+    CANCEL_SUBMITTED = "CANCEL_SUBMITTED"
+    CANCEL_PARTIAL_ORDER = "CANCEL_PARTIAL_ORDER"
+    MODIFY_ORDER = "MODIFY_ORDER"
+    REPLACE_ORDER = "REPLACE_ORDER"
+    # --- Stop orders ---
+    STOP_ORDER_SUBMITTED = "STOP_ORDER_SUBMITTED"
+    STOP_ORDER_ACCEPTED = "STOP_ORDER_ACCEPTED"
+    STOP_TRIGGERED = "STOP_TRIGGERED"
+    # --- ExchangeAgent message-type echoes ---
+    LimitOrderMsg = "LimitOrderMsg"
+    MarketOrderMsg = "MarketOrderMsg"
+    CancelOrderMsg = "CancelOrderMsg"
+    PartialCancelOrderMsg = "PartialCancelOrderMsg"
+    ModifyOrderMsg = "ModifyOrderMsg"
+    ReplaceOrderMsg = "ReplaceOrderMsg"
+    OrderAcceptedMsg = "OrderAcceptedMsg"
+    OrderExecutedMsg = "OrderExecutedMsg"
+    OrderCancelledMsg = "OrderCancelledMsg"
+    OrderPartialCancelledMsg = "OrderPartialCancelledMsg"
+    OrderModifiedMsg = "OrderModifiedMsg"
+    OrderReplacedMsg = "OrderReplacedMsg"
+    # --- ExchangeAgent non-order message echoes ---
+    QueryLastTradeMsg = "QueryLastTradeMsg"
+    QuerySpreadMsg = "QuerySpreadMsg"
+    QueryOrderStreamMsg = "QueryOrderStreamMsg"
+    QueryTransactedVolMsg = "QueryTransactedVolMsg"
+    MarketHoursRequestMsg = "MarketHoursRequestMsg"
+    MarketClosePriceRequestMsg = "MarketClosePriceRequestMsg"
+    L1SubReqMsg = "L1SubReqMsg"
+    L2SubReqMsg = "L2SubReqMsg"
+    L3SubReqMsg = "L3SubReqMsg"
+    TransactedVolSubReqMsg = "TransactedVolSubReqMsg"
+    BookImbalanceSubReqMsg = "BookImbalanceSubReqMsg"
+    # --- Holdings / cash (TradingAgent) ---
+    STARTING_CASH = "STARTING_CASH"
+    FINAL_CASH_POSITION = "FINAL_CASH_POSITION"
+    ENDING_CASH = "ENDING_CASH"
+    HOLDINGS_UPDATED = "HOLDINGS_UPDATED"
+    FINAL_HOLDINGS = "FINAL_HOLDINGS"
+    MARK_TO_MARKET = "MARK_TO_MARKET"
+    MARKED_TO_MARKET = "MARKED_TO_MARKET"
+    FILL_PNL = "FILL_PNL"
+    # --- Market data echo (TradingAgent) ---
+    BID_DEPTH = "BID_DEPTH"
+    ASK_DEPTH = "ASK_DEPTH"
+    IMBALANCE = "IMBALANCE"
+    # --- Order book (OrderBook via ExchangeAgent) ---
+    BEST_BID = "BEST_BID"
+    BEST_ASK = "BEST_ASK"
+    LAST_TRADE = "LAST_TRADE"
+    # --- Lifecycle ---
+    AGENT_TYPE = "AGENT_TYPE"
+    MKT_CLOSED = "MKT_CLOSED"
+    # --- Valuation ---
+    FINAL_VALUATION = "FINAL_VALUATION"
+    # --- Execution agents ---
+    EXECUTION_SUMMARY = "EXECUTION_SUMMARY"
+    SLICE_DECISION = "SLICE_DECISION"
+    POV_SUMMARY = "POV_SUMMARY"
+    # --- Market makers ---
+    AMM_FLATTEN = "AMM_FLATTEN"
+    # --- Risk ---
+    CIRCUIT_BREAKER_TRIPPED = "CIRCUIT_BREAKER_TRIPPED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,86 +351,86 @@ ever land here — it signals a missing registry entry.
 # The single source of truth: event_type → schema.
 # ---------------------------------------------------------------------------
 
-EVENT_TYPE_SCHEMA: dict[str, PayloadSchema] = {
+EVENT_TYPE_SCHEMA: dict[EventType, PayloadSchema] = {
     # --- Order lifecycle (TradingAgent) ---
-    "ORDER_SUBMITTED": ORDER_EVENT,
-    "ORDER_ACCEPTED": ORDER_EVENT,
-    "ORDER_EXECUTED": ORDER_EVENT,
-    "ORDER_CANCELLED": ORDER_EVENT,
-    "PARTIAL_CANCELLED": ORDER_EVENT,
-    "ORDER_MODIFIED": ORDER_EVENT,
-    "ORDER_REPLACED": ORDER_EVENT,
-    "CANCEL_SUBMITTED": ORDER_EVENT,
-    "CANCEL_PARTIAL_ORDER": ORDER_EVENT,
-    "MODIFY_ORDER": ORDER_EVENT,
-    "REPLACE_ORDER": ORDER_EVENT,
+    EventType.ORDER_SUBMITTED: ORDER_EVENT,
+    EventType.ORDER_ACCEPTED: ORDER_EVENT,
+    EventType.ORDER_EXECUTED: ORDER_EVENT,
+    EventType.ORDER_CANCELLED: ORDER_EVENT,
+    EventType.PARTIAL_CANCELLED: ORDER_EVENT,
+    EventType.ORDER_MODIFIED: ORDER_EVENT,
+    EventType.ORDER_REPLACED: ORDER_EVENT,
+    EventType.CANCEL_SUBMITTED: ORDER_EVENT,
+    EventType.CANCEL_PARTIAL_ORDER: ORDER_EVENT,
+    EventType.MODIFY_ORDER: ORDER_EVENT,
+    EventType.REPLACE_ORDER: ORDER_EVENT,
     # --- Stop orders ---
-    "STOP_ORDER_SUBMITTED": ORDER_EVENT,
-    "STOP_ORDER_ACCEPTED": ORDER_EVENT,
-    "STOP_TRIGGERED": ORDER_EVENT,
+    EventType.STOP_ORDER_SUBMITTED: ORDER_EVENT,
+    EventType.STOP_ORDER_ACCEPTED: ORDER_EVENT,
+    EventType.STOP_TRIGGERED: ORDER_EVENT,
     # --- ExchangeAgent message-type echoes (Message.type() names) ---
     # ExchangeAgent.receive_message and ExchangeAgent.send_message echo
     # OrderMsg / OrderBookMsg subclasses under the message class name as
     # the event_type, with order.to_dict() (now to_payload_tuple()) as
     # the payload. The allowlist below mirrors the explicit dispatch in
     # ExchangeAgent.receive_message.
-    "LimitOrderMsg": ORDER_EVENT,
-    "MarketOrderMsg": ORDER_EVENT,
-    "CancelOrderMsg": ORDER_EVENT,
-    "PartialCancelOrderMsg": ORDER_EVENT,
-    "ModifyOrderMsg": ORDER_EVENT,
-    "ReplaceOrderMsg": ORDER_EVENT,
-    "OrderAcceptedMsg": ORDER_EVENT,
-    "OrderExecutedMsg": ORDER_EVENT,
-    "OrderCancelledMsg": ORDER_EVENT,
-    "OrderPartialCancelledMsg": ORDER_EVENT,
-    "OrderModifiedMsg": ORDER_EVENT,
-    "OrderReplacedMsg": ORDER_EVENT,
+    EventType.LimitOrderMsg: ORDER_EVENT,
+    EventType.MarketOrderMsg: ORDER_EVENT,
+    EventType.CancelOrderMsg: ORDER_EVENT,
+    EventType.PartialCancelOrderMsg: ORDER_EVENT,
+    EventType.ModifyOrderMsg: ORDER_EVENT,
+    EventType.ReplaceOrderMsg: ORDER_EVENT,
+    EventType.OrderAcceptedMsg: ORDER_EVENT,
+    EventType.OrderExecutedMsg: ORDER_EVENT,
+    EventType.OrderCancelledMsg: ORDER_EVENT,
+    EventType.OrderPartialCancelledMsg: ORDER_EVENT,
+    EventType.OrderModifiedMsg: ORDER_EVENT,
+    EventType.OrderReplacedMsg: ORDER_EVENT,
     # --- ExchangeAgent non-order message echoes ---
     # These are query/subscription requests echoed by ExchangeAgent.
     # No structured payload is attached; the event is a bare receipt
     # under the EMPTY schema (sender_id is recorded by the sink).
-    "QueryLastTradeMsg": EMPTY,
-    "QuerySpreadMsg": EMPTY,
-    "QueryOrderStreamMsg": EMPTY,
-    "QueryTransactedVolMsg": EMPTY,
-    "MarketHoursRequestMsg": EMPTY,
-    "MarketClosePriceRequestMsg": EMPTY,
-    "L1SubReqMsg": EMPTY,
-    "L2SubReqMsg": EMPTY,
-    "L3SubReqMsg": EMPTY,
-    "TransactedVolSubReqMsg": EMPTY,
-    "BookImbalanceSubReqMsg": EMPTY,
+    EventType.QueryLastTradeMsg: EMPTY,
+    EventType.QuerySpreadMsg: EMPTY,
+    EventType.QueryOrderStreamMsg: EMPTY,
+    EventType.QueryTransactedVolMsg: EMPTY,
+    EventType.MarketHoursRequestMsg: EMPTY,
+    EventType.MarketClosePriceRequestMsg: EMPTY,
+    EventType.L1SubReqMsg: EMPTY,
+    EventType.L2SubReqMsg: EMPTY,
+    EventType.L3SubReqMsg: EMPTY,
+    EventType.TransactedVolSubReqMsg: EMPTY,
+    EventType.BookImbalanceSubReqMsg: EMPTY,
     # --- Holdings / cash (TradingAgent) ---
-    "STARTING_CASH": CASH,
-    "FINAL_CASH_POSITION": CASH,
-    "ENDING_CASH": CASH,
-    "HOLDINGS_UPDATED": HOLDINGS_DELTA,
-    "FINAL_HOLDINGS": SUMMARY,
-    "MARK_TO_MARKET": CASH,  # per-symbol contribution in cents; structured counterpart is MARKED_TO_MARKET
-    "MARKED_TO_MARKET": CASH,
-    "FILL_PNL": FILL_PNL,
+    EventType.STARTING_CASH: CASH,
+    EventType.FINAL_CASH_POSITION: CASH,
+    EventType.ENDING_CASH: CASH,
+    EventType.HOLDINGS_UPDATED: HOLDINGS_DELTA,
+    EventType.FINAL_HOLDINGS: SUMMARY,
+    EventType.MARK_TO_MARKET: CASH,  # per-symbol contribution in cents; structured counterpart is MARKED_TO_MARKET
+    EventType.MARKED_TO_MARKET: CASH,
+    EventType.FILL_PNL: FILL_PNL,
     # --- Market data echo (TradingAgent) ---
-    "BID_DEPTH": DEPTH,
-    "ASK_DEPTH": DEPTH,
-    "IMBALANCE": IMBALANCE_PAYLOAD,
+    EventType.BID_DEPTH: DEPTH,
+    EventType.ASK_DEPTH: DEPTH,
+    EventType.IMBALANCE: IMBALANCE_PAYLOAD,
     # --- Order book (ExchangeAgent via OrderBook) ---
-    "BEST_BID": QUOTE,
-    "BEST_ASK": QUOTE,
-    "LAST_TRADE": QUOTE,
+    EventType.BEST_BID: QUOTE,
+    EventType.BEST_ASK: QUOTE,
+    EventType.LAST_TRADE: QUOTE,
     # --- Lifecycle ---
-    "AGENT_TYPE": AGENT_TYPE_SCHEMA,
-    "MKT_CLOSED": EMPTY,
+    EventType.AGENT_TYPE: AGENT_TYPE_SCHEMA,
+    EventType.MKT_CLOSED: EMPTY,
     # --- Valuation ---
-    "FINAL_VALUATION": VALUATION,
+    EventType.FINAL_VALUATION: VALUATION,
     # --- Execution agents ---
-    "EXECUTION_SUMMARY": EXECUTION_SUMMARY,
-    "SLICE_DECISION": SLICE_DECISION,
-    "POV_SUMMARY": POV_SUMMARY,
+    EventType.EXECUTION_SUMMARY: EXECUTION_SUMMARY,
+    EventType.SLICE_DECISION: SLICE_DECISION,
+    EventType.POV_SUMMARY: POV_SUMMARY,
     # --- Market makers ---
-    "AMM_FLATTEN": AMM_FLATTEN,
+    EventType.AMM_FLATTEN: AMM_FLATTEN,
     # --- Risk ---
-    "CIRCUIT_BREAKER_TRIPPED": CIRCUIT_BREAKER,
+    EventType.CIRCUIT_BREAKER_TRIPPED: CIRCUIT_BREAKER,
 }
 """Complete map from ``event_type`` string to :class:`PayloadSchema`.
 

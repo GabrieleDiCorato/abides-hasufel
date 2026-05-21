@@ -183,7 +183,7 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
     """
     # Late import to avoid a circular import at module load time.
     from .agent import Agent
-    from .telemetry.event_payloads import EVENT_TYPE_SCHEMA
+    from .telemetry.event_payloads import EVENT_TYPE_SCHEMA, EventType
 
     def _expand_payload(event_type: str, payload: Any) -> dict:
         """Project a payload onto its schema fields when one is registered."""
@@ -191,7 +191,11 @@ def parse_logs_df(agents: list) -> pd.DataFrame:
             # Legacy / pre-tuple payloads (and the GENERIC fallback path
             # in ad-hoc agents) keep their dict shape unchanged.
             return payload
-        schema = EVENT_TYPE_SCHEMA.get(event_type)
+        schema = (
+            EVENT_TYPE_SCHEMA.get(EventType(event_type))
+            if event_type in EventType._value2member_map_
+            else None
+        )
         if schema is not None:
             arity = len(schema.fields)
             if arity == 0:

@@ -18,6 +18,7 @@ from typing import Literal
 import numpy as np
 
 from abides_core import Message, NanosecondTime
+from abides_core.telemetry.event_payloads import EventType
 
 from ..messages.query import QuerySpreadResponseMsg
 from ..models.risk_config import RiskConfig
@@ -131,7 +132,7 @@ class BaseSlicingExecutionAgent(TradingAgent, abc.ABC):
             f"Executed: {self.executed_quantity}/{self.quantity} ({pct:.1f}%)"
         )
         self.logEvent(
-            "EXECUTION_SUMMARY",
+            EventType.EXECUTION_SUMMARY,
             (
                 self.executed_quantity,
                 self.quantity,
@@ -228,7 +229,7 @@ class BaseSlicingExecutionAgent(TradingAgent, abc.ABC):
             return
 
         self.logEvent(
-            "SLICE_DECISION",
+            EventType.SLICE_DECISION,
             (
                 current_time,
                 order_size,

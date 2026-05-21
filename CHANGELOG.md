@@ -12,6 +12,16 @@ reference.
 
 ## [0.1.0] - Unreleased
 
+### Added
+- **`EventType` StrEnum** in `abides_core.telemetry.event_payloads`. All
+  statically-known `logEvent` event type strings are now `StrEnum` members.
+  Because `StrEnum` IS `str`, existing DataFrame comparisons and log-parsing
+  code are backward compatible with no changes required. The `EVENT_TYPE_SCHEMA`
+  dict now uses `EventType` keys.
+- **Runtime validation in `Agent.logEvent()`.** Passing a raw `str` that is not
+  an `EventType` member emits a `UserWarning` at call time, surfacing typos that
+  were previously silent.
+
 ### Fixed
 - **`Kernel.run()` now finalises sinks even when the runner raises.**
   The main loop is wrapped in `try` / `finally` semantics: if
