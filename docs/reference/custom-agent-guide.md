@@ -160,19 +160,29 @@ Custom agents only implement two entry points. All other lifecycle phases are ha
 
 ## 4. Retrieving Market Data
 
-ABIDES requires sending a message to request data. The response arrives asynchronously.
+All market data arrives asynchronously. There is no synchronous read — every
+data request sends a message; the response arrives later in
+`receive_message()`. The adapter pattern here is: **subscribe or query once,
+then react in `receive_message()`**. Two architectural options:
 
 ### Option A: Subscriptions (Recommended)
-Send a subscription request *once* (e.g., in your first valid `wakeup()`).
-- Use `L2SubReqMsg`, `TransactedVolSubReqMsg`, etc.
-- `TradingAgent` automatically processes `L2DataMsg` and updates `self.known_bids[symbol]` and `self.known_asks[symbol]`.
+Send a subscription request once (e.g., in your first valid `wakeup()`),
+using `L2SubReqMsg`, `TransactedVolSubReqMsg`, or similar. `TradingAgent`
+processes each incoming data message and updates its internal caches;
+your `receive_message()` override intercepts the same messages to invoke
+your strategy logic.
 
 ### Option B: Point-in-time Queries
-Send a query (e.g., `self.get_current_spread(symbol)`).
-- The result arrives later as a `QuerySpreadResponseMsg`.
-- Your `receive_message()` must intercept this to invoke your strategy.
+Call `self.get_current_spread(symbol)` (or a similar query helper) on each
+wakeup. The result arrives as a `QuerySpreadResponseMsg`; intercept it in
+`receive_message()` and invoke your strategy there.
 
-*(Refer to `llm-gotchas.md` for safe access patterns, as all internal data dictionaries start empty).*
+> **All safe-access patterns for internal data caches (`known_bids`,
+> `known_asks`, `last_trade`, `mkt_open`, `L1DataMsg.bid`, etc.) —
+> including `None` / `KeyError` / empty-list traps — are documented
+> exclusively in [llm-gotchas.md](./llm-gotchas.md).** This guide focuses
+> on the adapter structure; do not access these caches without first reading
+> that page.
 
 ---
 

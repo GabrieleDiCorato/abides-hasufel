@@ -18,7 +18,7 @@ do completely different things and barely interact:
 |---|---|---|---|
 | **Python `logging`** | Lifecycle, periodic stats, debug traces | stdout (via `basicConfig`) | Operator watching the console |
 | **Per-agent event log** (`Agent.logEvent`) | Every business event the agent emits | `EventBus` → registered `EventSink` implementations → `InMemorySink` (in-memory) and/or `BZ2PickleSink` (disk) | `InMemorySink.agent_log()`, `parse_logs_df()`, notebooks, metrics |
-| **Summary log** (`Kernel.append_summary_log`) | A handful of "important" events (cash, holdings, valuation) | In-memory `kernel.summary_log` list → `./log/<run_id>/summary_log.bz2` | **Nobody in this fork.** Originally intended for "separate statistical summary programs". |
+| **Summary log** (`Kernel.append_summary_log`) | A handful of "important" events (cash, holdings, valuation) | In-memory `kernel.summary_log` list → `./log/<run_id>/summary_log.bz2` | Deprecated — use `MetricsObserverSink` or any `EventSink` on `Kernel.event_bus` instead. |
 
 The per-agent event log flows through the `EventBus`
 rather than being stored directly on `agent.log`. See [§4](#4-eventbus-architecture).
@@ -46,13 +46,13 @@ Full timeline is tracked in the project backlog.
 
 Every module follows the standard `logger = logging.getLogger(__name__)`
 pattern. **18 named loggers** across the three packages
-([abides-core/abides_core/kernel.py L17](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L17),
-[abides-core/abides_core/agent.py L15](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L15),
+([abides-core/abides_core/kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py),
+[abides-core/abides_core/agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py),
 oracles, every agent type, `order_book.py`, etc.).
 
 Two CLI entry points use a hardcoded `"abides"` name instead:
-[abides-core/abides_core/abides.py L17](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py#L17)
-and [abides-core/scripts/abides L18](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/scripts/abides#L18).
+[abides-core/abides_core/abides.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py)
+and [abides-core/scripts/abides](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/scripts/abides).
 
 ### 1.2 Configuration
 
@@ -65,9 +65,9 @@ logging.basicConfig(
 )
 ```
 
-Sites: [abides.py L47-50](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py#L47),
-[abides.py L150-153](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py#L150),
-[scripts/abides L95-98](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/scripts/abides#L95).
+Sites: [abides.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py),
+[abides.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/abides.py),
+[scripts/abides](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/scripts/abides).
 
 `stdout_log_level` is plumbed from `SimulationConfig.simulation.log_level`
 (default `"INFO"`, one of `DEBUG/INFO/WARNING/ERROR/CRITICAL`).
@@ -85,7 +85,7 @@ Categorized by purpose ([kernel.py](https://github.com/GabrieleDiCorato/abides-n
   `Kernel Event Queue begins/empty`. Useful for tracing setup, mostly
   silent at INFO.
 - **Periodic checkpoint (INFO):** Every 100,000 messages,
-  [kernel.py L325](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L325)
+  [kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)
   emits a one-line snapshot:
   `--- Simulation time: ..., messages processed: ..., wallclock elapsed: ...s ---`.
   This is the only INFO output during the hot loop. For a 7-million
@@ -119,7 +119,7 @@ gaps:
 
 - No way to send stdout logs to a file alongside the per-agent `.bz2`
   files. Documentation in
-  [parallel-simulation.md L234](parallel-simulation.md)
+  [parallel-simulation.md](parallel-simulation.md)
   shows users how to attach a `FileHandler` themselves.
 
 ---
@@ -135,7 +135,7 @@ analytics consume. Don't confuse it with system A.
 
 ### 2.1 Method
 
-[agent.py L137-174](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L137):
+[agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py):
 
 ```python
 def logEvent(
@@ -148,7 +148,7 @@ def logEvent(
 ```
 
 Each agent owns `self.log: list[tuple[NanosecondTime, str, Any]]`
-([agent.py L68](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L68)). On every
+([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py)). On every
 `logEvent` call, a tuple `(current_time, event_type, event)` is appended.
 
 Two flags:
@@ -156,9 +156,9 @@ Two flags:
   later mutation of the original dict doesn't poison historical
   entries. Default `False` for performance. Used at 5 call sites
   where holdings dicts are logged
-  ([trading_agent.py L288, 1148, 1241, 1268, 1298](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L288)
-  + [noise_agent.py L124, 132](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/noise_agent.py#L124)
-  + [value_agent.py L120](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/value_agent.py#L120)).
+  ([trading_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py)
+  + [noise_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/noise_agent.py)
+  + [value_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/value_agent.py)).
 - `append_summary_log=True` — also push to the kernel's central
   summary list (system C). Used at the same handful of "final state"
   call sites.
@@ -179,7 +179,7 @@ Two flags:
 `STOP_TRIGGERED`, `MKT_CLOSED`.
 **Exchange:** raw `Message.type()` strings — exchange logs every
 incoming message at
-[exchange_agent.py L420](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L420).
+[exchange_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py).
 **Execution algos:** custom strings from `BaseExecutionAgent` and
 subclasses.
 
@@ -187,9 +187,9 @@ subclasses.
 
 Per-agent: at termination, each agent's `self.log` is converted to a
 DataFrame `(EventTime, EventType, Event)` indexed by `EventTime`
-([agent.py L137-138](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L137)),
+([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py)),
 then handed to
-[kernel.py write_log() L713-753](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L713).
+[kernel.py write_log()](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py).
 
 `write_log()`:
 - Skips if `self.skip_log`.
@@ -201,15 +201,15 @@ filesystem layout, choice of pickle, choice of bz2.
 
 A handful of agents call `write_log()` again with a custom `filename` for
 extra artifacts — e.g.
-[exchange_agent.py L327](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py#L327)
+[exchange_agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/exchange_agent.py)
 writes `fundamental_<symbol>.bz2`.
 
 ### 2.4 Two control flags on `Agent` itself
 
-- `log_events: bool = True` ([agent.py L33](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L33))
+- `log_events: bool = True` ([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py))
   — if `False`, `logEvent()` becomes a no-op. The agent records
   nothing.
-- `log_to_file: bool = True` ([agent.py L34](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L34))
+- `log_to_file: bool = True` ([agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py))
   — if `False`, the agent's log stays in memory and is never written
   to disk (but is still exposed via `agent.log`).
 
@@ -217,11 +217,11 @@ These are **per-agent-instance** flags. There is no global way to
 "disable order logs across all agents". Configs that want to suppress
 order logs for, say, noise agents must set the flag per-agent-type at
 build time. The config system has helpers (`log_orders` override at
-[test_config_system.py L1179](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_config_system.py#L1179)).
+[test_config_system.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_config_system.py)).
 
 ### 2.5 Downstream: `parse_logs_df`
 
-[abides-core/abides_core/utils.py L154-186](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py#L154):
+[abides-core/abides_core/utils.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py):
 
 ```python
 def parse_logs_df(end_state: dict) -> pd.DataFrame:
@@ -233,7 +233,7 @@ def parse_logs_df(end_state: dict) -> pd.DataFrame:
 
 This is the **canonical reader** of system B. It is called from:
 
-- [abides-markets/abides_markets/simulation/runner.py L349](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/runner.py#L349)
+- [abides-markets/abides_markets/simulation/runner.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/runner.py)
   — populates `SimulationResult.logs` when the requested `ResultProfile`
   includes agent logs.
 - [data-extraction.md](data-extraction.md) — the
@@ -280,88 +280,13 @@ real issues:
 
 ---
 
-## 3. System C — `summary_log` (the centralized one)
+## 3. System C — `summary_log` (deprecated)
 
-### 3.1 The mechanism
-
-[kernel.py L87](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L87): a list
-populated by
-[`append_summary_log()`](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L755-772):
-
-```python
-def append_summary_log(self, sender_id, event_type, event):
-    self.summary_log.append({
-        "AgentID": sender_id,
-        "AgentStrategy": self.agents[sender_id].type,
-        "EventType": event_type,
-        "Event": event,
-    })
-```
-
-Triggered from [agent.py L172-174](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L172)
-*only* when the agent passes `append_summary_log=True` to `logEvent`.
-
-### 3.2 Who actually uses it
-
-Verified by grep — only **7 call sites** pass `append_summary_log=True`:
-
-| Event | Caller |
-|---|---|
-| `STARTING_CASH` | [trading_agent.py L233](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L233) |
-| `FINAL_CASH_POSITION` | [trading_agent.py L256](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L256) |
-| `ENDING_CASH` | [trading_agent.py L261](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L261) |
-| `HOLDINGS_UPDATED` | [trading_agent.py L288](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/trading_agent.py#L288) |
-| `FINAL_VALUATION` | [noise_agent.py L124, 132](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/noise_agent.py#L124) |
-| `FINAL_VALUATION` | [value_agent.py L120](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/agents/value_agent.py#L120) |
-
-These are all **end-of-day financial summary events**. The intent
-(judging from the call sites) was to give downstream tools a fast path
-to "the final state of everyone's books" without scanning every agent's
-full log.
-
-### 3.3 Disk write
-
-[kernel.py write_summary_log() L774-783](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L774):
-
-```python
-def write_summary_log(self) -> None:
-    path = os.path.join(".", "log", self.log_dir)
-    file = "summary_log.bz2"
-    if not os.path.exists(path):
-        os.makedirs(path)
-    df_log = pd.DataFrame(self.summary_log)
-    df_log.to_pickle(os.path.join(path, file), compression="bz2")
-```
-
-**Bug:** does not honour `skip_log` — writes the file unconditionally.
-Already captured as A.1 in the kernel improvement plan.
-
-Called once, from
-[`terminate()` at kernel.py L493](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L493).
-
-### 3.4 Who reads it
-
-**Nobody.** Verified by grep:
-- No code path opens `summary_log.bz2`.
-- No `pd.read_pickle(.*summary)` anywhere.
-- No tool, no notebook, no test, no documentation page tells the user
-  how to use it.
-- The file *is* listed in
-  [parallel-simulation.md L315](parallel-simulation.md)
-  as part of the on-disk layout, with the description "Kernel summary
-  (agent types, final values)" — but no consumer is documented or
-  implemented.
-
-### 3.5 Verdict on system C
-
-**Vestigial.** It collects a small subset of system B's data into a
-parallel structure, writes it to a file that no internal tool reads,
-and survives only because nobody removed it.
-
-If a future feature wants "fast final-state summary", the right path is
-to compute it from the (already in-memory) per-agent logs, or to use the
-new `report_metric` mechanism planned in B.4 of the kernel improvement
-plan. There is no current consumer to break.
+`Kernel.append_summary_log` and `Agent.logEvent(append_summary_log=True)` are
+deprecated and pending removal — register a `MetricsObserverSink` (or any
+`EventSink`) on `Kernel.event_bus` instead; see the
+[Deprecated section in CHANGELOG.md](../changelog.md#deprecated) for the
+removal timeline.
 
 ---
 
@@ -371,7 +296,7 @@ A run produces a directory `./log/<log_dir>/` containing:
 
 ```
 ./log/<log_dir>/
-├── summary_log.bz2                    # System C — written, never read
+├── summary_log.bz2                    # System C — deprecated; pending removal
 ├── ExchangeAgent0.bz2                 # System B — per-agent log (DataFrame)
 ├── NoiseAgent1.bz2
 ├── ValueAgent2.bz2
@@ -380,13 +305,13 @@ A run produces a directory `./log/<log_dir>/` containing:
 ```
 
 `<log_dir>` defaults to `str(int(wall_clock_seconds))`
-([kernel.py L136](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L136)). This
+([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)). This
 **collides** if two simulations start in the same second. The high-level
 `run_simulation()` wrapper avoids this by generating a UUID when
 `log_dir is None`; the low-level `Kernel(...)` and CLI do not.
 
 The path root `./log/` is hardcoded
-([kernel.py L743, 776](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L743)).
+([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)).
 There is no `log_root` parameter; the kernel writes into the current
 working directory.
 
@@ -398,11 +323,11 @@ There is no `simulation.log` for stdout — system A goes only to stdout.
 
 | Flag | Where defined | Default | Controls | System |
 |---|---|---|---|---|
-| `Kernel.skip_log` | [kernel.py L54, 133](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L54) | `True` | Suppress disk writes for B + C (but see bug 3.3 — C ignores it today) | B + C |
-| `Kernel.log_dir` | [kernel.py L56, 136](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L56) | `uuid.uuid4().hex` | Subdirectory under `./log/` | B + C |
-| `Agent.log_events` | [agent.py L33](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L33) | `True` | Whether `logEvent()` records anything in memory | B |
-| `Agent.log_to_file` | [agent.py L34](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py#L34) | `True` | Whether the agent's log is written at termination | B |
-| `SimulationConfig.simulation.log_level` | [config_system/models.py L404](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/config_system/models.py#L404) | `"INFO"` | `basicConfig(level=...)` for stdout | A |
+| `Kernel.skip_log` | [kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py) | `True` | Suppress disk writes for B + C (but see bug 3.3 — C ignores it today) | B + C |
+| `Kernel.log_dir` | [kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py) | `uuid.uuid4().hex` | Subdirectory under `./log/` | B + C |
+| `Agent.log_events` | [agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py) | `True` | Whether `logEvent()` records anything in memory | B |
+| `Agent.log_to_file` | [agent.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py) | `True` | Whether the agent's log is written at termination | B |
+| `SimulationConfig.simulation.log_level` | [config_system/models.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/config_system/models.py) | `"INFO"` | `basicConfig(level=...)` for stdout | A |
 
 Notable: the user-facing config system exposes `log_level` (system A)
 and `log_orders` overrides per agent (system B), but **does not expose**
@@ -418,19 +343,18 @@ Tests confirm the load-bearing behaviour but reveal the asymmetry:
 
 - **System A:** no tests. `basicConfig` is fire-and-forget.
 - **System B:** rich coverage —
-  [test_pandas_integration.py L186-413](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_pandas_integration.py#L186)
+  [test_pandas_integration.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_pandas_integration.py)
   covers `parse_logs_df`, end-to-end disk round-trip, type coercion;
-  [test_simulation.py L553-572](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_simulation.py#L553)
+  [test_simulation.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_simulation.py)
   covers `SimulationResult.logs` shape and presence per profile;
-  [test_replace_order_regression.py L344-388](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_replace_order_regression.py#L344)
+  [test_replace_order_regression.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_replace_order_regression.py)
   covers REPLACE/MODIFY/CANCEL log records; config-system tests at
-  [test_config_system.py L1169, 1179, 1437](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_config_system.py#L1169)
+  [test_config_system.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/tests/test_config_system.py)
   exercise `log_level()` and `log_orders` overrides.
-- **System C:** no tests. No reader, no round-trip check, nothing
-  asserts on `summary_log.bz2`.
+- **System C:** deprecated; no tests.
 
 Most kernel tests construct with `skip_log=True` to avoid touching the
-filesystem ([test_kernel.py L47, 54, 63, 83](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_kernel.py#L47)).
+filesystem ([test_kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_kernel.py)).
 
 ---
 
@@ -439,9 +363,9 @@ filesystem ([test_kernel.py L47, 54, 63, 83](https://github.com/GabrieleDiCorato
 ### 7.1 Real correctness bugs
 
 - **`write_summary_log()` ignores `skip_log`**
-  ([kernel.py L774-783](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py#L774)).
-  Fix queued as A.1 in the kernel improvement plan. Severity: low
-  (file is unused), but a unit-test surprise.
+  ([kernel.py](https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/kernel.py)).
+  Severity: low (surface is deprecated and has no consumer); will be
+  removed along with the `summary_log` path.
 
 ### 7.2 Real performance issues
 
@@ -469,9 +393,9 @@ filesystem ([test_kernel.py L47, 54, 63, 83](https://github.com/GabrieleDiCorato
   different lifecycles and consumers. Not separated, not labelled in
   the directory layout. A user looking at the folder cannot tell what
   is what without reading source.
-- **`summary_log` is dead code with an externally visible artifact.**
-  Kept for one release for safety, but nobody uses it. Either remove
-  it or design it properly.
+- **`summary_log` is deprecated** — use `MetricsObserverSink` (or any
+  `EventSink`) on `Kernel.event_bus` instead. See
+  [CHANGELOG.md](../changelog.md) for the removal timeline.
 - **`log_events` / `log_to_file` are per-instance, not per-type.**
   Setting them across "all noise agents" requires loop-and-mutate at
   build time.
@@ -509,9 +433,8 @@ filesystem ([test_kernel.py L47, 54, 63, 83](https://github.com/GabrieleDiCorato
 > not skipped) get pickled to disk. `parse_logs_df` is the official
 > reader.
 >
-> **System C** is dead weight that produces a file nobody reads. It is
-> retained only because removing it would break the documented disk
-> layout.
+> **System C** (`summary_log`) is deprecated and pending removal — use
+> `MetricsObserverSink` or any `EventSink` on `Kernel.event_bus` instead.
 >
 > The kernel used to entangle all three: it owned the format, the
 > filesystem path, the lifecycle, and a financial-summary leak from
@@ -527,31 +450,28 @@ filesystem ([test_kernel.py L47, 54, 63, 83](https://github.com/GabrieleDiCorato
 These are *not* recommendations. They are the choices a redesign cannot
 avoid:
 
-1. **Should `summary_log` survive?** Remove (free), keep (needs a
-   reader and a purpose), or replace with the new `report_metric()`
-   mechanism (B.4 in the kernel plan)?
-2. **Format pluggability.** PR 7 provided the seam (`log_writer=`
+1. **Format pluggability.** PR 7 provided the seam (`log_writer=`
    kwarg + `LogWriter` Protocol). The *choice* of additional formats
    (parquet, JSONL, sqlite) is still open — only `NullLogWriter` and
    `BZ2PickleLogWriter` ship today.
-3. **Incremental writes.** Do long simulations need streaming flush, or
+2. **Incremental writes.** Do long simulations need streaming flush, or
    is "all at terminate" forever good enough?
-4. **`./log/` root.** Resolved by PR 7: `Kernel(log_root=...)` is now
+3. **`./log/` root.** Resolved by PR 7: `Kernel(log_root=...)` is now
    a kwarg with `"./log"` as default. CWD-relative remains the default
    for backwards compatibility.
-5. **`log_dir` collision.** Resolved: `Kernel.log_dir` defaults to
+4. **`log_dir` collision.** Resolved: `Kernel.log_dir` defaults to
    `uuid.uuid4().hex` to avoid wall-clock collisions under
    multiprocessing.
-6. **Per-instance vs per-type log flags.** Add a config-system
+5. **Per-instance vs per-type log flags.** Add a config-system
    convenience for "disable order logs for this agent type globally",
    or accept the loop-and-mutate idiom?
-7. **Standard logging to file.** Should ABIDES attach a `FileHandler`
+6. **Standard logging to file.** Should ABIDES attach a `FileHandler`
    that writes `simulation.log` next to the per-agent files, or keep
    stdout-only and let users add it themselves?
-9. **Pickle vs portable format.** Is the `.bz2` file an internal cache
+7. **Pickle vs portable format.** Is the `.bz2` file an internal cache
    (pickle is fine) or an interchange artifact (parquet/arrow is
    safer)?
-10. **Error handling on write.** Best-effort write with warning, or
+8. **Error handling on write.** Best-effort write with warning, or
     fail-fast and crash the run?
 
 These are decisions for a separate plan. This document is the picture,
@@ -627,38 +547,15 @@ Three plausible explanations, in decreasing order of likelihood:
    per-event-type unpacking logic — at which point reading the
    per-agent logs gives strictly more information for similar effort.
 
-### A.5 Implications for the redesign
+### A.5 Current status
 
-This reframes the question from "is this dead code?" to "**is the
-two-tier split still the right design?**":
-
-- **The need is real.** Cross-run aggregation ("across these 200 sims,
-  what is the distribution of final NoiseAgent valuations?") is a
-  legitimate and recurring use case for ABIDES. The kernel improvement
-  plan's `report_metric()` mechanism (B.4) is one answer, but it
-  aggregates *within* a run — not across runs.
-- **The current artifact does not serve it.** No reader, no schema,
-  no documented format.
-- **Three coherent futures:**
-  1. **Remove** `summary_log` and rely on per-agent logs +
-     `parse_logs_df` for everything. Cross-run aggregation becomes
-     "load N pickle files, concat, group". Simple, slower at scale.
-  2. **Repurpose** `summary_log` as the on-disk projection of
-     `report_metric()`'s aggregated results. Same artifact name,
-     well-defined schema (`agent_type`, `key`, `sum`, `count`, `mean`),
-     ready for cross-run batch tools.
-  3. **Keep as-is, document as legacy**, and add a `WARNING` log line
-     when the file is written so users know it exists.
-
-Option 2 is the most honest: it preserves the original two-tier intent,
-gives the artifact a real schema, and reuses the `report_metric()`
-infrastructure already planned. It would be a follow-up plan, not part
-of the current kernel refactor.
-
-The choice is out of scope for this analysis. What is in scope is the
-correction: **`summary_log` is not orphaned because it was
-ill-conceived. It is orphaned because the consumer half of the original
-contract was never open-sourced.**
+The deprecation path has been chosen: `summary_log` is pending removal.
+`summary_log` was not orphaned because it was ill-conceived — it was
+orphaned because the consumer half of the original contract was never
+open-sourced. Cross-run aggregation of final agent state is now served
+by `report_metric()` / `MetricsObserverSink` (within a run) and by
+querying `InMemorySink` or `ParquetSink` output across multiple
+`SimulationResult` objects (across runs).
 
 ---
 
