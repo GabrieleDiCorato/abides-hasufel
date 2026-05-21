@@ -62,6 +62,7 @@ This project targets Python 3.12+ and requires modern type annotation syntax. Al
 Acceptable `typing` imports: `Any`, `TYPE_CHECKING`, `TypeVar`, `Generic`, `Protocol`, `Literal`, `cast`, `runtime_checkable`, `TypeAlias`, `overload`.
 
 ## Full reference
+- `docs/README.md` — canonical map of every doc file, taxonomy, ownership, and when to create vs. extend
 - `docs/reference/config-system.md` — declarative config system, builder, templates, per-agent delays
 - `docs/reference/llm-gotchas.md` — all None/NaN traps, safe patterns
 - `docs/reference/custom-agent-guide.md` — full adapter pattern
