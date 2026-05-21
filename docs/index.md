@@ -67,15 +67,7 @@ RichSimulationMetrics surface as a reward / diagnostic source.
 
 ## What makes it different
 
-| Capability | Typical academic ABM | ABIDES-NG |
-|---|---|---|
-| Configuration | Procedural scripts | Declarative `SimulationConfig` (YAML/JSON serialisable) |
-| RNG hierarchy | Sequential seed draws — adding an agent shifts all other agents | SHA-256 identity hashing — order- and composition-invariant |
-| Risk controls | Not present | Position limits, drawdown kill-switch, order-rate caps, all declarative |
-| Order types | Limit + market | + IOC / FOK / DAY time-in-force, stop orders with exchange-side trigger |
-| Analytics | Manual log parsing | `compute_rich_metrics()` → Sharpe, drawdown, VWAP, LOB imbalance, VPIN, OTT ratio, resilience, adverse selection |
-| Parallel sweeps | Manual | `run_batch()` with multiprocessing and deterministic per-worker seeds |
-| Reproducibility | Best-effort | Bit-for-bit; enforced by the regression suite |
+ABIDES-NG replaces procedural scripts with declarative, reproducible `SimulationConfig` objects and a SHA-256 identity RNG hierarchy — inject a new agent and every other agent behaves identically to the baseline run. Institutional risk controls (position limits, drawdown kill-switch, order-rate caps) are first-class declarative configuration, and a single `compute_rich_metrics()` call produces Sharpe, VWAP, LOB imbalance, VPIN, and MiFID II OTT ratios as typed Pydantic models. See [Why ABIDES-NG](project/one-pager.md) for the full capability comparison.
 
 ---
 
