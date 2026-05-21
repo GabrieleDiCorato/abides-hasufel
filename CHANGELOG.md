@@ -74,7 +74,7 @@ reference.
   this from `SimulationMeta.log_root`, so users of `compile()` /
   `run_simulation()` are unaffected.
 
-- **Phase 2b — payload schemas as a contract.**
+- **Payload schemas as a contract.**
   `abides_core.event_payloads.EVENT_TYPE_SCHEMA` is now a complete,
   frozen registry of every shipped event type. Each entry maps to a
   `PayloadSchema(name, version, fields)` whose `fields` arity
@@ -82,8 +82,7 @@ reference.
   scalar, ≥ 2 → positional tuple). New schemas: `FILL_PNL`,
   `IMBALANCE_PAYLOAD`, `CIRCUIT_BREAKER`. New singleton
   `EMPTY_PAYLOAD` (`()`).
-- **Phase 2c — typed Arrow columns in `ParquetSink` and `HOLDINGS_UPDATED`
-  delta reshape.**
+- **Typed Arrow columns in `ParquetSink` and `HOLDINGS_UPDATED` delta reshape.**
   - `ParquetSink` now builds one typed Arrow schema per registered
     `PayloadSchema`, so each event-type file carries one named, typed
     column per field (e.g. `order_id: int64`, `symbol: string`,
@@ -209,12 +208,12 @@ reference.
 - `STOP_ORDER_ACCEPTED` now emits the `ORDER_EVENT` tuple, joining
   the rest of the order lifecycle. (Earlier in this release it had
   already been changed from `str(order)` to `order.to_dict()`; the
-  Phase 2b tuple migration supersedes that intermediate form.)
+  payload-schema migration supersedes that intermediate form.)
 
 ### Deprecated
 - `Order.to_dict()` is retained as a deprecation-window wrapper that
   rebuilds the legacy dict from the slot values; it will be removed
-  in the Phase 5+2 cleanup. New producers must call
+  in a future release. New producers must call
   `order.to_payload_tuple()` (enforced by the AST audit).
 - `OrderBook.book_log2` and `OrderBook.history` — read from the
   corresponding sink instead.
@@ -229,9 +228,7 @@ reference.
   `Kernel.append_summary_log` now emit a `DeprecationWarning` (once
   per process). The `summary_log` path will be removed; register a
   `MetricsObserverSink` (or any custom `EventSink`) on
-  `Kernel.event_bus` instead. See
-  `docs/active-plans/event-logging-refactor-plan.md` §5 for the
-  deprecation timeline.
+  `Kernel.event_bus` instead.
 
 ### Fixed
 - **`ExchangeAgent` raw-`Message` leak.** The previous catch-all
