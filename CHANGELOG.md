@@ -23,6 +23,14 @@ reference.
   were previously silent.
 
 ### Fixed
+- **`BOOK_LIMIT` and `BOOK_EXEC` schema field collision with `InMemorySink`.**
+  Both `PayloadSchema` instances had `"agent_id"` as a field name, which silently
+  collided with the `"agent_id"` column in `InMemorySink._COMMON_COLS`, causing
+  double-appends and an `IndexError` when `agent_log()` was called. The conflicting
+  field was renamed to `"submitter_id"` in both schemas. A runtime guard was added
+  to `InMemorySink.on_event()` that raises `ValueError` immediately when any
+  `PayloadSchema` field name overlaps with a common column, preventing silent
+  data corruption.
 - **`Kernel.run()` now finalises sinks even when the runner raises.**
   The main loop is wrapped in `try` / `finally` semantics: if
   `runner()` raises, `terminate()` is invoked from the cleanup branch

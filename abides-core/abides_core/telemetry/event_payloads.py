@@ -344,11 +344,13 @@ The ``reason`` field is ``"max_drawdown"`` or ``"max_order_rate"``;
 BOOK_LIMIT = PayloadSchema(
     name="BOOK_LIMIT",
     version=1,
-    fields=("symbol", "order_id", "agent_id", "side", "quantity", "price"),
+    fields=("symbol", "order_id", "submitter_id", "side", "quantity", "price"),
 )
 """Order-book LIMIT event: a resting limit order entered the book.
 
-Fields match :class:`abides_markets.book_events.LimitPayload`.
+``submitter_id`` is the ID of the agent that placed the order (distinct from
+the ``agent_id`` common column, which identifies the event emitter).
+Fields match :class:`abides_markets.book_events.LimitPayload` (positional).
 """
 
 BOOK_EXEC = PayloadSchema(
@@ -357,7 +359,7 @@ BOOK_EXEC = PayloadSchema(
     fields=(
         "symbol",
         "order_id",
-        "agent_id",
+        "submitter_id",
         "oppos_order_id",
         "oppos_agent_id",
         "side",
@@ -367,7 +369,10 @@ BOOK_EXEC = PayloadSchema(
 )
 """Order-book EXEC event: two orders matched and executed.
 
-Fields match :class:`abides_markets.book_events.ExecPayload`.
+``submitter_id`` is the active-side order's submitter; ``oppos_agent_id`` is
+the passive side's submitter.  Both are distinct from the ``agent_id`` common
+column (event emitter).
+Fields match :class:`abides_markets.book_events.ExecPayload` (positional).
 """
 
 BOOK_CANCEL = PayloadSchema(

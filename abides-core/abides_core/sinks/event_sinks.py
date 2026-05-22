@@ -199,6 +199,15 @@ class InMemorySink:
             if schema is GENERIC:
                 bucket["payload"] = []
             else:
+                collisions = set(schema.fields) & set(self._COMMON_COLS)
+                if collisions:
+                    raise ValueError(
+                        f"PayloadSchema for event_type {event_type!r} has field "
+                        f"name(s) that collide with InMemorySink common columns: "
+                        f"{sorted(collisions)!r}. Rename those schema fields to "
+                        f"avoid silent data corruption (e.g. 'agent_id' → "
+                        f"'submitter_id')."
+                    )
                 for field in schema.fields:
                     bucket[field] = []
             self._cols[event_type] = bucket
