@@ -157,12 +157,11 @@ jobs:
         id: changelog
         run: |
           VERSION="${{ needs.build.outputs.version }}"
-          # Extract the section from CHANGELOG.md between the v$VERSION
-          # heading and the next top-level heading (===== underline).
-          awk -v ver="$VERSION" '
-            /^[0-9]{4}-/ && match($0, ver) { found=1; next }
-            found && /^={4,}/ { next }
-            found && /^[0-9]{4}-/ { exit }
+          # Extract the section from CHANGELOG.md for v$VERSION.
+          # Format: "## [0.1.0] - YYYY-MM-DD" (Keep a Changelog / ATX style).
+          awk -v ver="[$VERSION]" '
+            /^## / && index($0, ver) { found=1; next }
+            found && /^## / { exit }
             found { print }
           ' CHANGELOG.md > release-notes.md
           echo "Extracted notes:"
