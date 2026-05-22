@@ -1,7 +1,8 @@
 [tool.uv.workspace]
-members = ["abides-markets", "abides-gym"]
+members = ["abides-core", "abides-markets", "abides-gym"]
 
 [tool.uv.sources]
+abides-core = { workspace = true }
 abides-ng = { workspace = true }
 abides-gym = { workspace = true }
 

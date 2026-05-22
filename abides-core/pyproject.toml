@@ -1,0 +1,21 @@
+[project]
+name = "abides-core"
+dynamic = ["version"]
+description = "ABIDES-Core: discrete-event simulation engine for agent-based modelling"
+requires-python = ">=3.11"
+license = { text = "BSD-3-Clause" }
+dependencies = [
+    "coloredlogs>=15.0.1",
+    "numpy>=2.0.0",
+    "pandas>=2.2.0,<3.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "abides_core/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["abides_core"]
