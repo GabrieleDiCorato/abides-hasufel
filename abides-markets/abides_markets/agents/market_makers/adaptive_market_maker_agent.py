@@ -322,6 +322,10 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 self.state["AWAITING_SPREAD"] is False
                 and self.state["AWAITING_TRANSACTED_VOLUME"] is False
             ):
+                # Reschedule unconditionally: if `mid` is None (empty book on
+                # first poll, or persistent one-sided market) we still need to
+                # wake up again, otherwise the agent goes permanently silent.
+                # Only the order placement itself is gated on a valid mid.
                 if mid is not None:
                     self.place_orders(mid)
                 self.state = self.initialise_state()

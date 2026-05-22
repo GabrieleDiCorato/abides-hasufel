@@ -39,31 +39,23 @@ reference.
   `EventBus` down) before the original exception propagates. If
   `terminate()` itself fails during cleanup, the failure is logged via
   `logger.exception` and the original runner exception is re-raised
-  intact — never masked.- **`AdaptivePOVMarketMakerAgent` polling loop no longer goes permanently
-  silent when the first spread query returns an empty book.**
-  Previously, `set_wakeup` was gated on `mid is not None` — when the
-  exchange returned no bid or ask, the agent never rescheduled itself
-  and executed zero trades for the entire session. The reschedule is now
-  unconditional once both `AWAITING_SPREAD` and
-  `AWAITING_TRANSACTED_VOLUME` are cleared; only `place_orders` is
-  gated on `mid`.
+  intact — never masked.
+- **`AdaptivePOVMarketMakerAgent` polling loop no longer goes permanently
+  silent when a spread query returns an empty book.**
+  `set_wakeup` was gated on `mid is not None` — when the exchange returned
+  no bid or ask, the agent never rescheduled itself and executed zero
+  trades for the rest of the session. The reschedule is now unconditional
+  once both `AWAITING_SPREAD` and `AWAITING_TRANSACTED_VOLUME` are cleared;
+  only `place_orders` remains gated on `mid`.
 - **Removed `append_summary_log=True` from `NoiseAgent.kernel_stopping`
   and `ValueAgent.kernel_stopping`,** eliminating the remaining two
   `DeprecationWarning`s that persisted after the earlier `TradingAgent`
   fix.
 - **`scripts/risk_eval.py` warning printer is now ASCII-safe on Windows.**
-  The captured `DeprecationWarning` message text is encoded to ASCII
-  (replacing non-ASCII characters) before printing, preventing a
-  `UnicodeEncodeError` on cp1252 terminals when the message contains
-  Unicode symbols from library code.
+  Captured warning messages are encoded to ASCII (replacing non-ASCII
+  characters) before printing, preventing a `UnicodeEncodeError` on
+  cp1252 terminals when library code emits Unicode symbols.
 
-### Changed
-- **RMSC04 AMM `window_size` reverted to `"adaptive"`.**
-  The previous value of `100` (cents) placed quotes at `mid ± 50 cents`
-  against a market half-spread of ~7 cents, so the agents never
-  executed any trades. Adaptive EWMA mode calibrates to the realised
-  spread within the first ~8 wakeup cycles and then posts competitive
-  quotes. Requires the `set_wakeup` fix above to function correctly.
 ### Added
 - **Declarative event-sink configuration.**
   `SimulationMeta` now exposes `event_sinks`, `log_root`,
