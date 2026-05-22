@@ -229,7 +229,7 @@ class TradingAgent(FinancialAgent):
         """
 
         # self.kernel is set in Agent.kernel_initializing()
-        self.logEvent(EventType.STARTING_CASH, self.starting_cash, True)
+        self.logEvent(EventType.STARTING_CASH, self.starting_cash)
 
         # Find an exchange with which we can place orders.  It is guaranteed
         # to exist by now (if there is one).
@@ -252,12 +252,12 @@ class TradingAgent(FinancialAgent):
             self.fmt_holdings(self.holdings),
             deepcopy_event=False,
         )
-        self.logEvent(EventType.FINAL_CASH_POSITION, self.holdings["CASH"], True)
+        self.logEvent(EventType.FINAL_CASH_POSITION, self.holdings["CASH"])
 
         # Mark to market.
         cash = self.mark_to_market(self.holdings)
 
-        self.logEvent(EventType.ENDING_CASH, cash, True)
+        self.logEvent(EventType.ENDING_CASH, cash)
         logger.debug(
             f"Final holdings for {self.name}: {self.fmt_holdings(self.holdings)}. Marked to market: {cash}"
         )

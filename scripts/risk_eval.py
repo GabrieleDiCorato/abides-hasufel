@@ -21,18 +21,18 @@ from abides_markets.simulation import ResultProfile, run_simulation
 
 SEED = 42
 TICKER = "ABM"
-R_BAR = 100_000          # fundamental mean in cents  ($1 000.00)
-STARTING_CASH = 10_000_000   # cents
+R_BAR = 100_000  # fundamental mean in cents  ($1 000.00)
+STARTING_CASH = 10_000_000  # cents
 
 # ─────────────────────────────────────────────────────────────
 # 1.  Run simulation
 # ─────────────────────────────────────────────────────────────
 print("=" * 70)
-print("ABIDES — Risk-Manager Evaluation")
-print(f"  Seed: {SEED}  |  Ticker: {TICKER}  |  Session: 09:30 – 11:30")
+print("ABIDES -- Risk-Manager Evaluation")
+print(f"  Seed: {SEED}  |  Ticker: {TICKER}  |  Session: 09:30 - 11:30")
 print("=" * 70)
 
-print("\n[1/5] Running simulation …")
+print("\n[1/5] Running simulation ...")
 with warnings.catch_warnings(record=True) as captured_warnings:
     warnings.simplefilter("always")
     config = (
@@ -52,14 +52,14 @@ for w in captured_warnings:
 # ─────────────────────────────────────────────────────────────
 # 2.  Structural sanity — summary_dict warnings
 # ─────────────────────────────────────────────────────────────
-print("\n[2/5] Structural sanity checks …")
+print("\n[2/5] Structural sanity checks ...")
 sd = result.summary_dict()
 
 sim_warnings = sd.get("warnings", [])
 if sim_warnings:
     print(f"      RESULT WARNINGS ({len(sim_warnings)}):")
     for w in sim_warnings:
-        print(f"        ⚠  {w}")
+        print(f"        [!] {w}")
 else:
     print("      OK  No structural warnings in SimulationResult")
 
@@ -69,17 +69,25 @@ print(f"\n  Liquidity metrics for {TICKER}:")
 print(f"    % time with no bid  : {liq.pct_time_no_bid:6.2f}%")
 print(f"    % time with no ask  : {liq.pct_time_no_ask:6.2f}%")
 print(f"    Total volume (shares): {liq.total_exchanged_volume:,}")
-print(f"    Last trade price    : ${liq.last_trade_cents / 100:,.2f}" if liq.last_trade_cents else "    Last trade price    : N/A")
-print(f"    VWAP                : ${liq.vwap_cents / 100:,.2f}" if liq.vwap_cents else "    VWAP                : N/A")
+print(
+    f"    Last trade price    : ${liq.last_trade_cents / 100:,.2f}"
+    if liq.last_trade_cents
+    else "    Last trade price    : N/A"
+)
+print(
+    f"    VWAP                : ${liq.vwap_cents / 100:,.2f}"
+    if liq.vwap_cents
+    else "    VWAP                : N/A"
+)
 
 if liq.total_exchanged_volume == 0:
-    print("\n  ❌  CRITICAL: zero trades executed — market did not function")
+    print("  [FAIL] CRITICAL: zero trades executed -- market did not function")
     sys.exit(1)
 
 # ─────────────────────────────────────────────────────────────
 # 3.  Price discovery
 # ─────────────────────────────────────────────────────────────
-print("\n[3/5] Price discovery …")
+print("\n[3/5] Price discovery ...")
 l1 = mkt.l1_series
 assert l1 is not None, "L1 series unexpectedly None under QUANT profile"
 
@@ -110,11 +118,11 @@ print(f"  Mean bid-ask spread : {mean_spread:.1f} cents  ({spread_bps:.2f} bps)"
 
 # Typical liquid equity spreads: 1-5 bps; illiquid: >20 bps
 if spread_bps < 0.5:
-    print("  ⚠  Spread extremely tight (possible crossing / stale data)")
+    print("  [!] Spread extremely tight (possible crossing / stale data)")
 elif spread_bps < 50:
-    print("  ✓  Spread in plausible range for simulated market")
+    print("  [OK] Spread in plausible range for simulated market")
 else:
-    print("  ⚠  Spread very wide — liquidity may be impaired")
+    print("  [!] Spread very wide -- liquidity may be impaired")
 
 # Price mean-reversion: run OLS of Δmid on mid-R_bar
 if len(mid) > 50:
@@ -122,27 +130,31 @@ if len(mid) > 50:
     delta_mid = np.diff(mid)
     cov = np.cov(gap, delta_mid)
     kappa_est = -cov[0, 1] / np.var(gap) if np.var(gap) > 0 else float("nan")
-    print(f"\n  Estimated mean-reversion κ: {kappa_est:.4e}")
+    print(f"\n  Estimated mean-reversion kappa: {kappa_est:.4e}")
     if kappa_est > 0:
-        print("  ✓  Prices mean-revert toward fundamental (κ > 0)")
+        print("  [OK] Prices mean-revert toward fundamental (kappa > 0)")
     else:
-        print("  ⚠  Prices NOT mean-reverting over this window")
+        print("  [!] Prices NOT mean-reverting over this window")
 
 # ─────────────────────────────────────────────────────────────
 # 4.  Return autocorrelation (bid-ask bounce signature)
 # ─────────────────────────────────────────────────────────────
-print("\n[4/5] Microstructure stylised facts …")
+print("\n[4/5] Microstructure stylised facts ...")
 
 returns = np.diff(mid) / mid[:-1]
 if len(returns) > 10:
     ac1 = float(np.corrcoef(returns[:-1], returns[1:])[0, 1])
-    ac5 = float(np.corrcoef(returns[:-5], returns[5:])[0, 1]) if len(returns) > 10 else float("nan")
+    ac5 = (
+        float(np.corrcoef(returns[:-5], returns[5:])[0, 1])
+        if len(returns) > 10
+        else float("nan")
+    )
     print(f"  Return autocorrelation lag-1 : {ac1:+.4f}")
     print(f"  Return autocorrelation lag-5 : {ac5:+.4f}")
     if ac1 < -0.01:
-        print("  ✓  Negative lag-1 AC — bid-ask bounce present (realistic)")
+        print("  [OK] Negative lag-1 AC -- bid-ask bounce present (realistic)")
     else:
-        print("  ⚠  Lag-1 AC ≥ 0 — no bid-ask bounce detected")
+        print("  [!] Lag-1 AC >= 0 -- no bid-ask bounce detected")
 
 # Amihud illiquidity proxy  (|return| / volume_per_interval)
 trades = mkt.trades
@@ -159,11 +171,11 @@ if trades:
     print(f"  Average trade size  : {avg_trade_size:.1f} shares")
     print(f"  Amihud illiquidity  : {amihud:.6e}")
     if amihud < 1e-4:
-        print("  ✓  Low Amihud — market reasonably liquid")
+        print("  [OK] Low Amihud -- market reasonably liquid")
     else:
-        print("  ⚠  High Amihud — low liquidity relative to price impact")
+        print("  [!] High Amihud -- low liquidity relative to price impact")
 else:
-    print("  ⚠  No trade attribution data available")
+    print("  [!] No trade attribution data available")
 
 # ─────────────────────────────────────────────────────────────
 # 5.  PnL attribution by agent type
@@ -177,28 +189,36 @@ for ag in result.agents:
 total_pnl = sum(pnl for pnls in by_category.values() for pnl in pnls)
 print(f"\n  Total PnL across all agents: ${total_pnl / 100:+,.2f}")
 if abs(total_pnl) < STARTING_CASH * 0.01:  # less than 1% of starting cash
-    print("  ✓  Approximately zero-sum (wealth conservation holds)")
+    print("  [OK] Approximately zero-sum (wealth conservation holds)")
 else:
-    print("  ⚠  Significant net PnL — check for oracle pricing leakage")
+    print("  [!] Significant net PnL -- check for oracle pricing leakage")
 
 print()
-print(f"  {'Category':<20} {'Agents':>6} {'Total PnL ($)':>14} {'Mean PnL ($)':>13} {'Std PnL ($)':>12}")
+print(
+    f"  {'Category':<20} {'Agents':>6} {'Total PnL ($)':>14} {'Mean PnL ($)':>13} {'Std PnL ($)':>12}"
+)
 print("  " + "-" * 70)
 for cat in sorted(by_category):
     pnls = by_category[cat]
     total = sum(pnls)
     mean = np.mean(pnls)
     std = np.std(pnls) if len(pnls) > 1 else 0.0
-    print(f"  {cat:<20} {len(pnls):>6} {total/100:>14,.2f} {mean/100:>13,.2f} {std/100:>12,.2f}")
+    print(
+        f"  {cat:<20} {len(pnls):>6} {total/100:>14,.2f} {mean/100:>13,.2f} {std/100:>12,.2f}"
+    )
 
 # Agent-level top/bottom
 all_agents = sorted(result.agents, key=lambda a: a.pnl_cents, reverse=True)
-print(f"\n  Top 5 agents by PnL:")
+print("\n  Top 5 agents by PnL:")
 for ag in all_agents[:5]:
-    print(f"    [{ag.agent_type:30s}] ${ag.pnl_cents / 100:+10,.2f}  ({ag.pnl_pct:+.3%})")
-print(f"\n  Bottom 5 agents by PnL:")
+    print(
+        f"    [{ag.agent_type:30s}] ${ag.pnl_cents / 100:+10,.2f}  ({ag.pnl_pct:+.3%})"
+    )
+print("\n  Bottom 5 agents by PnL:")
 for ag in all_agents[-5:]:
-    print(f"    [{ag.agent_type:30s}] ${ag.pnl_cents / 100:+10,.2f}  ({ag.pnl_pct:+.3%})")
+    print(
+        f"    [{ag.agent_type:30s}] ${ag.pnl_cents / 100:+10,.2f}  ({ag.pnl_pct:+.3%})"
+    )
 
 # ─────────────────────────────────────────────────────────────
 # Summary verdict
@@ -217,10 +237,10 @@ if liq.vwap_cents and abs(liq.vwap_cents - R_BAR) / R_BAR > 0.05:
 if spread_bps > 50:
     issues.append(f"Mean spread {spread_bps:.1f} bps is unusually wide")
 if len(returns) > 10 and ac1 >= 0:
-    issues.append("No bid-ask bounce (AC lag-1 ≥ 0)")
+    issues.append("No bid-ask bounce (AC lag-1 >= 0)")
 
 if issues:
-    print(f"  ⚠  {len(issues)} concern(s) flagged:")
+    print(f"  [!] {len(issues)} concern(s) flagged:")
     for iss in issues:
         print(f"      • {iss}")
 else:
