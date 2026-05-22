@@ -47,7 +47,8 @@ with warnings.catch_warnings(record=True) as captured_warnings:
 print(f"      Wall-clock elapsed: {result.metadata.wall_clock_elapsed_s:.1f}s")
 print(f"      Python warnings captured: {len(captured_warnings)}")
 for w in captured_warnings:
-    print(f"        [WARN/{w.category.__name__}] {w.message}")
+    msg = str(w.message).encode("ascii", errors="replace").decode("ascii")
+    print(f"        [WARN/{w.category.__name__}] {msg}")
 
 # ─────────────────────────────────────────────────────────────
 # 2.  Structural sanity — summary_dict warnings

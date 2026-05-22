@@ -118,7 +118,7 @@ class ValueAgent(TradingAgent):
         surplus += self.holdings["CASH"] - self.starting_cash
         surplus = float(surplus) / self.starting_cash
 
-        self.logEvent(EventType.FINAL_VALUATION, surplus, True)
+        self.logEvent(EventType.FINAL_VALUATION, surplus)
 
         logger.debug(
             "{} final report.  Holdings: {}, end cash: {}, start cash: {}, final fundamental: {}, surplus: {}",

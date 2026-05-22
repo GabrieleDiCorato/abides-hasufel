@@ -85,7 +85,7 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
                 "params": {
                     "pov": 0.025,
                     "min_order_size": 1,
-                    "window_size": 100,
+                    "window_size": "adaptive",
                     "num_ticks": 10,
                     "wake_up_freq": "60s",
                     "skew_beta": 0,

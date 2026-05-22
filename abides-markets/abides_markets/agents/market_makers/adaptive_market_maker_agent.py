@@ -7,6 +7,7 @@ import numpy as np
 
 from abides_core import Message, NanosecondTime
 from abides_core.telemetry.event_payloads import EventType
+from abides_core.utils import fmt_ts
 
 from ...messages.marketdata import (
     BookImbalanceDataMsg,
@@ -320,9 +321,9 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             if (
                 self.state["AWAITING_SPREAD"] is False
                 and self.state["AWAITING_TRANSACTED_VOLUME"] is False
-                and mid is not None
             ):
-                self.place_orders(mid)
+                if mid is not None:
+                    self.place_orders(mid)
                 self.state = self.initialise_state()
                 self.set_wakeup(current_time + self.get_wake_frequency())
 
@@ -575,7 +576,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             self.name,
             position,
             self.symbol,
-            current_time,
+            fmt_ts(current_time),
         )
 
     def get_wake_frequency(self) -> NanosecondTime:
