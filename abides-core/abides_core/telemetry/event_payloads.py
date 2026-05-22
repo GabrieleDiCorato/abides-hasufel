@@ -145,6 +145,7 @@ class PayloadSchema:
     name: str
     version: int
     fields: tuple[str, ...]
+    field_type_overrides: tuple[tuple[str, str], ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +346,7 @@ BOOK_LIMIT = PayloadSchema(
     name="BOOK_LIMIT",
     version=1,
     fields=("symbol", "order_id", "submitter_id", "side", "quantity", "price"),
+    field_type_overrides=(("side", "string"),),
 )
 """Order-book LIMIT event: a resting limit order entered the book.
 
@@ -366,6 +368,7 @@ BOOK_EXEC = PayloadSchema(
         "quantity",
         "price",
     ),
+    field_type_overrides=(("side", "string"),),
 )
 """Order-book EXEC event: two orders matched and executed.
 
@@ -399,6 +402,7 @@ BOOK_MODIFY = PayloadSchema(
     name="BOOK_MODIFY",
     version=1,
     fields=("symbol", "order_id", "new_side", "new_quantity"),
+    field_type_overrides=(("new_side", "string"),),
 )
 """Order-book MODIFY event: a resting order's quantity was updated in-place.
 

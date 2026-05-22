@@ -161,6 +161,19 @@ _FIELD_TYPE: dict[str, str] = {
     "position_closed": "int64",
     # CIRCUIT_BREAKER (value is float64 above; reason here)
     "reason": "string",
+    # BOOK_LIMIT / BOOK_EXEC / BOOK_REPLACE
+    "submitter_id": "int64",
+    "price": "int64",
+    "oppos_order_id": "int64",
+    "oppos_agent_id": "int64",
+    # BOOK_CANCEL / BOOK_CANCEL_PARTIAL (optional dict, pickled)
+    "metadata": "binary",
+    # BOOK_MODIFY
+    "new_side": "string",
+    "new_quantity": "int64",
+    # BOOK_REPLACE
+    "old_order_id": "int64",
+    "new_order_id": "int64",
     # GENERIC fallback (only used inside the __generic__ bucket)
     "payload": "binary",
 }
@@ -200,15 +213,18 @@ def _build_event_schema(pa_mod: Any, schema: PayloadSchema) -> pa.Schema:
         pa_mod.field("agent_type", pa_mod.string(), nullable=False),
         pa_mod.field("sim_time_ns", pa_mod.int64(), nullable=False),
     ]
+    overrides = dict(schema.field_type_overrides)
     for fname in schema.fields:
-        try:
-            code = _FIELD_TYPE[fname]
-        except KeyError as exc:
-            raise KeyError(
-                f"ParquetSink: no Arrow type mapping for field {fname!r} "
-                f"(schema {schema.name!r}). Add it to _FIELD_TYPE in "
-                f"abides_core/parquet_sink.py."
-            ) from exc
+        code = overrides.get(fname)
+        if code is None:
+            try:
+                code = _FIELD_TYPE[fname]
+            except KeyError as exc:
+                raise KeyError(
+                    f"ParquetSink: no Arrow type mapping for field {fname!r} "
+                    f"(schema {schema.name!r}). Add it to _FIELD_TYPE in "
+                    f"abides_core/parquet_sink.py."
+                ) from exc
         fields.append(
             pa_mod.field(fname, _resolve_arrow_type(pa_mod, code), nullable=True)
         )
@@ -234,8 +250,11 @@ def _pickle_field_offsets(schema: PayloadSchema) -> tuple[int, ...]:
     Offsets are 0-indexed into ``schema.fields`` (not into the full row
     tuple). Empty when no field uses the ``binary`` type code.
     """
+    overrides = dict(schema.field_type_overrides)
     return tuple(
-        i for i, fname in enumerate(schema.fields) if _FIELD_TYPE.get(fname) == "binary"
+        i
+        for i, fname in enumerate(schema.fields)
+        if overrides.get(fname, _FIELD_TYPE.get(fname)) == "binary"
     )
 
 
