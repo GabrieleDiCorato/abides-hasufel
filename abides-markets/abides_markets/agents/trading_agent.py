@@ -1425,7 +1425,7 @@ class TradingAgent(FinancialAgent):
         self.logEvent(EventType.BID_DEPTH, bids)
         self.logEvent(EventType.ASK_DEPTH, asks)
         self.logEvent(
-            EventType.IMBALANCE, [sum([x[1] for x in bids]), sum([x[1] for x in asks])]
+            EventType.IMBALANCE, (sum([x[1] for x in bids]), sum([x[1] for x in asks]))
         )
 
         self.book = book

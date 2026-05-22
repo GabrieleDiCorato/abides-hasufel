@@ -109,6 +109,13 @@ class EventType(StrEnum):
     AMM_FLATTEN = "AMM_FLATTEN"
     # --- Risk ---
     CIRCUIT_BREAKER_TRIPPED = "CIRCUIT_BREAKER_TRIPPED"
+    # --- Order book (published by OrderBook via ExchangeAgent) ---
+    LIMIT = "LIMIT"
+    EXEC = "EXEC"
+    CANCEL = "CANCEL"
+    CANCEL_PARTIAL = "CANCEL_PARTIAL"
+    MODIFY = "MODIFY"
+    REPLACE = "REPLACE"
 
 
 @dataclass(frozen=True, slots=True)
@@ -334,6 +341,75 @@ The ``reason`` field is ``"max_drawdown"`` or ``"max_order_rate"``;
 ``value`` is the triggering loss or order count.
 """
 
+BOOK_LIMIT = PayloadSchema(
+    name="BOOK_LIMIT",
+    version=1,
+    fields=("symbol", "order_id", "agent_id", "side", "quantity", "price"),
+)
+"""Order-book LIMIT event: a resting limit order entered the book.
+
+Fields match :class:`abides_markets.book_events.LimitPayload`.
+"""
+
+BOOK_EXEC = PayloadSchema(
+    name="BOOK_EXEC",
+    version=1,
+    fields=(
+        "symbol",
+        "order_id",
+        "agent_id",
+        "oppos_order_id",
+        "oppos_agent_id",
+        "side",
+        "quantity",
+        "price",
+    ),
+)
+"""Order-book EXEC event: two orders matched and executed.
+
+Fields match :class:`abides_markets.book_events.ExecPayload`.
+"""
+
+BOOK_CANCEL = PayloadSchema(
+    name="BOOK_CANCEL",
+    version=1,
+    fields=("symbol", "order_id", "tag", "metadata"),
+)
+"""Order-book CANCEL event: a resting limit order was fully cancelled.
+
+Fields match :class:`abides_markets.book_events.CancelPayload`.
+"""
+
+BOOK_CANCEL_PARTIAL = PayloadSchema(
+    name="BOOK_CANCEL_PARTIAL",
+    version=1,
+    fields=("symbol", "order_id", "quantity", "tag", "metadata"),
+)
+"""Order-book CANCEL_PARTIAL event: part of a resting limit order was cancelled.
+
+Fields match :class:`abides_markets.book_events.CancelPartialPayload`.
+"""
+
+BOOK_MODIFY = PayloadSchema(
+    name="BOOK_MODIFY",
+    version=1,
+    fields=("symbol", "order_id", "new_side", "new_quantity"),
+)
+"""Order-book MODIFY event: a resting order's quantity was updated in-place.
+
+Fields match :class:`abides_markets.book_events.ModifyPayload`.
+"""
+
+BOOK_REPLACE = PayloadSchema(
+    name="BOOK_REPLACE",
+    version=1,
+    fields=("symbol", "old_order_id", "new_order_id", "quantity", "price"),
+)
+"""Order-book REPLACE event: an existing order was replaced by a new one.
+
+Fields match :class:`abides_markets.book_events.ReplacePayload`.
+"""
+
 GENERIC = PayloadSchema(
     name="GENERIC",
     version=1,
@@ -431,6 +507,13 @@ EVENT_TYPE_SCHEMA: dict[EventType, PayloadSchema] = {
     EventType.AMM_FLATTEN: AMM_FLATTEN,
     # --- Risk ---
     EventType.CIRCUIT_BREAKER_TRIPPED: CIRCUIT_BREAKER,
+    # --- Order book (published by OrderBook via ExchangeAgent) ---
+    EventType.LIMIT: BOOK_LIMIT,
+    EventType.EXEC: BOOK_EXEC,
+    EventType.CANCEL: BOOK_CANCEL,
+    EventType.CANCEL_PARTIAL: BOOK_CANCEL_PARTIAL,
+    EventType.MODIFY: BOOK_MODIFY,
+    EventType.REPLACE: BOOK_REPLACE,
 }
 """Complete map from ``event_type`` string to :class:`PayloadSchema`.
 

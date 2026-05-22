@@ -10,6 +10,7 @@ target-version = ["py312"]
 
 [tool.pytest.ini_options]
 testpaths = ["abides-core/tests", "abides-markets/tests"]
+pythonpath = ["abides-core"]
 python_files = "test_*.py"
 
 [tool.ruff]

@@ -380,7 +380,7 @@ class OrderBook:
 
             self._publish_event(
                 self.owner.current_time,
-                "EXEC",
+                EventType.EXEC,
                 ExecPayload(
                     symbol=self.symbol,
                     order_id=matched_order.order_id,
@@ -474,7 +474,7 @@ class OrderBook:
         if not quiet:
             self._publish_event(
                 self.owner.current_time,
-                "LIMIT",
+                EventType.LIMIT,
                 LimitPayload(
                     symbol=self.symbol,
                     order_id=order.order_id,
@@ -545,7 +545,7 @@ class OrderBook:
             if not quiet:
                 self._publish_event(
                     self.owner.current_time,
-                    "CANCEL",
+                    EventType.CANCEL,
                     CancelPayload(
                         symbol=self.symbol,
                         order_id=cancelled_order.order_id,
@@ -591,7 +591,7 @@ class OrderBook:
         if price_level.update_order_quantity(order.order_id, new_order.quantity):
             self._publish_event(
                 self.owner.current_time,
-                "MODIFY",
+                EventType.MODIFY,
                 ModifyPayload(
                     symbol=self.symbol,
                     order_id=order.order_id,
@@ -642,7 +642,7 @@ class OrderBook:
         if price_level.update_order_quantity(order.order_id, new_order.quantity):
             self._publish_event(
                 self.owner.current_time,
-                "CANCEL_PARTIAL",
+                EventType.CANCEL_PARTIAL,
                 CancelPartialPayload(
                     symbol=self.symbol,
                     order_id=order.order_id,
@@ -686,7 +686,7 @@ class OrderBook:
         if self.cancel_order(old_order, quiet=True):
             self._publish_event(
                 self.owner.current_time,
-                "REPLACE",
+                EventType.REPLACE,
                 ReplacePayload(
                     symbol=self.symbol,
                     old_order_id=old_order.order_id,

@@ -549,7 +549,7 @@ class ExchangeAgent(FinancialAgent):
                     MarketDataSubReqMsg,
                 ),
             ):
-                self.logEvent(message.type(), EMPTY_PAYLOAD)
+                self.logEvent(EventType(message.type()), EMPTY_PAYLOAD)
             else:
                 logger.warning(
                     "%s received unrecognized non-order message %s; dropping log event",
@@ -1136,7 +1136,7 @@ class ExchangeAgent(FinancialAgent):
                 # OrderReplacedMsg carries .old_order/.new_order; the rest
                 # carry either .order or .new_order — log the relevant order.
                 order = getattr(message, "order", None) or message.new_order  # type: ignore[union-attr]
-                self.logEvent(message.type(), order.to_payload_tuple())
+                self.logEvent(EventType(message.type()), order.to_payload_tuple())
         else:
             super().send_message(recipient_id, message)
 
