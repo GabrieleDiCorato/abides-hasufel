@@ -1,15 +1,13 @@
 # Event Vocabulary
 
 The canonical set of event type strings is defined in
-[`EventType`](../../abides-core/abides_core/telemetry/event_payloads.py)
-— a `StrEnum` in `abides_core.telemetry.event_payloads`. Every member
-IS a `str`, so existing DataFrame comparisons such as
+`EventType` — a `StrEnum` in `abides_core.telemetry.event_payloads`.
+Every member IS a `str`, so existing DataFrame comparisons such as
 `logs_df[logs_df.EventType == "ORDER_SUBMITTED"]` remain valid.
 
 Payload shapes for each member are governed by the co-located
 `EVENT_TYPE_SCHEMA: dict[EventType, PayloadSchema]` registry, validated
-at import time by
-[`test_event_payload_schema.py`](../../abides-core/tests/test_event_payload_schema.py).
+at import time by `abides_core/tests/test_event_payload_schema.py`.
 
 To find where an event is produced: `grep -rn EventType.<name>` across
 the workspace. To understand its payload schema: look up the member in
@@ -59,8 +57,7 @@ is `trading_agent.py` (`ending_value`, once per agent per sim).
 These event types are published by `OrderBook` directly onto `EventBus`
 (not via `Agent.logEvent`), with `agent_id=exchange.id` and
 `agent_type="ExchangeAgent"` on the wire tuple. Payloads are typed
-`NamedTuple` subclasses from
-[`abides_markets.book_events`](../../abides-markets/abides_markets/book_events.py).
+`NamedTuple` subclasses from `abides_markets.book_events`.
 
 | event_type | payload `NamedTuple` | consumers |
 |---|---|---|

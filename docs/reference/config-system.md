@@ -23,7 +23,7 @@ from abides_markets.simulation import run_simulation
 # Build an immutable config from a template
 config = (SimulationBuilder()
     .apply_template("rmsc04")
-    .market(ticker="AAPL")
+    .ticker("AAPL")
     .seed(42)
     .build())
 
@@ -45,7 +45,7 @@ from abides_core import abides
 
 config = (SimulationBuilder()
     .apply_template("rmsc04")
-    .market(ticker="AAPL")
+    .ticker("AAPL")
     .seed(42)
     .build())
 
@@ -161,16 +161,20 @@ config = (SimulationBuilder()
 The `SimulationBuilder` provides a fluent interface:
 
 ```python
+from abides_markets.config_system import SimulationBuilder
+from abides_markets.config_system.models import ExchangeConfig, LatencyConfig, SparseMeanRevertingOracleConfig
+from abides_markets.config_system.agent_configs import NoiseAgentConfig, ValueAgentConfig
+
 config = (SimulationBuilder()
     .apply_template("rmsc04")
-    .market(ticker="AAPL", date="20220315")
-    .oracle(r_bar=150_000)
-    .exchange(book_log_depth=20)
+    .ticker("AAPL").date("20220315")
+    .oracle(SparseMeanRevertingOracleConfig(r_bar=150_000))
+    .exchange(ExchangeConfig(book_log_depth=20))
     .enable_agent(NoiseAgentConfig(), count=500)
     .enable_agent(ValueAgentConfig(r_bar=200_000, computation_delay=100), count=50)
     .disable_agent("momentum")
     .agent_computation_delay("noise", 200)  # set per-type delay
-    .latency(type="deterministic")
+    .latency(LatencyConfig(type="deterministic"))
     .computation_delay(75)                  # global default
     .seed(42)
     .log_level("DEBUG")
@@ -198,16 +202,18 @@ To override the default set, populate
 ```python
 from abides_markets.config_system import SimulationBuilder
 from abides_markets.config_system.models import (
+    ExchangeConfig,
     MemorySinkConfig,
     ParquetSinkConfig,
+    SimulationMeta,
 )
 from abides_markets.simulation import run_simulation
 
 config = (SimulationBuilder()
     .apply_template("rmsc04")
     # Explicit event_sinks requires book_logging=False — see below.
-    .exchange(book_logging=False, book_capture="off")
-    .meta(log_root="./runs")
+    .exchange(ExchangeConfig(book_logging=False, book_capture="off"))
+    .meta(SimulationMeta(log_root="./runs"))
     .event_sinks(
         MemorySinkConfig(),
         ParquetSinkConfig(compression="zstd",
@@ -271,9 +277,11 @@ or to `null`/`None` for oracle-less simulations.
 ### Oracle-present simulation (default pattern)
 
 ```python
+from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
+
 config = (SimulationBuilder()
     .apply_template("rmsc04")       # includes oracle config
-    .oracle(r_bar=150_000)         # override oracle params
+    .oracle(SparseMeanRevertingOracleConfig(r_bar=150_000))  # override oracle params
     .seed(42)
     .build())
 ```
@@ -282,8 +290,8 @@ config = (SimulationBuilder()
 
 ```python
 config = (SimulationBuilder()
-    .oracle(type=None)             # explicitly no oracle
-    .market(opening_price=100_000) # required when oracle is None ($1000.00)
+    .oracle(None)                  # explicitly no oracle
+    .opening_price(100_000)        # required when oracle is None ($1000.00 in cents)
     .enable_agent(NoiseAgentConfig(), count=500)
     .enable_agent(MomentumAgentConfig(), count=10)
     .seed(42)
@@ -301,9 +309,11 @@ When oracle is `None`:
 from the oracle config when not explicitly set in the agent params:
 
 ```python
+from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
+
 config = (SimulationBuilder()
-    .market(ticker="ABM")
-    .oracle(type="sparse_mean_reverting", r_bar=200_000, kappa=5e-16, sigma_s=100)
+    .ticker("ABM")
+    .oracle(SparseMeanRevertingOracleConfig(r_bar=200_000, kappa=5e-16, sigma_s=100))
     .enable_agent(ValueAgentConfig(), count=50)  # r_bar/kappa/sigma_s inherited from oracle
     .seed(42)
     .build())
@@ -540,9 +550,9 @@ result.warnings       # list[ValidationIssue] — severity="warning" only
 for issue in result.issues:
     print(issue.severity, issue.field_path, issue.agent_name, issue.message)
 
-# Backward-compatible dict access still works
+# Backward-compatible dict access (via ValidationResult.to_dict())
 result["valid"]       # True/False
-result["errors"]      # list[str] — only present when invalid
+result["errors"]      # list[str] — key only present when valid=False; raises KeyError otherwise
 ```
 
 ### Category taxonomy
@@ -558,14 +568,14 @@ CATEGORIES = {
 }
 ```
 
-### Cross-agent validation warnings
+### Cross-agent validation
 
-`build()` now runs `_cross_validate()` after Pydantic validation, emitting
-`UserWarning`s for semantically suspect configurations:
+`build()` runs `_cross_validate()` after Pydantic validation.  An inverted
+or zero-length trading window (`start_time >= end_time`) raises `ValueError`
+immediately.  The following configurations emit `UserWarning`:
 
 - Market maker with no noise/value agents (empty order book)
 - POV execution with <10 background agents
-- `start_time >= end_time` (empty trading window)
 - POV execution offsets consuming the entire market window
 - Total agent count >10,000 (performance)
 - No enabled agents at all

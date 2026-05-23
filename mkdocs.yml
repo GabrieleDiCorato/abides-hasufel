@@ -53,7 +53,6 @@ nav:
   - Operations & Governance:
     - Reproducibility: project/reproducibility.md
     - Release Process: project/release-process.md
-    - Roadmap: project/roadmap.md
   - For LLM / Agent Builders:
     - Integration Gotchas: reference/llm-gotchas.md
   - Changelog: changelog.md

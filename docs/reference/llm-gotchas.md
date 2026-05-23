@@ -25,7 +25,7 @@ to read.
 10. [Subscription vs. Pull-Based Data](#10-subscription-vs-pull-based-data)
 11. [Complete State Validity Checklist](#11-complete-state-validity-checklist)
 12. [Running Simulations](#12-running-simulations)
-13. [External Oracle — Historical / Generated Data](#13-external-oracle-historical-generated-data)
+13. [Custom Oracle Classes](#13-custom-oracle-classes)
 14. [logEvent Deep Copy](#14-logevent-deep-copy)
 
 ---
