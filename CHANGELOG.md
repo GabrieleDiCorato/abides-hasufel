@@ -310,6 +310,19 @@ reference.
 - Repeated `OrderBook.history` / `book_log2` reads no longer emit
   spurious deprecation warnings during normal operation.
 
+### Added
+- **`RejectReason` enum and `OrderRejectedMsg`** in
+  `abides_markets.messages.orderbook`. `RejectReason` carries three
+  members — `INVALID_QUANTITY`, `INVALID_PRICE`, `UNKNOWN_SYMBOL` —
+  and `OrderRejectedMsg(order_id: int, reason: RejectReason)` is the
+  typed message `ExchangeAgent` now sends when it would previously
+  have called `warnings.warn`. `TradingAgent` dispatches incoming
+  `OrderRejectedMsg` to an overridable `on_order_rejected(order_id,
+  reason)` hook; the base implementation logs at `WARNING` level.
+  Orders routed through `OrderBook.handle_limit_order` with
+  `quiet=True` continue to suppress the reject silently, consistent
+  with how `quiet` suppresses fills and accepts.
+
 ---
 
 ## Pre-rename history
