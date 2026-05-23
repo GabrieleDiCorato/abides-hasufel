@@ -22,7 +22,7 @@ from abides_markets.simulation import run_simulation
 
 # Build an immutable config from a template
 config = (SimulationBuilder()
-    .from_template("rmsc04")
+    .apply_template("rmsc04")
     .market(ticker="AAPL")
     .seed(42)
     .build())
@@ -44,7 +44,7 @@ from abides_markets.config_system import SimulationBuilder, compile
 from abides_core import abides
 
 config = (SimulationBuilder()
-    .from_template("rmsc04")
+    .apply_template("rmsc04")
     .market(ticker="AAPL")
     .seed(42)
     .build())
@@ -65,7 +65,7 @@ The config system has four layers:
 |-------|--------|---------|
 | **Models** | `models.py` | Pydantic models for `SimulationConfig` and its sections |
 | **Registry** | `registry.py` | Agent type registration with `@register_agent` decorator |
-| **Builder** | `builder.py` | Fluent API: `SimulationBuilder().from_template(...).build()` |
+| **Builder** | `builder.py` | Fluent API: `SimulationBuilder().apply_template(...).build()` |
 | **Compiler** | `compiler.py` | Converts `SimulationConfig` → Kernel runtime dict |
 
 Supporting modules: `templates.py` (composable presets), `serialization.py`
@@ -148,8 +148,8 @@ Stack templates: later ones override earlier ones.
 
 ```python
 config = (SimulationBuilder()
-    .from_template("rmsc04")
-    .from_template("with_execution")   # adds execution agent
+    .apply_template("rmsc04")
+    .apply_template("with_execution")   # adds execution agent
     .seed(42)
     .build())
 ```
@@ -162,12 +162,12 @@ The `SimulationBuilder` provides a fluent interface:
 
 ```python
 config = (SimulationBuilder()
-    .from_template("rmsc04")
+    .apply_template("rmsc04")
     .market(ticker="AAPL", date="20220315")
     .oracle(r_bar=150_000)
     .exchange(book_log_depth=20)
-    .enable_agent("noise", count=500)
-    .enable_agent("value", count=50, r_bar=200_000, computation_delay=100)
+    .enable_agent(NoiseAgentConfig(), count=500)
+    .enable_agent(ValueAgentConfig(r_bar=200_000, computation_delay=100), count=50)
     .disable_agent("momentum")
     .agent_computation_delay("noise", 200)  # set per-type delay
     .latency(type="deterministic")
@@ -204,7 +204,7 @@ from abides_markets.config_system.models import (
 from abides_markets.simulation import run_simulation
 
 config = (SimulationBuilder()
-    .from_template("rmsc04")
+    .apply_template("rmsc04")
     # Explicit event_sinks requires book_logging=False — see below.
     .exchange(book_logging=False, book_capture="off")
     .meta(log_root="./runs")
@@ -272,7 +272,7 @@ or to `null`/`None` for oracle-less simulations.
 
 ```python
 config = (SimulationBuilder()
-    .from_template("rmsc04")       # includes oracle config
+    .apply_template("rmsc04")       # includes oracle config
     .oracle(r_bar=150_000)         # override oracle params
     .seed(42)
     .build())
@@ -284,8 +284,8 @@ config = (SimulationBuilder()
 config = (SimulationBuilder()
     .oracle(type=None)             # explicitly no oracle
     .market(opening_price=100_000) # required when oracle is None ($1000.00)
-    .enable_agent("noise", count=500)
-    .enable_agent("momentum", count=10)
+    .enable_agent(NoiseAgentConfig(), count=500)
+    .enable_agent(MomentumAgentConfig(), count=10)
     .seed(42)
     .build())
 ```
@@ -304,7 +304,7 @@ from the oracle config when not explicitly set in the agent params:
 config = (SimulationBuilder()
     .market(ticker="ABM")
     .oracle(type="sparse_mean_reverting", r_bar=200_000, kappa=5e-16, sigma_s=100)
-    .enable_agent("value", count=50)  # r_bar/kappa/sigma_s inherited from oracle
+    .enable_agent(ValueAgentConfig(), count=50)  # r_bar/kappa/sigma_s inherited from oracle
     .seed(42)
     .build())
 ```
@@ -312,29 +312,13 @@ config = (SimulationBuilder()
 Override per-agent when needed:
 
 ```python
-.enable_agent("value", count=50, r_bar=300_000)  # only r_bar overridden; kappa, sigma_s still inherited
+.enable_agent(ValueAgentConfig(r_bar=300_000), count=50)  # only r_bar overridden; kappa, sigma_s still inherited
 ```
+
+### Value agent oracle parameter inheritance
 
 `sigma_n` (observation noise) is always agent-specific and defaults to `r_bar / 100`.
 
-### External data oracle injection
-
-For `ExternalDataOracle`, build the oracle externally and inject it:
-
-```python
-from abides_markets.oracles import ExternalDataOracle
-
-oracle = ExternalDataOracle(my_data_provider)
-config = (SimulationBuilder()
-    .oracle_instance(oracle)           # injects pre-built oracle
-    .enable_agent("noise", count=500)
-    .seed(42)
-    .build())
-
-runtime = builder.build_and_compile()  # passes oracle through to runtime
-```
-
----
 
 ## Per-Agent Computation Delays
 
@@ -350,9 +334,9 @@ how long an agent "thinks" after each wakeup or message receipt.
 ```python
 # Via builder
 config = (SimulationBuilder()
-    .from_template("rmsc04")
-    .enable_agent("adaptive_market_maker", count=2, computation_delay=10)
-    .enable_agent("noise", count=1000, computation_delay=500)
+    .apply_template("rmsc04")
+    .enable_agent(AdaptiveMarketMakerConfig(computation_delay=10), count=2)
+    .enable_agent(NoiseAgentConfig(computation_delay=500), count=1000)
     .computation_delay(50)   # default for agents without override
     .seed(42)
     .build())
@@ -484,8 +468,8 @@ Override `create_agents()` entirely for agents that don't follow the pattern.
 ```python
 # This raises ValueError immediately — no need to wait until compile()
 config = (SimulationBuilder()
-    .from_template("rmsc04")
-    .enable_agent("noise", count=10, unknown_param=42)
+    .apply_template("rmsc04")
+    .enable_agent(NoiseAgentConfig(unknown_param=42), count=10)
     .build())  # ← raises ValueError: Invalid parameters for agent type 'noise'
 ```
 

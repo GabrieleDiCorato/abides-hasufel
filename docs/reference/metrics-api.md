@@ -80,7 +80,6 @@ def run_simulation(
     log_dir: str | None = None,
     extractors: list[ResultExtractor] | None = None,
     runtime_agents: list[TradingAgent] | None = None,
-    oracle_instance: Any | None = None,
 ) -> SimulationResult
 ```
 
@@ -91,7 +90,6 @@ def run_simulation(
 | `log_dir` | `str \| None` | Directory for ABIDES log files. Auto-assigned (UUID) when `None`. |
 | `extractors` | `list[ResultExtractor] \| None` | Plugin extractors contributing to `SimulationResult.extensions`. |
 | `runtime_agents` | `list[TradingAgent] \| None` | Pre-built agents injected after compilation (bypass config system). |
-| `oracle_instance` | `Any \| None` | Pre-built oracle; required when config uses `ExternalDataOracleConfig`. |
 
 **Returns:** `SimulationResult`
 

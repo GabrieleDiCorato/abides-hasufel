@@ -66,7 +66,7 @@ from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_batch
 
 configs = [
-    SimulationBuilder().from_template("rmsc04").seed(s).build()
+    SimulationBuilder().apply_template("rmsc04").seed(s).build()
     for s in range(1, 9)
 ]
 
@@ -112,7 +112,7 @@ def run_one_simulation(seed: int) -> dict:
     """
     config = (
         SimulationBuilder()
-        .from_template("rmsc04")
+        .apply_template("rmsc04")
         .seed(seed)
         .build()
     )
@@ -176,7 +176,7 @@ With `run_simulation()` / `run_batch()`, the log directory is managed internally
 `SimulationBuilder.seed(n)` sets the master seed from which all component seeds are derived (see §5). With `run_simulation()`, the seed is part of the compiled config:
 
 ```python
-config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
 result = run_simulation(config)
 ```
 
@@ -204,7 +204,7 @@ def run_one_simulation(seed: int):
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(logging.INFO)
 
-    config = SimulationBuilder().from_template("rmsc04").seed(seed).build()
+    config = SimulationBuilder().apply_template("rmsc04").seed(seed).build()
     return run_simulation(config)
 ```
 
@@ -214,7 +214,7 @@ def run_one_simulation(seed: int):
 
 ```python
 def run_one_simulation(seed: int) -> dict:
-    config = SimulationBuilder().from_template("rmsc04").seed(seed).build()
+    config = SimulationBuilder().apply_template("rmsc04").seed(seed).build()
     result = run_simulation(config)
     # SimulationResult is picklable — return it directly, or extract fields:
     return {"seed": seed, "l1_close": result.markets["ABM"].l1_close}

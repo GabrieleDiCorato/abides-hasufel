@@ -19,7 +19,7 @@ from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation, ResultProfile
 
 config = (SimulationBuilder()
-    .from_template("rmsc04")
+    .apply_template("rmsc04")
     .seed(42)
     .build())
 

@@ -528,9 +528,11 @@ def _state_is_valid(self, symbol: str) -> bool:
 from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation, ResultProfile
 
+from abides_markets.config_system.agent_configs import NoiseAgentConfig
+
 config = (SimulationBuilder()
-    .from_template("rmsc04")
-    .enable_agent("my_strategy", count=1, threshold=0.08)
+    .apply_template("rmsc04")
+    .enable_agent(NoiseAgentConfig(), count=500)
     .seed(42)
     .build())
 
@@ -567,35 +569,18 @@ results = run_batch([cfg1, cfg2, cfg3], n_workers=4, profile=ResultProfile.QUANT
 
 ---
 
-## 13. External Oracle — Historical / Generated Data
+## 13. Custom Oracle Classes
 
 > **Important:** `Oracle` is an `abc.ABC`. Any custom oracle must implement both
 > `get_daily_open_price(...)` and `observe_price(...)`.
 
-```python
-from abides_markets.oracles import ExternalDataOracle
+The declarative config system supports `SparseMeanRevertingOracleConfig` and
+`MeanRevertingOracleConfig` (see [config-system.md](config-system.md)). Pre-built oracle
+instance injection through `SimulationBuilder` is not supported.
 
-oracle = ExternalDataOracle(
-    mkt_open, mkt_close, ["AAPL"],
-    data={"AAPL": my_series},  # pd.Series with DatetimeIndex, values in integer cents
-)
-
-config = (SimulationBuilder()
-    .oracle_instance(oracle)   # inject pre-built oracle
-    .enable_agent("noise", count=500)
-    .seed(42)
-    .build())
-```
-
-Alternatively, declare `ExternalDataOracleConfig` in the config (marker type) and pass
-the oracle at runtime:
-
-```python
-result = run_simulation(config, oracle_instance=my_oracle)
-```
-
-> Full pattern, `DataFrameProvider`, and oracle-less simulations:
-> `custom-agent-guide.md §7`
+See `abides-markets/abides_markets/oracles/external_data_oracle.py` for a reference
+implementation of the `Oracle` ABC, and [custom-agent-guide.md §7](custom-agent-guide.md)
+for oracle-less simulation setup.
 
 ---
 

@@ -40,7 +40,7 @@ from abides_markets.simulation import run_simulation
 
 config = (
     SimulationBuilder()
-    .from_template("rmsc04")
+    .apply_template("rmsc04")
     .market(ticker="ABM")
     .seed(42)
     .build()
@@ -82,22 +82,25 @@ request a richer `ResultProfile` when running — see
 
 ## 4. Add a custom strategy
 
-Define a `TradingAgent` subclass, register it, and enable it in the
-config:
+Define a `TradingAgent` subclass, a matching config class, register both, and enable it in the config:
 
 ```python
+from pydantic import BaseModel
 from abides_markets.agents import TradingAgent
 from abides_markets.config_system import register_agent
+
+class MyStrategyConfig(BaseModel):
+    my_param: int = 0
 
 class MyStrategy(TradingAgent):
     ...
 
-register_agent("my_strategy", agent_class=MyStrategy, category="strategy")
+register_agent("my_strategy", agent_class=MyStrategy, config_model=MyStrategyConfig, category="strategy")
 
 config = (
     SimulationBuilder()
-    .from_template("rmsc04")
-    .enable_agent("my_strategy", count=1, my_param=42)
+    .apply_template("rmsc04")
+    .enable_agent(MyStrategyConfig(my_param=42), count=1)
     .seed(42)
     .build()
 )

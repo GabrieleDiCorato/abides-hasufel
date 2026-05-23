@@ -202,12 +202,16 @@ All guards default to `None` (disabled). Set them via the constructor or as `Bas
 ```python
 # Declarative risk guards via config system
 config = (SimulationBuilder()
-    .from_template("rmsc04")
-    .enable_agent("my_strategy", count=1,
-                  position_limit=100,         # max 100 shares per symbol
-                  max_drawdown=500_000,        # halt if loss >= $5,000
-                  max_order_rate=50,           # max 50 orders per window
-                  order_rate_window="1min")  # 60-second window
+    .apply_template("rmsc04")
+    .enable_agent(
+        MyStrategyConfig(
+            position_limit=100,         # max 100 shares per symbol
+            max_drawdown=500_000,        # halt if loss >= $5,000
+            max_order_rate=50,           # max 50 orders per window
+            order_rate_window="1min",    # 60-second window
+        ),
+        count=1,
+    )
     .seed(42)
     .build())
 ```
@@ -308,15 +312,15 @@ from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation
 
 config = (SimulationBuilder()
-    .from_template("rmsc04")
-    .enable_agent("my_strategy", count=1, threshold=0.08)
+    .apply_template("rmsc04")
+    .enable_agent(MyStrategyConfig(threshold=0.08), count=1)
     .seed(42)
     .build())
 
 result = run_simulation(config)
 ```
 
-`enable_agent()` accepts any parameters your config model defines. Agent name validation happens at `.build()` time — register your agent **before** calling `.build()`.
+`enable_agent()` accepts a typed config instance. Agent name validation happens at `.build()` time — register your agent **before** calling `.build()`.
 
 The same `SimulationConfig` can be passed to `run_simulation()` any number of times — each call compiles fresh agents, so results are always reproducible.
 
@@ -325,7 +329,7 @@ The same `SimulationConfig` can be passed to `run_simulation()` any number of ti
 Override how long your agent "thinks" after each wakeup or message:
 
 ```python
-.enable_agent("my_strategy", count=1, computation_delay=100)  # 100 ns
+.enable_agent(MyStrategyConfig(computation_delay=100), count=1)  # 100 ns
 ```
 
 Or set a global default that applies to agents without an override:
@@ -347,36 +351,16 @@ See `abides-markets/abides_markets/oracles/external_data_oracle.py` for a full-f
 - **Batch mode:** Use `DataFrameProvider` to load full series at initialization.
 - **Point mode:** Implement `PointDataProvider` to query a database or generator on demand (uses LRU cache).
 
-### Injecting via the config system
-
-Build the oracle externally and pass it to the builder:
-
-```python
-from abides_markets.oracles import ExternalDataOracle, DataFrameProvider
-
-provider = DataFrameProvider({"AAPL": my_historical_series})
-oracle = ExternalDataOracle(provider)
-
-config = (SimulationBuilder()
-    .oracle_instance(oracle)               # inject pre-built oracle
-    .market(ticker="AAPL")
-    .enable_agent("noise", count=500)
-    .enable_agent("my_strategy", count=1)
-    .seed(42)
-    .build())
-```
-
-For YAML/JSON configs that reference an externally-constructed oracle, use `ExternalDataOracleConfig` as a marker type (`oracle: { type: external_data }`) and pass the oracle instance at compile time: `compile(config, oracle_instance=my_oracle)`.
-
 ### Oracle-less simulations
 
-Set `oracle: null` to run without a fundamental-value oracle. This requires `opening_price` (integer cents) and disallows `ValueAgent`:
+Set `oracle=None` to run without a fundamental-value oracle. This requires `opening_price` (integer cents) and disallows `ValueAgent`:
 
 ```python
 config = (SimulationBuilder()
-    .oracle(type=None)                     # explicitly no oracle
-    .market(ticker="ABM", opening_price=100_000)  # $1,000.00
-    .enable_agent("noise", count=500)
+    .ticker("ABM")
+    .opening_price(100_000)                # $1,000.00
+    .oracle(None)                          # explicitly no oracle
+    .enable_agent(NoiseAgentConfig(), count=500)
     .seed(42)
     .build())
 ```
@@ -406,7 +390,7 @@ Result depth is controlled by `ResultProfile`: `SUMMARY` (default), `QUANT` (add
 ```python
 from abides_markets.simulation import run_batch
 
-configs = [SimulationBuilder().from_template("rmsc04").seed(i).build() for i in range(10)]
+configs = [SimulationBuilder().apply_template("rmsc04").seed(i).build() for i in range(10)]
 results = run_batch(configs, n_workers=4)
 ```
 
@@ -563,9 +547,9 @@ from abides_markets.simulation import run_simulation
 
 def test_my_agent_runs_in_simulation():
     config = (SimulationBuilder()
-        .from_template("rmsc04")
-        .market(end_time="09:32:00")   # 2-minute sim for speed
-        .enable_agent("my_agent", count=1, wake_up_freq="5s")
+        .apply_template("rmsc04")
+        .end_time("09:32:00")          # 2-minute sim for speed
+        .enable_agent(MyAgentConfig(wake_up_freq="5s"), count=1)
         .seed(42)
         .build())
     result = run_simulation(config)
