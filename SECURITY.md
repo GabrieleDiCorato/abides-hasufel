@@ -41,14 +41,18 @@ GitHub Security Advisory and the `CHANGELOG.md` entry.
 
 ## Supported versions
 
-| Version | Status                  |
-|---------|-------------------------|
-| 2.6.x   | Active — security fixes |
-| < 2.6   | Unsupported             |
+This project is pre-1.0. **Only the `main` branch is supported.**
+There are no stable release lines with separate maintenance windows;
+every fix lands on `main` and is released as a patch increment from
+the latest published version.
 
-When v3.0 ships, the previous minor (`2.6.x`) will receive security
-fixes only for a transitional period announced in the v3.0 release
-notes.
+| Version range | Status                      |
+|---------------|-----------------------------|
+| `main` branch | Active — security fixes applied here |
+| Any released tag older than the latest | Unsupported — upgrade to the latest release |
+
+Once the project reaches a stable 1.x release line, this section will
+be updated to reflect the supported version policy at that time.
 
 ## Scope
 
