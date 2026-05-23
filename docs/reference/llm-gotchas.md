@@ -365,6 +365,41 @@ place_limit_order() → LimitOrderMsg → Exchange
 # you receive OrderExecutedMsg instead — no cancel confirmation.
 ```
 
+### Order rejection
+
+`OrderRejectedMsg` arrives in `receive_message()` **asynchronously**, like any
+other exchange response — it is never a synchronous error return.
+
+When the exchange cannot accept an order, `TradingAgent` dispatches to
+`on_order_rejected(order_id, reason)`.  Override that hook to react; the
+default logs at `WARNING` and returns.
+
+Rejection reasons (`RejectReason` enum in `abides_markets.messages.orderbook`):
+
+| Reason | Condition |
+|--------|----------|
+| `UNKNOWN_SYMBOL` | Symbol not registered on this exchange |
+| `INVALID_QUANTITY` | Quantity ≤ 0 or non-integer |
+| `INVALID_PRICE` | Limit price < 0 or non-integer (limit orders only) |
+
+**Rejected orders remain in `self.orders`.**  `place_limit_order()` stores a
+deepcopy in `self.orders` before sending the `LimitOrderMsg`.  When the
+rejection arrives, `self.orders[order_id]` still holds that copy.  The default
+hook does **not** remove it.  Subclasses that maintain an accurate open-order
+set must call `self.orders.pop(order_id, None)` in the override.
+
+```python
+def on_order_rejected(self, order_id: int, reason: RejectReason) -> None:
+    order = self.orders.pop(order_id, None)  # remove from tracking
+    logger.warning("Order %s rejected: %s", order_id, reason.value)
+    if reason == RejectReason.INVALID_PRICE:
+        ...  # react to specific reason
+```
+
+`quiet=True` (passed to `OrderBook.handle_limit_order`) suppresses the reject:
+no `OrderRejectedMsg` is sent and `on_order_rejected` is never called.  This
+matches the suppression contract for `OrderAcceptedMsg` and `OrderCancelledMsg`.
+
 ---
 
 ## 9. Correct Safe-Access Patterns

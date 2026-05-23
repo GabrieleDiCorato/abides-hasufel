@@ -1335,11 +1335,26 @@ class TradingAgent(FinancialAgent):
     def on_order_rejected(self, order_id: int, reason: RejectReason) -> None:
         """Called when the exchange rejects a submitted order.
 
+        This hook is invoked asynchronously: the rejection arrives in
+        ``receive_message()`` like any other exchange response.
+
+        The rejected order remains in ``self.orders`` when this hook fires.
+        ``place_limit_order()`` stored it there before sending; the default
+        implementation does **not** remove it.  Subclasses that maintain an
+        accurate open-order set must call ``self.orders.pop(order_id, None)``
+        in the override.  The original order is accessible via
+        ``self.orders.get(order_id)`` before popping.
+
+        If ``quiet=True`` was passed to ``OrderBook.handle_limit_order``, this
+        hook is not called — the reject message is suppressed.
+
         Subclasses may override to react to specific reject reasons.
+        See also: ``order_accepted()``, ``order_cancelled()``.
 
         Arguments:
             order_id: The id of the rejected order.
-            reason: A ``RejectReason`` enum value describing why it was rejected.
+            reason: A ``RejectReason`` enum value describing why the exchange
+                rejected the order.
         """
         logger.warning("Order %s rejected by exchange: %s", order_id, reason.value)
 

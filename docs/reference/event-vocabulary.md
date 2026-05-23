@@ -73,6 +73,40 @@ carry no `event_type` string. See
 [logging-architecture.md §6](logging-architecture.md#6-orderbook-capture-on-the-bus)
 for the full producer/sink contract.
 
+## Exchange-to-agent direct messages (kernel queue)
+
+The messages below travel through the Kernel's message queue — not the EventBus.
+They are sent via `send_message()` directly to the submitting agent's `id`,
+have no `EventType` string, and are never written to the event log.
+
+`TradingAgent` receives them in `receive_message()` and dispatches to the hook
+listed below.  Override the hook rather than `receive_message()` directly.
+
+| Message class | Agent hook | When sent |
+|---|---|---|
+| `OrderAcceptedMsg(order)` | `order_accepted(order)` | Order entered the book |
+| `OrderRejectedMsg(order_id, reason)` | `on_order_rejected(order_id, reason)` | Exchange validation failure |
+| `OrderExecutedMsg(order)` | `order_executed(order)` | Order matched (partial or full) |
+| `OrderCancelledMsg(order)` | `order_cancelled(order)` | Cancellation confirmed |
+
+All are defined in `abides_markets.messages.orderbook`.
+
+### `OrderRejectedMsg`
+
+Fields: `order_id: int`, `reason: RejectReason`.
+
+`RejectReason` values:
+
+| Value | Condition |
+|---|---|
+| `UNKNOWN_SYMBOL` | Symbol not registered on the exchange; sent by `ExchangeAgent` before the order reaches any `OrderBook` |
+| `INVALID_QUANTITY` | Quantity ≤ 0 or non-integer; checked by `OrderBook.handle_limit_order` and `handle_market_order` |
+| `INVALID_PRICE` | Limit price < 0 or non-integer; checked by `OrderBook.handle_limit_order` (not applicable to market orders) |
+
+For the full rejection contract — including `self.orders` state after rejection,
+the override pattern, and `quiet=True` suppression — see
+[llm-gotchas.md §8](llm-gotchas.md#8-order-lifecycle-and-tracking).
+
 ## Cross-references
 
 - [logging-architecture.md](logging-architecture.md) — log writer / parser pipeline
