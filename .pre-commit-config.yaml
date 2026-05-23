@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: nb-clean
         name: nb-clean
-        entry: nb-clean clean
+        entry: nb-clean clean --remove-all-notebook-metadata
         language: python
         additional_dependencies: ["nb-clean>=4.0.1"]
         files: \.ipynb$
