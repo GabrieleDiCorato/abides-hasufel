@@ -239,6 +239,16 @@ class TestTradingAgentBidAskTypes:
         result = agent.mark_to_market(holdings, use_midpoint=False)
         assert result == 10_000_000  # cash only, no trade price for TEST
 
+    def test_place_multiple_orders_bad_type_raises_type_error(self):
+        """place_multiple_orders must raise TypeError (not bare Exception) for unknown order types."""
+        agent = TradingAgent(
+            id=0,
+            random_state=np.random.RandomState(42),
+        )
+        agent.exchange_id = 1
+        with pytest.raises(TypeError, match="Expected LimitOrder or MarketOrder"):
+            agent.place_multiple_orders([object()])
+
 
 # ---------------------------------------------------------------------------
 # AdaptiveMarketMakerAgent — poll-mode state assignment

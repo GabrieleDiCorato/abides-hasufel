@@ -42,7 +42,12 @@ from ..messages.order import (
     ReplaceOrderMsg,
     StopOrderMsg,
 )
-from ..messages.orderbook import OrderBookMsg, StopTriggeredMsg
+from ..messages.orderbook import (
+    OrderBookMsg,
+    OrderRejectedMsg,
+    RejectReason,
+    StopTriggeredMsg,
+)
 from ..messages.query import (
     QueryLastTradeMsg,
     QueryLastTradeResponseMsg,
@@ -753,8 +758,9 @@ class ExchangeAgent(FinancialAgent):
     ) -> None:
         logger.debug(f"{self.name} received LIMIT_ORDER: {message.order}")
         if message.order.symbol not in self.order_books:
-            warnings.warn(
-                f"Limit Order discarded. Unknown symbol: {message.order.symbol}"
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(message.order.order_id, RejectReason.UNKNOWN_SYMBOL),
             )
         else:
             # INVARIANT: TradingAgent.place_limit_order() stores a deepcopy in
@@ -771,8 +777,9 @@ class ExchangeAgent(FinancialAgent):
     ) -> None:
         logger.debug(f"{self.name} received MARKET_ORDER: {message.order}")
         if message.order.symbol not in self.order_books:
-            warnings.warn(
-                f"Market Order discarded. Unknown symbol: {message.order.symbol}"
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(message.order.order_id, RejectReason.UNKNOWN_SYMBOL),
             )
         else:
             self.order_books[message.order.symbol].handle_market_order(message.order)

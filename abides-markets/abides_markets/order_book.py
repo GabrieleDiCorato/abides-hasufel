@@ -28,7 +28,9 @@ from .messages.orderbook import (
     OrderExecutedMsg,
     OrderModifiedMsg,
     OrderPartialCancelledMsg,
+    OrderRejectedMsg,
     OrderReplacedMsg,
+    RejectReason,
 )
 from .orders import LimitOrder, MarketOrder, Order, Side, TimeInForce
 from .price_level import PriceLevel
@@ -176,15 +178,19 @@ class OrderBook:
             return
 
         if (order.quantity <= 0) or (int(order.quantity) != order.quantity):
-            warnings.warn(
-                f"{order.symbol} order discarded. Quantity ({order.quantity}) must be a positive integer."
-            )
+            if not quiet:
+                self.owner.send_message(
+                    order.agent_id,
+                    OrderRejectedMsg(order.order_id, RejectReason.INVALID_QUANTITY),
+                )
             return
 
         if (order.limit_price < 0) or (int(order.limit_price) != order.limit_price):
-            warnings.warn(
-                f"{order.symbol} order discarded. Limit price ({order.limit_price}) must be a positive integer."
-            )
+            if not quiet:
+                self.owner.send_message(
+                    order.agent_id,
+                    OrderRejectedMsg(order.order_id, RejectReason.INVALID_PRICE),
+                )
             return
 
         tif = order.time_in_force
@@ -280,8 +286,9 @@ class OrderBook:
             return
 
         if (order.quantity <= 0) or (int(order.quantity) != order.quantity):
-            warnings.warn(
-                f"{order.symbol} order discarded.  Quantity ({order.quantity}) must be a positive integer."
+            self.owner.send_message(
+                order.agent_id,
+                OrderRejectedMsg(order.order_id, RejectReason.INVALID_QUANTITY),
             )
             return
 

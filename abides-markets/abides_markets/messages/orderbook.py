@@ -1,14 +1,35 @@
 from abc import ABC
 from dataclasses import dataclass
+from enum import Enum
 
 from abides_core import Message
 
 from ..orders import LimitOrder, Order, StopOrder
 
 
+class RejectReason(Enum):
+    """Reason an order was rejected by the exchange."""
+
+    INVALID_QUANTITY = "INVALID_QUANTITY"
+    INVALID_PRICE = "INVALID_PRICE"
+    UNKNOWN_SYMBOL = "UNKNOWN_SYMBOL"
+
+
 @dataclass
 class OrderBookMsg(Message, ABC):
     pass
+
+
+@dataclass
+class OrderRejectedMsg(OrderBookMsg):
+    """Sent to the submitting agent when the exchange rejects an order.
+
+    ``order_id`` matches the rejected order's id; agents can look it up in
+    ``self.orders``.  ``reason`` is a ``RejectReason`` enum value.
+    """
+
+    order_id: int
+    reason: RejectReason
 
 
 @dataclass

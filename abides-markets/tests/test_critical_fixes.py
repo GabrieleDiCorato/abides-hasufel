@@ -5,6 +5,7 @@ import numpy as np
 from abides_core.engine.kernel import Kernel
 from abides_markets.agents.exchange_agent import ExchangeAgent
 from abides_markets.agents.trading_agent import TradingAgent
+from abides_markets.messages.orderbook import OrderRejectedMsg, RejectReason
 from abides_markets.oracles.sparse_mean_reverting_oracle import (
     SparseMeanRevertingOracle,
 )
@@ -200,3 +201,139 @@ def test_kernel_runner_works_with_start_time_zero():
     # Should not hang or skip — the runner loop condition should handle time=0
     kernel.runner()
     # If we get here without error, the truthiness check works
+
+
+# --- OrderRejectedMsg ---
+
+
+def _make_order_book(symbol: str = "IBM"):
+    """Return an OrderBook with a mock owner that records sent messages."""
+    from abides_markets.order_book import OrderBook
+
+    sent: list = []
+
+    class _Owner:
+        mkt_open = None
+
+        def send_message(self, agent_id, message):
+            sent.append((agent_id, message))
+
+        def logEvent(self, *args, **kwargs):
+            pass
+
+    owner = _Owner()
+    book = OrderBook(owner=owner, symbol=symbol)  # type: ignore[arg-type]
+    return book, sent
+
+
+def _make_limit_order(
+    symbol: str,
+    quantity,
+    limit_price,
+    order_id: int = 1,
+    agent_id: int = 7,
+):
+    from abides_markets.orders import LimitOrder, Side
+
+    return LimitOrder(
+        agent_id=agent_id,
+        order_id=order_id,
+        time_placed=0,
+        symbol=symbol,
+        quantity=quantity,
+        side=Side.BID,
+        limit_price=limit_price,
+    )
+
+
+def _make_market_order(
+    symbol: str,
+    quantity,
+    order_id: int = 2,
+    agent_id: int = 7,
+):
+    from abides_markets.orders import MarketOrder, Side
+
+    return MarketOrder(
+        agent_id=agent_id,
+        order_id=order_id,
+        time_placed=0,
+        symbol=symbol,
+        quantity=quantity,
+        side=Side.BID,
+    )
+
+
+def test_order_rejected_invalid_quantity_limit_order():
+    """OrderBook fires OrderRejectedMsg(INVALID_QUANTITY) for a zero-quantity LimitOrder."""
+    book, sent = _make_order_book("IBM")
+    order = _make_limit_order("IBM", quantity=0, limit_price=10_000)
+    book.handle_limit_order(order)
+    assert len(sent) == 1
+    _, msg = sent[0]
+    assert isinstance(msg, OrderRejectedMsg)
+    assert msg.order_id == order.order_id
+    assert msg.reason is RejectReason.INVALID_QUANTITY
+
+
+def test_order_rejected_invalid_quantity_negative_limit_order():
+    """OrderBook fires OrderRejectedMsg(INVALID_QUANTITY) for a negative-quantity LimitOrder."""
+    book, sent = _make_order_book("IBM")
+    order = _make_limit_order("IBM", quantity=-5, limit_price=10_000)
+    book.handle_limit_order(order)
+    assert len(sent) == 1
+    _, msg = sent[0]
+    assert isinstance(msg, OrderRejectedMsg)
+    assert msg.reason is RejectReason.INVALID_QUANTITY
+
+
+def test_order_rejected_invalid_price_limit_order():
+    """OrderBook fires OrderRejectedMsg(INVALID_PRICE) for a non-integer price."""
+    book, sent = _make_order_book("IBM")
+    order = _make_limit_order("IBM", quantity=10, limit_price=99.5)
+    book.handle_limit_order(order)
+    assert len(sent) == 1
+    _, msg = sent[0]
+    assert isinstance(msg, OrderRejectedMsg)
+    assert msg.order_id == order.order_id
+    assert msg.reason is RejectReason.INVALID_PRICE
+
+
+def test_order_rejected_invalid_quantity_market_order():
+    """OrderBook fires OrderRejectedMsg(INVALID_QUANTITY) for a zero-quantity MarketOrder."""
+    book, sent = _make_order_book("IBM")
+    order = _make_market_order("IBM", quantity=0)
+    book.handle_market_order(order)
+    assert len(sent) == 1
+    _, msg = sent[0]
+    assert isinstance(msg, OrderRejectedMsg)
+    assert msg.order_id == order.order_id
+    assert msg.reason is RejectReason.INVALID_QUANTITY
+
+
+def test_order_rejected_quiet_mode_suppresses_message():
+    """quiet=True must not send any reject message (consistent with other quiet behaviour)."""
+    book, sent = _make_order_book("IBM")
+    order = _make_limit_order("IBM", quantity=0, limit_price=10_000)
+    book.handle_limit_order(order, quiet=True)
+    assert len(sent) == 0
+
+
+def test_on_order_rejected_hook_dispatched():
+    """TradingAgent.receive_message dispatches OrderRejectedMsg to on_order_rejected."""
+    rejected_calls: list = []
+
+    class _TestAgent(TradingAgent):
+        def on_order_rejected(self, order_id, reason):
+            rejected_calls.append((order_id, reason))
+
+    agent = _TestAgent(id=0, name="test", random_state=np.random.RandomState(42))
+    msg = OrderRejectedMsg(order_id=42, reason=RejectReason.INVALID_PRICE)
+
+    # Bypass kernel machinery — dispatch the message directly via the handler.
+    agent._handle_order_rejected_msg(msg)
+
+    assert len(rejected_calls) == 1
+    oid, reason = rejected_calls[0]
+    assert oid == 42
+    assert reason is RejectReason.INVALID_PRICE

@@ -36,7 +36,9 @@ from ..messages.orderbook import (
     OrderExecutedMsg,
     OrderModifiedMsg,
     OrderPartialCancelledMsg,
+    OrderRejectedMsg,
     OrderReplacedMsg,
+    RejectReason,
     StopTriggeredMsg,
 )
 from ..messages.query import (
@@ -342,6 +344,7 @@ class TradingAgent(FinancialAgent):
         OrderPartialCancelledMsg: "_handle_order_partial_cancelled_msg",
         OrderModifiedMsg: "_handle_order_modified_msg",
         OrderReplacedMsg: "_handle_order_replaced_msg",
+        OrderRejectedMsg: "_handle_order_rejected_msg",
         StopTriggeredMsg: "_handle_stop_triggered_msg",
         QueryLastTradeResponseMsg: "_handle_query_last_trade_response_msg",
         QuerySpreadResponseMsg: "_handle_query_spread_response_msg",
@@ -388,6 +391,9 @@ class TradingAgent(FinancialAgent):
 
     def _handle_stop_triggered_msg(self, message: StopTriggeredMsg) -> None:
         self.stop_triggered(message.order)
+
+    def _handle_order_rejected_msg(self, message: OrderRejectedMsg) -> None:
+        self.on_order_rejected(message.order_id, message.reason)
 
     def _handle_query_last_trade_response_msg(
         self, message: QueryLastTradeResponseMsg
@@ -971,7 +977,7 @@ class TradingAgent(FinancialAgent):
             elif isinstance(order, MarketOrder):
                 messages.append(MarketOrderMsg(order))
             else:
-                raise Exception("Expected LimitOrder or MarketOrder")
+                raise TypeError("Expected LimitOrder or MarketOrder")
 
             # Copy the intended order for logging, so any changes made to it elsewhere
             # don't retroactively alter our "as placed" log of the order.  Eventually
@@ -1325,6 +1331,17 @@ class TradingAgent(FinancialAgent):
         self.orders[new_order.order_id] = new_order
 
         logger.debug(f"After order replacement, agent open orders: {self.orders}")
+
+    def on_order_rejected(self, order_id: int, reason: RejectReason) -> None:
+        """Called when the exchange rejects a submitted order.
+
+        Subclasses may override to react to specific reject reasons.
+
+        Arguments:
+            order_id: The id of the rejected order.
+            reason: A ``RejectReason`` enum value describing why it was rejected.
+        """
+        logger.warning("Order %s rejected by exchange: %s", order_id, reason.value)
 
     def market_closed(self) -> None:
         """
