@@ -142,32 +142,38 @@ if len(mid) > 50:
 # ─────────────────────────────────────────────────────────────
 print("\n[4/5] Microstructure stylised facts ...")
 
-returns = np.diff(mid) / mid[:-1]
-if len(returns) > 10:
-    ac1 = float(np.corrcoef(returns[:-1], returns[1:])[0, 1])
-    ac5 = (
-        float(np.corrcoef(returns[:-5], returns[5:])[0, 1])
-        if len(returns) > 10
-        else float("nan")
-    )
-    print(f"  Return autocorrelation lag-1 : {ac1:+.4f}")
-    print(f"  Return autocorrelation lag-5 : {ac5:+.4f}")
-    if ac1 < -0.01:
-        print("  [OK] Negative lag-1 AC -- bid-ask bounce present (realistic)")
-    else:
-        print("  [!] Lag-1 AC >= 0 -- no bid-ask bounce detected")
-
-# Amihud illiquidity proxy  (|return| / volume_per_interval)
+# Bid-ask bounce is a property of transaction prices, not mid-prices.
+# Mid-price ticks are dominated by zero-return events (quotes unchanged)
+# which dilute the autocorrelation signal. Trade prices alternate between
+# aggressive buys hitting the ask and aggressive sells hitting the bid,
+# producing the characteristic negative lag-1 AC (Roll 1984).
+ac1 = float("nan")
 trades = mkt.trades
 if trades:
     n_trades = len(trades)
     total_vol = sum(t.quantity for t in trades)
     avg_trade_size = total_vol / n_trades
-    # Compute signed returns at trade timestamps
     trade_prices = np.array([t.price_cents for t in trades], dtype=float)
-    trade_returns = np.abs(np.diff(trade_prices) / trade_prices[:-1])
+    trade_rets = np.diff(trade_prices) / trade_prices[:-1]
+
+    if len(trade_rets) > 10:
+        ac1 = float(np.corrcoef(trade_rets[:-1], trade_rets[1:])[0, 1])
+        ac5 = (
+            float(np.corrcoef(trade_rets[:-5], trade_rets[5:])[0, 1])
+            if len(trade_rets) > 5
+            else float("nan")
+        )
+        print(f"  Trade-price AC lag-1 : {ac1:+.4f}")
+        print(f"  Trade-price AC lag-5 : {ac5:+.4f}")
+        if ac1 < -0.01:
+            print("  [OK] Negative lag-1 AC -- bid-ask bounce present (realistic)")
+        else:
+            print("  [!] Lag-1 AC >= 0 -- no bid-ask bounce detected")
+
+    # Amihud illiquidity proxy  (|return| / volume_per_interval)
+    trade_rets_abs = np.abs(trade_rets)
     trade_qtys = np.array([t.quantity for t in trades[1:]], dtype=float)
-    amihud = float(np.mean(trade_returns / np.maximum(trade_qtys, 1)))
+    amihud = float(np.mean(trade_rets_abs / np.maximum(trade_qtys, 1)))
     print(f"\n  Trades executed     : {n_trades:,}")
     print(f"  Average trade size  : {avg_trade_size:.1f} shares")
     print(f"  Amihud illiquidity  : {amihud:.6e}")
@@ -181,7 +187,7 @@ else:
 # ─────────────────────────────────────────────────────────────
 # 5.  PnL attribution by agent type
 # ─────────────────────────────────────────────────────────────
-print("\n[5/5] PnL attribution …")
+print("\n[5/5] PnL attribution ...")
 
 by_category: dict[str, list[int]] = defaultdict(list)
 for ag in result.agents:
@@ -237,7 +243,7 @@ if liq.vwap_cents and abs(liq.vwap_cents - R_BAR) / R_BAR > 0.05:
     issues.append(f"VWAP deviates >5% from fundamental (drift={drift_pct:+.2f}%)")
 if spread_bps > 50:
     issues.append(f"Mean spread {spread_bps:.1f} bps is unusually wide")
-if len(returns) > 10 and ac1 >= 0:
+if not np.isnan(ac1) and ac1 >= 0:
     issues.append("No bid-ask bounce (AC lag-1 >= 0)")
 
 if issues:
