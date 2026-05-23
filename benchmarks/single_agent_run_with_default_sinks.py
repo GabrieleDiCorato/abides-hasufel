@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import record_result, time_iterations  # noqa: E402
 
 from abides_core import abides  # noqa: E402
-from abides_markets.configs.rmsc04 import build_config  # noqa: E402
+from abides_markets.config_system import SimulationBuilder  # noqa: E402
 
 SCRIPT_NAME = "single_agent_run_with_default_sinks"
 
@@ -44,16 +44,18 @@ N_ITER = 5
 
 
 def _run_once() -> None:
-    # Defaults: log_orders=True, book_logging=True, exchange_log_orders=False
-    # (these are the rmsc04 defaults — we keep them).
-    config = build_config(
-        seed=SEED,
-        end_time=END_TIME,
-        stdout_log_level="WARNING",
+    # rmsc04 template defaults: log_orders=True, book_capture="l2"
+    runtime = (
+        SimulationBuilder()
+        .apply_template("rmsc04")
+        .seed(SEED)
+        .end_time(END_TIME)
+        .log_level("WARNING")
+        .build_and_compile()
     )
     # Suppress disk writes only — in-memory log buffers still accumulate.
-    config["skip_log"] = True
-    abides.run(config)
+    runtime["skip_log"] = True
+    abides.run(runtime)
 
 
 def measure() -> dict:
@@ -62,8 +64,8 @@ def measure() -> dict:
         "end_time": END_TIME,
         "seed": SEED,
         "log_orders": True,
-        "book_logging": True,
-        "skip_log_disk": True,
+        "book_capture": "l2",
+        "skip_log": True,
         **stats,
     }
 
@@ -75,5 +77,5 @@ if __name__ == "__main__":
     print(
         f"  end_time={END_TIME}  "
         f"mean={payload['mean_ns'] / 1e9:.2f} s  "
-        f"p99={payload['p99_ns'] / 1e9:.2f} s"
+        f"max={payload['max_ns'] / 1e9:.2f} s"
     )

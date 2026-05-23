@@ -9,11 +9,9 @@ fixed-size synthetic workload (``N_AGENTS`` agents, each holding
 Why this matters
 ----------------
 :func:`parse_logs_df` is the dominant log-parsing primitive used by
-``runner._extract_*`` and notebook-side analysis. Phase 1 of the
-event-logging refactor (commit ``aa7231e``) replaced a per-agent
-``pd.concat`` loop with a single ``DataFrame.from_records`` over a
-flat row list. The plan claims a ≥ 1.3× wall-clock speedup. This
-script lets you re-run on ``aa7231e^`` and ``aa7231e`` to verify.
+``runner._extract_*`` and notebook-side analysis. This script provides
+a reproducible latency baseline on a fixed 1M-row synthetic workload
+so pre/post-refactor comparisons are machine-comparable.
 
 Output
 ------
@@ -90,5 +88,5 @@ if __name__ == "__main__":
     print(
         f"  total_rows={payload['total_rows']:,}  "
         f"mean={payload['mean_ns'] / 1e6:.1f} ms  "
-        f"p99={payload['p99_ns'] / 1e6:.1f} ms"
+        f"max={payload['max_ns'] / 1e6:.1f} ms"
     )

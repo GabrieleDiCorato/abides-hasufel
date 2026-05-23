@@ -85,5 +85,5 @@ if __name__ == "__main__":
     print(
         f"  mkt_close={MKT_CLOSE}  "
         f"mean={payload['mean_ns'] / 1e9:.2f} s  "
-        f"p99={payload['p99_ns'] / 1e9:.2f} s"
+        f"max={payload['max_ns'] / 1e9:.2f} s"
     )

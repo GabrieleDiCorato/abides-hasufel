@@ -111,7 +111,11 @@ def time_iterations(
     """Run ``fn`` ``n_warmup + n_iter`` times and return latency stats.
 
     Stats reported over the ``n_iter`` measurement runs only:
-    ``mean_ns``, ``p50_ns``, ``p99_ns``, ``min_ns``, ``max_ns``.
+    ``mean_ns``, ``p50_ns``, ``min_ns``, ``max_ns``.
+
+    Note: a statistically valid 99th percentile requires N ≥ 100 samples.
+    For the small ``n_iter`` values used here (N < 100) the 99th-percentile
+    estimator collapses to the maximum, so only ``max_ns`` is reported.
     """
     for _ in range(n_warmup):
         fn()
@@ -123,13 +127,11 @@ def time_iterations(
         samples_ns.append(now_ns() - t0)
 
     samples_ns.sort()
-    p99_idx = max(0, min(len(samples_ns) - 1, int(round(0.99 * len(samples_ns))) - 1))
     return {
         "n_iter": n_iter,
         "n_warmup": n_warmup,
         "mean_ns": int(statistics.mean(samples_ns)),
         "p50_ns": int(statistics.median(samples_ns)),
-        "p99_ns": int(samples_ns[p99_idx]),
         "min_ns": int(samples_ns[0]),
         "max_ns": int(samples_ns[-1]),
     }

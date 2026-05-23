@@ -1,7 +1,6 @@
 # ABIDES one-shot benchmark scripts
 
-These scripts produce baseline measurements for the perf claims in the
-[event-logging refactor plan](../docs/project/event-logging-refactor-plan.md).
+These scripts produce baseline measurements for performance-sensitive changes to the simulation engine.
 
 **They are not CI gates.** No GitHub Actions job runs them. They are not
 wired into `pytest`. They exist so that whoever is implementing a

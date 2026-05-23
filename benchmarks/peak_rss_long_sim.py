@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import measure_peak_rss_during, record_result  # noqa: E402
 
 from abides_core import abides  # noqa: E402
-from abides_markets.configs.rmsc04 import build_config  # noqa: E402
+from abides_markets.config_system import SimulationBuilder  # noqa: E402
 
 SCRIPT_NAME = "peak_rss_long_sim"
 
@@ -43,16 +43,16 @@ SEED = 12345
 
 
 def _run_once() -> None:
-    config = build_config(
-        seed=SEED,
-        end_time=END_TIME,
-        # Default sinks ON — this is the baseline to beat.
-        log_orders=True,
-        book_logging=True,
-        stdout_log_level="WARNING",
+    runtime = (
+        SimulationBuilder()
+        .apply_template("rmsc04")
+        .seed(SEED)
+        .end_time(END_TIME)
+        .log_level("WARNING")
+        .build_and_compile()
     )
-    config["skip_log"] = True  # Suppress disk writes; in-memory buffers stand.
-    abides.run(config)
+    runtime["skip_log"] = True  # Suppress disk writes; in-memory buffers stand.
+    abides.run(runtime)
 
 
 def measure() -> dict:
@@ -61,8 +61,8 @@ def measure() -> dict:
         "end_time": END_TIME,
         "seed": SEED,
         "log_orders": True,
-        "book_logging": True,
-        "skip_log_disk": True,
+        "book_capture": "l2",
+        "skip_log": True,
         **rss,
     }
 

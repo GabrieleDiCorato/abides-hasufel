@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import record_result, time_iterations  # noqa: E402
 
 from abides_core import abides  # noqa: E402
-from abides_markets.configs.rmsc04 import build_config  # noqa: E402
+from abides_markets.config_system import ExchangeConfig, SimulationBuilder  # noqa: E402
 
 SCRIPT_NAME = "headless_sim_throughput_no_sinks"
 
@@ -48,16 +48,18 @@ N_ITER = 5
 
 
 def _run_once() -> None:
-    config = build_config(
-        seed=SEED,
-        end_time=END_TIME,
-        log_orders=False,
-        book_logging=False,
-        exchange_log_orders=False,
-        stdout_log_level="WARNING",
+    runtime = (
+        SimulationBuilder()
+        .apply_template("rmsc04")
+        .seed(SEED)
+        .end_time(END_TIME)
+        .log_level("WARNING")
+        .log_orders(False)
+        .exchange(ExchangeConfig(book_capture="off"))
+        .build_and_compile()
     )
-    config["skip_log"] = True
-    abides.run(config)
+    runtime["skip_log"] = True
+    abides.run(runtime)
 
 
 def measure() -> dict:
@@ -66,8 +68,7 @@ def measure() -> dict:
         "end_time": END_TIME,
         "seed": SEED,
         "log_orders": False,
-        "book_logging": False,
-        "exchange_log_orders": False,
+        "book_capture": "off",
         "skip_log": True,
         **stats,
     }
@@ -80,5 +81,5 @@ if __name__ == "__main__":
     print(
         f"  end_time={END_TIME}  "
         f"mean={payload['mean_ns'] / 1e9:.2f} s  "
-        f"p99={payload['p99_ns'] / 1e9:.2f} s"
+        f"max={payload['max_ns'] / 1e9:.2f} s"
     )
