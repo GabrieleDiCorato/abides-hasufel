@@ -13,9 +13,17 @@ a ``SimulationConfig`` into the runtime dict that ``Kernel`` expects.
 from __future__ import annotations
 
 import re
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
+
+if TYPE_CHECKING:
+    from abides_markets.config_system.builder import SimulationBuilder
+    from abides_markets.config_system.contexts import (
+        ExchangeContext,
+        LatencyContext,
+        OracleContext,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -100,19 +108,32 @@ class SparseMeanRevertingOracleConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_no_dual_specification(self) -> SparseMeanRevertingOracleConfig:
-        """Reject configs that specify both the raw rate and the duration string."""
+        """Reject configs that specify both the raw rate and the duration string.
+
+        The check ignores cases where the competing field retains its default
+        value, which allows clean dict → model round-trips inside ``build()``
+        without false positives from default-value serialisation.
+        """
+        half_life_default = SparseMeanRevertingOracleConfig.model_fields[
+            "mean_reversion_half_life"
+        ].default
         if (
             self.kappa is not None
             and "mean_reversion_half_life" in self.model_fields_set
+            and self.mean_reversion_half_life != half_life_default
         ):
             raise ValueError(
                 "Cannot set both 'kappa' and 'mean_reversion_half_life' — "
                 "they are mutually exclusive representations of the same "
                 "mean-reversion speed.  Use one or the other."
             )
+        interval_default = SparseMeanRevertingOracleConfig.model_fields[
+            "megashock_mean_interval"
+        ].default
         if (
             self.megashock_lambda_a is not None
             and "megashock_mean_interval" in self.model_fields_set
+            and self.megashock_mean_interval != interval_default
         ):
             raise ValueError(
                 "Cannot set both 'megashock_lambda_a' and "
@@ -121,6 +142,41 @@ class SparseMeanRevertingOracleConfig(BaseModel):
                 "Use one or the other."
             )
         return self
+
+    def build(self, context: OracleContext) -> Any:
+        """Construct a SparseMeanRevertingOracle from this config and context."""
+        import math as _math
+
+        from abides_core.utils import str_to_ns as _str_to_ns
+        from abides_markets.oracles import SparseMeanRevertingOracle
+
+        noise_mkt_close = context.date_ns + _str_to_ns("16:00:00")
+        symbols = {
+            context.ticker: {
+                "r_bar": self.r_bar,
+                "kappa": (
+                    self.kappa
+                    if self.kappa is not None
+                    else _math.log(2) / _str_to_ns(self.mean_reversion_half_life)
+                ),
+                "sigma_s": self.sigma_s,
+                "fund_vol": self.fund_vol,
+                "megashock_lambda_a": (
+                    self.megashock_lambda_a
+                    if self.megashock_lambda_a is not None
+                    else (
+                        0
+                        if self.megashock_mean_interval is None
+                        else 1.0 / _str_to_ns(self.megashock_mean_interval)
+                    )
+                ),
+                "megashock_mean": self.megashock_mean,
+                "megashock_var": self.megashock_var,
+            }
+        }
+        return SparseMeanRevertingOracle(
+            context.mkt_open, noise_mkt_close, symbols, context.random_state
+        )
 
 
 class MeanRevertingOracleConfig(BaseModel):
@@ -155,25 +211,23 @@ class MeanRevertingOracleConfig(BaseModel):
         description="Variance of per-step shocks to the fundamental price.",
     )
 
+    def build(self, context: OracleContext) -> Any:
+        """Construct a MeanRevertingOracle from this config and context."""
+        from abides_markets.oracles.mean_reverting_oracle import MeanRevertingOracle
 
-class ExternalDataOracleConfig(BaseModel):
-    """Oracle backed by external data (historical, CGAN, etc.).
+        symbols = {
+            context.ticker: {
+                "r_bar": self.r_bar,
+                "kappa": self.kappa,
+                "sigma_s": self.sigma_s,
+            }
+        }
+        return MeanRevertingOracle(
+            context.mkt_open, context.mkt_close, symbols, context.random_state
+        )
 
-    This is a marker config type signalling that the oracle will be injected
-    at runtime via ``SimulationBuilder.oracle_instance()``.  The framework
-    does not perform file I/O — the user is responsible for constructing an
-    ``ExternalDataOracle`` with their chosen ``BatchDataProvider`` or
-    ``PointDataProvider`` and passing it to the builder.
-    """
 
-    type: Literal["external_data"] = "external_data"
-
-
-OracleConfig = (
-    SparseMeanRevertingOracleConfig
-    | MeanRevertingOracleConfig
-    | ExternalDataOracleConfig
-)
+OracleConfig = SparseMeanRevertingOracleConfig | MeanRevertingOracleConfig
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +300,29 @@ class ExchangeConfig(BaseModel):
         ),
         json_schema_extra={"unit": "nanoseconds"},
     )
+
+    def build(self, context: ExchangeContext) -> Any:
+        """Construct an ExchangeAgent from this config and context."""
+
+        from abides_markets.agents import ExchangeAgent
+
+        return ExchangeAgent(
+            id=0,
+            name="EXCHANGE_AGENT",
+            type="ExchangeAgent",
+            mkt_open=context.mkt_open,
+            mkt_close=context.mkt_close,
+            symbols=context.symbols,
+            book_logging=self.book_logging,
+            book_log_depth=self.book_log_depth,
+            book_capture=self.book_capture,
+            log_orders=self.log_orders,
+            pipeline_delay=self.pipeline_delay,
+            computation_delay=self.computation_delay,
+            stream_history=self.stream_history_length,
+            random_state=context.random_state,
+            opening_prices=context.opening_prices,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -332,8 +409,7 @@ class MarketConfig(BaseModel):
         """Reject start_time >= end_time (inverted or zero-length market)."""
         if self.start_time >= self.end_time:
             raise ValueError(
-                f"start_time ({self.start_time}) must be before "
-                f"end_time ({self.end_time})."
+                f"start_time ({self.start_time}) must be before end_time ({self.end_time})."
             )
         return self
 
@@ -358,10 +434,28 @@ class AgentGroupConfig(BaseModel):
     params: dict[str, Any] = Field(
         default_factory=dict,
         description=(
-            "Agent-specific parameters "
-            "(validated against registry schema at compile time)."
+            "Agent-specific parameters (validated against registry schema at compile time)."
         ),
     )
+
+    _registry_name: str | None = PrivateAttr(default=None)
+
+    @property
+    def config(self) -> Any:
+        """Return a typed agent config instance populated from ``params``.
+
+        Only available when this group was accessed via
+        ``SimulationConfig.agents`` — raises ``RuntimeError`` otherwise.
+        """
+        if self._registry_name is None:
+            raise RuntimeError(
+                "AgentGroupConfig.config requires the group to be accessed via "
+                "SimulationConfig.agents — the registry name is not populated."
+            )
+        from abides_markets.config_system.registry import registry
+
+        entry = registry.get(self._registry_name)
+        return entry.config_model(**self.params)
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +472,16 @@ class LatencyConfig(BaseModel):
             "all network delays (useful for unit testing)."
         ),
     )
+
+    def build(self, context: LatencyContext) -> Any:
+        """Construct the latency model from this config and context."""
+        from abides_markets.utils import generate_latency_model
+
+        return generate_latency_model(
+            context.agent_count,
+            context.random_state,
+            latency_type=self.type,
+        )
 
 
 class InfrastructureConfig(BaseModel):
@@ -449,7 +553,7 @@ class BZ2PickleSinkConfig(_SinkConfigBase):
     kind: Literal["bz2_pickle"] = Field(
         default="bz2_pickle",
         description=(
-            "Discriminator selecting the legacy bz2-pickled " "per-agent log sink."
+            "Discriminator selecting the legacy bz2-pickled per-agent log sink."
         ),
     )
 
@@ -514,8 +618,7 @@ class OrderBookSnapshotMemorySinkConfig(_SinkConfigBase):
     kind: Literal["orderbook_snapshot_memory"] = Field(
         default="orderbook_snapshot_memory",
         description=(
-            "Discriminator selecting the in-memory per-symbol "
-            "order-book snapshot sink."
+            "Discriminator selecting the in-memory per-symbol order-book snapshot sink."
         ),
     )
     symbol: str | None = Field(
@@ -543,8 +646,7 @@ class OrderBookHistoryMemorySinkConfig(_SinkConfigBase):
     kind: Literal["orderbook_history_memory"] = Field(
         default="orderbook_history_memory",
         description=(
-            "Discriminator selecting the in-memory per-symbol "
-            "order-book event-history sink."
+            "Discriminator selecting the in-memory per-symbol order-book event-history sink."
         ),
     )
     symbol: str | None = Field(
@@ -680,3 +782,18 @@ class SimulationConfig(BaseModel):
         """Sort agent groups by name for deterministic seed assignment."""
         self.agents = dict(sorted(self.agents.items()))
         return self
+
+    @model_validator(mode="after")
+    def _populate_agent_names(self) -> SimulationConfig:
+        """Stamp each AgentGroupConfig with its registry name for .config access."""
+        for name, group in self.agents.items():
+            group._registry_name = name
+        return self
+
+    def to_builder(self) -> SimulationBuilder:
+        """Return a new SimulationBuilder pre-loaded from this config."""
+        from abides_markets.config_system.builder import (  # noqa: PLC0415
+            SimulationBuilder as _Builder,
+        )
+
+        return _Builder.from_config(self)

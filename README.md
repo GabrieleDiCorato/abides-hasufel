@@ -188,7 +188,7 @@ _For more examples, please refer to the notebooks in the `notebooks/` directory.
 from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation
 
-config = SimulationBuilder().from_template("rmsc04").seed(0).build()
+config = SimulationBuilder().apply_template("rmsc04").seed(0).build()
 result = run_simulation(config)
 
 print(result.metadata)           # seed, timing, tickers
@@ -205,7 +205,7 @@ For the low-level path (direct Kernel access):
 from abides_markets.config_system import SimulationBuilder, compile
 from abides_core import abides
 
-config = SimulationBuilder().from_template("rmsc04").seed(0).build()
+config = SimulationBuilder().apply_template("rmsc04").seed(0).build()
 runtime = compile(config)       # fresh runtime dict — consumed once
 end_state = abides.run(runtime)
 ```
@@ -275,12 +275,12 @@ from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation
 
 # Single base template
-config = SimulationBuilder().from_template("rmsc04").seed(0).build()
+config = SimulationBuilder().apply_template("rmsc04").seed(0).build()
 
 # Compose base + overlay
 config = (SimulationBuilder()
-    .from_template("volatile_day")
-    .from_template("with_execution")
+    .apply_template("volatile_day")
+    .apply_template("with_execution")
     .seed(0)
     .build())
 

@@ -101,8 +101,8 @@ def rmsc04_config():
     """A minimal rmsc04 config (2-min sim) reusable across tests."""
     return (
         SimulationBuilder()
-        .from_template("rmsc04")
-        .market(end_time="09:32:00")
+        .apply_template("rmsc04")
+        .end_time("09:32:00")
         .seed(42)
         .build()
     )

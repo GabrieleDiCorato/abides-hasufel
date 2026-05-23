@@ -273,8 +273,8 @@ class TestMeanReversionIntegration:
     def test_simulation_with_mean_reversion(self, tmp_path):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .market(end_time="09:32:00")
+            .apply_template("rmsc04")
+            .end_time("09:32:00")
             .enable_agent("mean_reversion", count=5, window=5)
             .seed(42)
             .build()

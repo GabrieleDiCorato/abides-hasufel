@@ -20,11 +20,7 @@ from abides_markets.simulation import ResultProfile, run_simulation
 
 # Fixed-seed minimal config: rmsc04 with a 2-minute trading window.
 _CONFIG_FN = lambda: (  # noqa: E731
-    SimulationBuilder()
-    .from_template("rmsc04")
-    .market(end_time="09:32:00")
-    .seed(42)
-    .build()
+    SimulationBuilder().apply_template("rmsc04").end_time("09:32:00").seed(42).build()
 )
 
 

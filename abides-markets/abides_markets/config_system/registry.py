@@ -40,11 +40,13 @@ class AgentRegistry:
 
     _instance: AgentRegistry | None = None
     _entries: dict[str, AgentRegistryEntry]
+    _class_to_name: dict[type, str]
 
     def __new__(cls) -> AgentRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._entries = {}
+            cls._instance._class_to_name = {}
         return cls._instance
 
     def register(
@@ -89,6 +91,7 @@ class AgentRegistry:
             typical_count_range=typical_count_range,
             recommended_with=recommended_with,
         )
+        self._class_to_name[config_model] = name
 
     def get(self, name: str) -> AgentRegistryEntry:
         """Look up a registered agent type by name."""
@@ -125,9 +128,14 @@ class AgentRegistry:
         """Return sorted list of all registered agent type names."""
         return sorted(self._entries.keys())
 
+    def name_for_class(self, cls: type) -> str | None:
+        """Return the registered name for a config model class, or None."""
+        return self._class_to_name.get(cls)
+
     def _clear(self) -> None:
         """Clear registry (for testing only)."""
         self._entries.clear()
+        self._class_to_name.clear()
 
 
 # Module-level convenience — the global singleton

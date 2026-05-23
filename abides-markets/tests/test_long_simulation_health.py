@@ -25,6 +25,11 @@ import pytest
 
 from abides_markets.agents.value_agent import ValueAgent
 from abides_markets.config_system import SimulationBuilder
+from abides_markets.config_system.agent_configs import (
+    NoiseAgentConfig,
+    ValueAgentConfig,
+)
+from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
 from abides_markets.simulation import run_simulation
 
 # ---------------------------------------------------------------------------
@@ -168,25 +173,26 @@ class TestValueAgentSmallKappa:
         """
         config = (
             SimulationBuilder()
-            .market(
-                ticker="ABM",
-                date="20210205",
-                start_time="09:30:00",
-                end_time="10:00:00",
-                oracle={
-                    "type": "sparse_mean_reverting",
-                    "r_bar": 100_000,
-                    "mean_reversion_half_life": "365d",
-                    "sigma_s": 0,
-                    "fund_vol": 1e-4,
-                    "megashock_mean_interval": None,
-                    "megashock_mean": 1000,
-                    "megashock_var": 50_000,
-                },
+            .ticker("ABM")
+            .date("20210205")
+            .start_time("09:30:00")
+            .end_time("10:00:00")
+            .oracle(
+                SparseMeanRevertingOracleConfig(
+                    r_bar=100_000,
+                    mean_reversion_half_life="365d",
+                    sigma_s=0,
+                    fund_vol=1e-4,
+                    megashock_mean_interval=None,
+                    megashock_mean=1000,
+                    megashock_var=50_000,
+                )
             )
             # No mean_reversion_half_life override: value agents inherit 365d kappa.
-            .enable_agent("value", count=5, mean_wakeup_gap="300s")
-            .enable_agent("noise", count=10, multi_wake=True, wake_up_freq="120s")
+            .enable_agent(ValueAgentConfig(mean_wakeup_gap="300s"), count=5)
+            .enable_agent(
+                NoiseAgentConfig(multi_wake=True, wake_up_freq="120s"), count=10
+            )
             .seed(42)
             .build()
         )
@@ -257,8 +263,8 @@ class TestLongSimulationHealth:
         """A 2-hour RMSC04 simulation should have neither side empty >50%."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .market(end_time="11:30:00")  # 2 hours
+            .apply_template("rmsc04")
+            .end_time("11:30:00")  # 2 hours
             .seed(seed)
             .build()
         )

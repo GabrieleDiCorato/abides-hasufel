@@ -11,8 +11,8 @@ Quick start::
     from abides_markets.simulation import run_simulation
 
     config = (SimulationBuilder()
-        .from_template("rmsc04")
-        .market(ticker="AAPL")
+        .apply_template("rmsc04")
+        .ticker("AAPL")
         .seed(42)
         .build())
 
@@ -148,8 +148,7 @@ CATEGORIES: dict[str, dict[str, Any]] = {
     "market_maker": {
         "label": "Market Makers",
         "description": (
-            "Agents that provide two-sided liquidity with tighter spreads "
-            "and deeper books."
+            "Agents that provide two-sided liquidity with tighter spreads and deeper books."
         ),
         "sort_order": 2,
     },
@@ -209,7 +208,6 @@ def get_full_manifest() -> dict[str, Any]:
     - ``categories`` — the :data:`CATEGORIES` taxonomy dict.
     """
     from abides_markets.config_system.models import (
-        ExternalDataOracleConfig,
         MarketConfig,
         MeanRevertingOracleConfig,
         SparseMeanRevertingOracleConfig,
@@ -227,14 +225,6 @@ def get_full_manifest() -> dict[str, Any]:
                 "Simplified mean-reverting oracle (deprecated — prefer sparse)."
             ),
             "schema": MeanRevertingOracleConfig.model_json_schema(),
-        },
-        {
-            "type": "external_data",
-            "description": (
-                "Marker for an externally-injected oracle built with a custom "
-                "data provider (no configurable fields)."
-            ),
-            "schema": ExternalDataOracleConfig.model_json_schema(),
         },
         {
             "type": None,
@@ -306,10 +296,9 @@ def validate_config(config_dict: dict[str, Any]) -> ValidationResult:
             )
 
     # Capture cross-agent warnings from builder._cross_validate
-    oracle_present = config.market.oracle is not None
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        SimulationBuilder._cross_validate(config, oracle_present)
+        SimulationBuilder._cross_validate(config)
     for w in caught:
         issues.append(
             ValidationIssue(

@@ -37,9 +37,9 @@ with warnings.catch_warnings(record=True) as captured_warnings:
     warnings.simplefilter("always")
     config = (
         SimulationBuilder()
-        .from_template("rmsc04")
+        .apply_template("rmsc04")
         .seed(SEED)
-        .market(end_time="11:30:00")
+        .end_time("11:30:00")
         .build()
     )
     result = run_simulation(config, profile=ResultProfile.QUANT)
@@ -211,7 +211,7 @@ for cat in sorted(by_category):
     mean = np.mean(pnls)
     std = np.std(pnls) if len(pnls) > 1 else 0.0
     print(
-        f"  {cat:<20} {len(pnls):>6} {total/100:>14,.2f} {mean/100:>13,.2f} {std/100:>12,.2f}"
+        f"  {cat:<20} {len(pnls):>6} {total / 100:>14,.2f} {mean / 100:>13,.2f} {std / 100:>12,.2f}"
     )
 
 # Agent-level top/bottom

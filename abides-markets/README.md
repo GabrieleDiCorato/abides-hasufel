@@ -110,7 +110,7 @@ oracle = ExternalDataOracle(symbols, data_provider=BatchDataProvider(df))
 from abides_markets.config_system import SimulationBuilder
 from abides_markets.simulation import run_simulation
 
-config = SimulationBuilder().from_template("rmsc04").seed(0).build()
+config = SimulationBuilder().apply_template("rmsc04").seed(0).build()
 result = run_simulation(config)
 
 print(result.metadata)        # seed, timing, tickers
@@ -127,7 +127,7 @@ simulation, and returns an immutable `SimulationResult`. The same
 from abides_markets.config_system import SimulationBuilder, compile
 from abides_core import abides
 
-config  = SimulationBuilder().from_template("rmsc04").seed(0).build()
+config  = SimulationBuilder().apply_template("rmsc04").seed(0).build()
 runtime = compile(config)   # consumed once
 end_state = abides.run(runtime)
 ```

@@ -13,6 +13,13 @@ from abides_markets.config_system import (
     list_agent_types,
     list_templates,
 )
+from abides_markets.config_system.agent_configs import (
+    AdaptiveMarketMakerConfig,
+    MeanReversionAgentConfig,
+    POVExecutionAgentConfig,
+    TWAPExecutionAgentConfig,
+    VWAPExecutionAgentConfig,
+)
 from abides_markets.simulation import ResultProfile, run_simulation
 
 # ===========================================================================
@@ -38,7 +45,7 @@ print("\n" + "=" * 70)
 print("TEST A: Basic rmsc04 simulation (SUMMARY profile)")
 print("=" * 70)
 
-config_a = SimulationBuilder().from_template("rmsc04").seed(42).build()
+config_a = SimulationBuilder().apply_template("rmsc04").seed(42).build()
 result_a = run_simulation(config_a, profile=ResultProfile.SUMMARY)
 print(f"  Wall clock: {result_a.metadata.wall_clock_elapsed_s:.2f}s")
 print(f"  Tickers: {result_a.metadata.tickers}")
@@ -55,8 +62,8 @@ print(f"  Agents: {len(result_a.agents)}")
 
 # PnL distribution
 pnls = [a.pnl_cents for a in result_a.agents]
-print(f"  PnL range: ${min(pnls)/100:.2f} to ${max(pnls)/100:.2f}")
-print(f"  Avg PnL: ${sum(pnls)/len(pnls)/100:.2f}")
+print(f"  PnL range: ${min(pnls) / 100:.2f} to ${max(pnls) / 100:.2f}")
+print(f"  Avg PnL: ${sum(pnls) / len(pnls) / 100:.2f}")
 
 # ===========================================================================
 # 3. QUANT profile — full time-series + trade attribution + equity curves
@@ -65,7 +72,7 @@ print("\n" + "=" * 70)
 print("TEST B: QUANT profile with all data extraction")
 print("=" * 70)
 
-config_b = SimulationBuilder().from_template("rmsc04").seed(123).build()
+config_b = SimulationBuilder().apply_template("rmsc04").seed(123).build()
 result_b = run_simulation(config_b, profile=ResultProfile.QUANT)
 
 sym = result_b.metadata.tickers[0]
@@ -96,7 +103,7 @@ if mkt_b.trades:
     t0 = mkt_b.trades[0]
     print(
         f"    First trade: passive={t0.passive_agent_id} aggressor={t0.aggressive_agent_id} "
-        f"side={t0.side} price=${t0.price_cents/100:.2f} qty={t0.quantity}"
+        f"side={t0.side} price=${t0.price_cents / 100:.2f} qty={t0.quantity}"
     )
 else:
     print("  Trade attribution: NOT POPULATED (unexpected!)")
@@ -116,7 +123,7 @@ if agents_with_curves:
         ec = agent.equity_curve
         assert ec is not None
         print(
-            f"    [{agent.agent_id}] {agent.agent_type}: max_dd=${ec.max_drawdown_cents/100:.2f}  "
+            f"    [{agent.agent_id}] {agent.agent_type}: max_dd=${ec.max_drawdown_cents / 100:.2f}  "
             f"fills={len(ec.times_ns)}"
         )
 
@@ -130,9 +137,9 @@ print("=" * 70)
 try:
     config_c = (
         SimulationBuilder()
-        .from_template("rmsc04")
+        .apply_template("rmsc04")
         .enable_agent(
-            "twap_execution", count=1, direction="BID", quantity=500, freq="30s"
+            TWAPExecutionAgentConfig(direction="BID", quantity=500, freq="30s"), count=1
         )
         .seed(42)
         .build()
@@ -148,20 +155,20 @@ try:
             f"    Target: {em.target_quantity}  Filled: {em.filled_quantity}  Rate: {em.fill_rate_pct:.1f}%"
         )
         if em.avg_fill_price_cents:
-            print(f"    Avg fill: ${em.avg_fill_price_cents/100:.2f}")
+            print(f"    Avg fill: ${em.avg_fill_price_cents / 100:.2f}")
         if em.vwap_cents:
-            print(f"    Session VWAP: ${em.vwap_cents/100:.2f}")
+            print(f"    Session VWAP: ${em.vwap_cents / 100:.2f}")
         if em.vwap_slippage_bps is not None:
             print(f"    VWAP slippage: {em.vwap_slippage_bps} bps")
         if em.arrival_price_cents:
-            print(f"    Arrival price: ${em.arrival_price_cents/100:.2f}")
+            print(f"    Arrival price: ${em.arrival_price_cents / 100:.2f}")
         if em.implementation_shortfall_bps is not None:
             print(f"    Impl shortfall: {em.implementation_shortfall_bps} bps")
         # Check equity curve
         if ea.equity_curve:
             print(
                 f"    Equity curve: {len(ea.equity_curve.times_ns)} fills  "
-                f"max_dd=${ea.equity_curve.max_drawdown_cents/100:.2f}"
+                f"max_dd=${ea.equity_curve.max_drawdown_cents / 100:.2f}"
             )
 except Exception as e:
     print(f"  ERROR: {e}")
@@ -177,14 +184,15 @@ print("=" * 70)
 try:
     config_d = (
         SimulationBuilder()
-        .from_template("rmsc04")
+        .apply_template("rmsc04")
         .enable_agent(
-            "vwap_execution",
+            VWAPExecutionAgentConfig(
+                direction="ASK",
+                quantity=500,
+                freq="30s",
+                volume_profile=[0.3, 0.1, 0.1, 0.1, 0.1, 0.3],
+            ),
             count=1,
-            direction="ASK",
-            quantity=500,
-            freq="30s",
-            volume_profile=[0.3, 0.1, 0.1, 0.1, 0.1, 0.3],
         )
         .seed(42)
         .build()
@@ -200,7 +208,7 @@ try:
             f"    Target: {em.target_quantity}  Filled: {em.filled_quantity}  Rate: {em.fill_rate_pct:.1f}%"
         )
         if em.avg_fill_price_cents:
-            print(f"    Avg fill: ${em.avg_fill_price_cents/100:.2f}")
+            print(f"    Avg fill: ${em.avg_fill_price_cents / 100:.2f}")
         if em.vwap_slippage_bps is not None:
             print(f"    VWAP slippage: {em.vwap_slippage_bps} bps")
 except Exception as e:
@@ -217,8 +225,8 @@ print("=" * 70)
 try:
     config_e = (
         SimulationBuilder()
-        .from_template("rmsc04")
-        .enable_agent("mean_reversion", count=5)
+        .apply_template("rmsc04")
+        .enable_agent(MeanReversionAgentConfig(), count=5)
         .seed(42)
         .build()
     )
@@ -228,7 +236,7 @@ try:
     print(f"  Mean reversion agents: {len(mr_agents)}")
     for agent in mr_agents:
         print(
-            f"    [{agent.agent_id}] PnL: ${agent.pnl_cents/100:.2f} ({agent.pnl_pct:+.2f}%)"
+            f"    [{agent.agent_id}] PnL: ${agent.pnl_cents / 100:.2f} ({agent.pnl_pct:+.2f}%)"
         )
 except Exception as e:
     print(f"  ERROR: {e}")
@@ -244,8 +252,8 @@ print("=" * 70)
 try:
     config_f = (
         SimulationBuilder()
-        .from_template("rmsc04")
-        .enable_agent("adaptive_market_maker", count=1, flatten_before_close="5min")
+        .apply_template("rmsc04")
+        .enable_agent(AdaptiveMarketMakerConfig(flatten_before_close="5min"), count=1)
         .seed(42)
         .build()
     )
@@ -257,7 +265,7 @@ try:
         non_cash_syms = [s for s in agent.final_holdings if s != "CASH"]
         pos = {s: agent.final_holdings[s] for s in non_cash_syms}
         print(
-            f"    [{agent.agent_id}] {agent.agent_type}: PnL=${agent.pnl_cents/100:.2f}  "
+            f"    [{agent.agent_id}] {agent.agent_type}: PnL=${agent.pnl_cents / 100:.2f}  "
             f"positions={pos}"
         )
 
@@ -288,14 +296,14 @@ print("TEST H: Thin market template (stress test — low liquidity)")
 print("=" * 70)
 
 try:
-    config_h = SimulationBuilder().from_template("thin_market").seed(42).build()
+    config_h = SimulationBuilder().apply_template("thin_market").seed(42).build()
     result_h = run_simulation(config_h, profile=ResultProfile.QUANT)
 
     sym = result_h.metadata.tickers[0]
     liq = result_h.markets[sym].liquidity
     last = f"${liq.last_trade_cents / 100:.2f}" if liq.last_trade_cents else "None"
     vwap = f"${liq.vwap_cents / 100:.2f}" if liq.vwap_cents else "None"
-    print(f"  {sym}: last={last}  VWAP={vwap}  " f"vol={liq.total_exchanged_volume:,}")
+    print(f"  {sym}: last={last}  VWAP={vwap}  vol={liq.total_exchanged_volume:,}")
     print(f"  No-bid: {liq.pct_time_no_bid:.1f}%  No-ask: {liq.pct_time_no_ask:.1f}%")
     print(
         f"  Agents: {len(result_h.agents)}  "
@@ -315,14 +323,18 @@ print("=" * 70)
 try:
     config_i = (
         SimulationBuilder()
-        .from_template("liquid_market")
+        .apply_template("liquid_market")
         .enable_agent(
-            "twap_execution", count=1, direction="BID", quantity=1000, freq="1min"
+            TWAPExecutionAgentConfig(direction="BID", quantity=1000, freq="1min"),
+            count=1,
         )
         .enable_agent(
-            "vwap_execution", count=1, direction="BID", quantity=1000, freq="1min"
+            VWAPExecutionAgentConfig(direction="BID", quantity=1000, freq="1min"),
+            count=1,
         )
-        .enable_agent("pov_execution", count=1, direction="ASK", quantity=1000, pov=0.1)
+        .enable_agent(
+            POVExecutionAgentConfig(direction="ASK", quantity=1000, pov=0.1), count=1
+        )
         .seed(42)
         .build()
     )
@@ -334,7 +346,9 @@ try:
         em = ea.execution_metrics
         assert em is not None
         avg = (
-            f"${em.avg_fill_price_cents/100:.2f}" if em.avg_fill_price_cents else "N/A"
+            f"${em.avg_fill_price_cents / 100:.2f}"
+            if em.avg_fill_price_cents
+            else "N/A"
         )
         vwap_slip = (
             f"{em.vwap_slippage_bps}bps" if em.vwap_slippage_bps is not None else "N/A"

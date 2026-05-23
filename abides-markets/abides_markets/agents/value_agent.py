@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class ValueAgent(TradingAgent):
-
     VALID_STATES = frozenset(
         {"AWAITING_WAKEUP", "INACTIVE", "AWAITING_SPREAD", "ACTIVE"}
     )

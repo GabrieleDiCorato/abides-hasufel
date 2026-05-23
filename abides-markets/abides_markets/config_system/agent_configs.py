@@ -92,8 +92,7 @@ class BaseAgentConfig(BaseModel):
     position_limit: int | None = Field(
         default=None,
         description=(
-            "Per-symbol position limit (in shares). "
-            "None = no limit.  Symmetric: allows [-N, +N]."
+            "Per-symbol position limit (in shares). None = no limit.  Symmetric: allows [-N, +N]."
         ),
     )
     position_limit_clamp: bool = Field(
@@ -1232,7 +1231,7 @@ class ImpactOrderAgentConfig(BaseAgentConfig):
     **Typical use**::
 
         config = (SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .enable_agent(
                 "impact_order",
                 order_time_offset="01:00:00",   # 1 hour after market open
@@ -1302,8 +1301,7 @@ class ImpactOrderAgentConfig(BaseAgentConfig):
     def _check_limit_price_required(self) -> ImpactOrderAgentConfig:
         if self.order_type == "LIMIT" and self.limit_price is None:
             raise ValueError(
-                "ImpactOrderAgentConfig: 'limit_price' is required when "
-                "'order_type' is 'LIMIT'."
+                "ImpactOrderAgentConfig: 'limit_price' is required when 'order_type' is 'LIMIT'."
             )
         return self
 

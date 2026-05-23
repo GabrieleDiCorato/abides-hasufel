@@ -657,21 +657,23 @@ class TestImpactOrderRegistration:
 class TestImpactOrderBuilderIntegration:
     def test_enable_agent_accepted_by_builder(self):
         from abides_markets.config_system import SimulationBuilder
+        from abides_markets.config_system.agent_configs import (
+            ImpactOrderAgentConfig,
+            NoiseAgentConfig,
+        )
+        from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
 
         config = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-                end_time="16:00:00",
-            )
-            .enable_agent("noise", count=10)
+            .date("20210205")
+            .end_time("16:00:00")
+            .oracle(SparseMeanRevertingOracleConfig())
+            .enable_agent(NoiseAgentConfig(), count=10)
             .enable_agent(
-                "impact_order",
+                ImpactOrderAgentConfig(
+                    order_time_offset="01:00:00", quantity=1_000, order_type="MARKET"
+                ),
                 count=1,
-                order_time_offset="01:00:00",
-                quantity=1_000,
-                order_type="MARKET",
             )
             .seed(42)
             .build()
@@ -682,20 +684,21 @@ class TestImpactOrderBuilderIntegration:
 
     def test_compile_creates_impact_agent_instance(self):
         from abides_markets.config_system import SimulationBuilder, compile
+        from abides_markets.config_system.agent_configs import (
+            ImpactOrderAgentConfig,
+            NoiseAgentConfig,
+        )
+        from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
 
         config = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-                end_time="16:00:00",
-            )
-            .enable_agent("noise", count=5)
+            .date("20210205")
+            .end_time("16:00:00")
+            .oracle(SparseMeanRevertingOracleConfig())
+            .enable_agent(NoiseAgentConfig(), count=5)
             .enable_agent(
-                "impact_order",
+                ImpactOrderAgentConfig(order_time_offset="01:00:00", quantity=500),
                 count=1,
-                order_time_offset="01:00:00",
-                quantity=500,
             )
             .seed(42)
             .build()
@@ -709,22 +712,26 @@ class TestImpactOrderBuilderIntegration:
 
     def test_compile_side_and_order_type_propagated(self):
         from abides_markets.config_system import SimulationBuilder, compile
+        from abides_markets.config_system.agent_configs import (
+            ImpactOrderAgentConfig,
+            NoiseAgentConfig,
+        )
+        from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
 
         config = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-                end_time="16:00:00",
-            )
-            .enable_agent("noise", count=5)
+            .date("20210205")
+            .end_time("16:00:00")
+            .oracle(SparseMeanRevertingOracleConfig())
+            .enable_agent(NoiseAgentConfig(), count=5)
             .enable_agent(
-                "impact_order",
+                ImpactOrderAgentConfig(
+                    order_time_offset="00:30:00",
+                    quantity=200,
+                    side="ASK",
+                    order_type="AGGRESSIVE_LIMIT",
+                ),
                 count=1,
-                order_time_offset="00:30:00",
-                quantity=200,
-                side="ASK",
-                order_type="AGGRESSIVE_LIMIT",
             )
             .seed(42)
             .build()
@@ -736,22 +743,26 @@ class TestImpactOrderBuilderIntegration:
 
     def test_compile_limit_with_price_propagated(self):
         from abides_markets.config_system import SimulationBuilder, compile
+        from abides_markets.config_system.agent_configs import (
+            ImpactOrderAgentConfig,
+            NoiseAgentConfig,
+        )
+        from abides_markets.config_system.models import SparseMeanRevertingOracleConfig
 
         config = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-                end_time="16:00:00",
-            )
-            .enable_agent("noise", count=5)
+            .date("20210205")
+            .end_time("16:00:00")
+            .oracle(SparseMeanRevertingOracleConfig())
+            .enable_agent(NoiseAgentConfig(), count=5)
             .enable_agent(
-                "impact_order",
+                ImpactOrderAgentConfig(
+                    order_time_offset="01:00:00",
+                    quantity=300,
+                    order_type="LIMIT",
+                    limit_price=9_800,
+                ),
                 count=1,
-                order_time_offset="01:00:00",
-                quantity=300,
-                order_type="LIMIT",
-                limit_price=9_800,
             )
             .seed(42)
             .build()

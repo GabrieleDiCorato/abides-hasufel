@@ -3,12 +3,12 @@
 Usage::
 
     config = (SimulationBuilder()
-        .from_template("rmsc04")
-        .market(ticker="AAPL", date="20210205")
-        .enable_agent("noise", count=1000)
-        .enable_agent("value", count=102, r_bar=100_000)
+        .apply_template("rmsc04")
+        .ticker("AAPL").date("20210205")
+        .enable_agent(NoiseAgentConfig(multi_wake=True), count=1000)
+        .enable_agent(ValueAgentConfig(r_bar=100_000), count=102)
         .disable_agent("momentum")
-        .latency(type="deterministic")
+        .latency(LatencyConfig(type="deterministic"))
         .seed(42)
         .build())
 """
@@ -16,25 +16,33 @@ Usage::
 from __future__ import annotations
 
 import warnings
-from copy import deepcopy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from abides_markets.config_system.models import SimulationConfig
+from abides_markets.config_system.models import (
+    AgentGroupConfig,
+    ExchangeConfig,
+    InfrastructureConfig,
+    LatencyConfig,
+    MarketConfig,
+    OracleConfig,
+    SimulationConfig,
+    SimulationMeta,
+)
 from abides_markets.config_system.templates import get_template
-from abides_markets.oracles.oracle import Oracle
 
 if TYPE_CHECKING:
+    from abides_markets.config_system.agent_configs import BaseAgentConfig
     from abides_markets.config_system.models import SinkConfig
 
 
-def _deep_merge(base: dict, overlay: dict) -> dict:
-    """Recursively merge overlay into base. overlay values take precedence."""
-    result = deepcopy(base)
+def _deep_merge_dicts(base: dict, overlay: dict) -> dict:
+    """Recursively merge *overlay* into *base*; overlay values win."""
+    result = {**base}
     for key, value in overlay.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
+            result[key] = _deep_merge_dicts(result[key], value)
         else:
-            result[key] = deepcopy(value)
+            result[key] = value
     return result
 
 
@@ -46,224 +54,307 @@ class SimulationBuilder:
     """
 
     def __init__(self) -> None:
-        self._data: dict[str, Any] = {}
-        self._oracle_instance: Oracle | None = None
+        self._market: MarketConfig | None = None
+        self._agents: dict[str, AgentGroupConfig] = {}
+        self._infrastructure: InfrastructureConfig | None = None
+        self._simulation: SimulationMeta | None = None
 
-    def from_template(self, name: str) -> SimulationBuilder:
+    # ------------------------------------------------------------------
+    # Template API
+    # ------------------------------------------------------------------
+
+    def apply_template(self, name: str) -> SimulationBuilder:
         """Deep-merge a template into the current config.
 
         Multiple templates can be stacked — later ones override earlier ones.
         """
         template = get_template(name)
-        self._data = _deep_merge(self._data, template)
+        self._apply_template_dict(template)
         return self
 
-    def market(self, **kwargs: Any) -> SimulationBuilder:
-        """Set market parameters (ticker, date, start_time, end_time).
-
-        Nested structures can be passed as dicts::
-
-            .market(ticker="AAPL", oracle={"type": "mean_reverting", "r_bar": 150_000})
-        """
-        market = self._data.setdefault("market", {})
-        for k, v in kwargs.items():
-            if isinstance(v, dict) and isinstance(market.get(k), dict):
-                market[k] = _deep_merge(market[k], v)
+    def _apply_template_dict(self, d: dict[str, Any]) -> None:
+        """Merge a raw template dict into typed builder state."""
+        if "market" in d:
+            mkt_data = d["market"]
+            if self._market is None:
+                self._market = MarketConfig.model_validate(mkt_data)
             else:
-                market[k] = v
-        return self
+                merged = _deep_merge_dicts(self._market.model_dump(), mkt_data)
+                self._market = MarketConfig.model_validate(merged)
 
-    def oracle(self, **kwargs: Any) -> SimulationBuilder:
-        """Set oracle parameters directly (shorthand for ``.market(oracle={...})``).
+        if "agents" in d:
+            for name, agent_data in d["agents"].items():
+                if name in self._agents:
+                    existing = self._agents[name].model_dump()
+                    merged_params = _deep_merge_dicts(
+                        existing.get("params", {}), agent_data.get("params", {})
+                    )
+                    merged = _deep_merge_dicts(existing, agent_data)
+                    merged["params"] = merged_params
+                    self._agents[name] = AgentGroupConfig.model_validate(merged)
+                else:
+                    self._agents[name] = AgentGroupConfig.model_validate(agent_data)
 
-        Call ``oracle(type=None)`` to explicitly disable the oracle for
-        oracle-less simulations (requires ``market.opening_price`` to be set).
-
-        Calling with other keywords (e.g. ``oracle(r_bar=200_000)``)
-        merges them into the existing oracle dict.
-        """
-        if "type" in kwargs and kwargs["type"] is None:
-            extra = {k for k in kwargs if k != "type"}
-            if extra:
-                raise ValueError(
-                    f"oracle(type=None) disables the oracle — extra kwargs "
-                    f"would be silently discarded: {extra}"
+        if "infrastructure" in d:
+            infra_data = d["infrastructure"]
+            if self._infrastructure is None:
+                self._infrastructure = InfrastructureConfig.model_validate(infra_data)
+            else:
+                merged = _deep_merge_dicts(
+                    self._infrastructure.model_dump(), infra_data
                 )
-            # Explicit oracle=None
-            market = self._data.setdefault("market", {})
-            market["oracle"] = None
-            return self
-        market = self._data.setdefault("market", {})
-        oracle = market.setdefault("oracle", {})
-        oracle.update(kwargs)
+                self._infrastructure = InfrastructureConfig.model_validate(merged)
+
+        if "simulation" in d:
+            sim_data = d["simulation"]
+            if self._simulation is None:
+                self._simulation = SimulationMeta.model_validate(sim_data)
+            else:
+                merged = _deep_merge_dicts(self._simulation.model_dump(), sim_data)
+                self._simulation = SimulationMeta.model_validate(merged)
+
+    # ------------------------------------------------------------------
+    # Market field setters
+    # ------------------------------------------------------------------
+
+    def market(self, config: MarketConfig) -> SimulationBuilder:
+        """Replace the entire market config."""
+        self._market = config
         return self
 
-    def oracle_instance(self, oracle: Oracle) -> SimulationBuilder:
-        """Inject a pre-built oracle instance for use at runtime.
+    def ticker(self, value: str) -> SimulationBuilder:
+        """Set the trading symbol."""
+        if self._market is None:
+            self._market = MarketConfig.model_construct(ticker=value)
+        else:
+            self._market = self._market.model_copy(update={"ticker": value})
+        return self
 
-        This is the recommended path for ``ExternalDataOracle`` users:
-        build the oracle externally with your chosen ``BatchDataProvider``
-        or ``PointDataProvider``, then inject it here.  The config system
-        should use ``oracle(type="external_data")`` (or any marker) so
-        compile-time validation knows an oracle will be present.
+    def date(self, value: str) -> SimulationBuilder:
+        """Set the simulation date (YYYYMMDD)."""
+        if self._market is None:
+            self._market = MarketConfig.model_construct(date=value)
+        else:
+            self._market = self._market.model_copy(update={"date": value})
+        return self
 
-        The injected oracle is stored on the builder and merged into the
-        runtime dict during ``compile()`` (via ``build_and_compile()`` or
-        manual ``compile()`` with ``oracle_instance`` kwarg).
+    def start_time(self, value: str) -> SimulationBuilder:
+        """Set the market open time (HH:MM:SS)."""
+        if self._market is None:
+            self._market = MarketConfig.model_construct(start_time=value)
+        else:
+            self._market = self._market.model_copy(update={"start_time": value})
+        return self
+
+    def end_time(self, value: str) -> SimulationBuilder:
+        """Set the market close time (HH:MM:SS)."""
+        if self._market is None:
+            self._market = MarketConfig.model_construct(end_time=value)
+        else:
+            self._market = self._market.model_copy(update={"end_time": value})
+        return self
+
+    def oracle(self, config: OracleConfig | None) -> SimulationBuilder:
+        """Set the oracle config, or pass ``None`` to run oracle-less.
+
+        When ``config`` is ``None``, call ``.opening_price()`` before
+        ``.build()`` to provide a seed price for the exchange.
         """
-        self._oracle_instance = oracle
-        # Auto-set external_data marker in config so compile knows oracle is present
-        market = self._data.setdefault("market", {})
-        market["oracle"] = {"type": "external_data"}
+        if self._market is None:
+            if config is None:
+                raise ValueError(
+                    "Call .apply_template() or .market() before .oracle(None). "
+                    "A market configuration is required to disable the oracle."
+                )
+            self._market = MarketConfig.model_construct(oracle=config)
+        else:
+            self._market = self._market.model_copy(update={"oracle": config})
         return self
 
-    def exchange(self, **kwargs: Any) -> SimulationBuilder:
-        """Set exchange parameters directly."""
-        market = self._data.setdefault("market", {})
-        exchange = market.setdefault("exchange", {})
-        exchange.update(kwargs)
+    def opening_price(self, price: int) -> SimulationBuilder:
+        """Set the exchange seed price in cents (required when oracle is None)."""
+        if self._market is None:
+            self._market = MarketConfig.model_construct(opening_price=price)
+        else:
+            self._market = self._market.model_copy(update={"opening_price": price})
         return self
 
-    def enable_agent(self, name: str, count: int, **params: Any) -> SimulationBuilder:
-        """Enable an agent type with the given count and optional parameters.
+    def exchange(self, config: ExchangeConfig) -> SimulationBuilder:
+        """Replace the exchange config."""
+        if self._market is None:
+            raise ValueError("Call .apply_template() or .market() before .exchange().")
+        self._market = self._market.model_copy(update={"exchange": config})
+        return self
 
-        Merges with any existing params for this agent type.
+    # ------------------------------------------------------------------
+    # Agent methods
+    # ------------------------------------------------------------------
+
+    def enable_agent(self, config: BaseAgentConfig, count: int) -> SimulationBuilder:
+        """Enable an agent type with the given count.
+
+        Args:
+            config: Typed agent config instance (e.g. ``NoiseAgentConfig()``).
+            count: Number of agents to create.
         """
-        agents = self._data.setdefault("agents", {})
-        existing = agents.get(name, {})
-        existing_params = existing.get("params", {})
-        existing_params.update(params)
-        agents[name] = {
-            "enabled": True,
-            "count": count,
-            "params": existing_params,
-        }
+        from abides_markets.config_system.registry import registry
+
+        cls = type(config)
+        name = registry.name_for_class(cls)
+        if name is None:
+            raise ValueError(
+                f"Agent config class {cls.__name__!r} is not registered. "
+                f"Use @register_agent to register it before calling enable_agent()."
+            )
+        self._agents[name] = AgentGroupConfig(
+            enabled=True,
+            count=count,
+            params=config.model_dump(exclude_unset=True),
+        )
+        return self
+
+    def disable_agent(self, agent: type | str) -> SimulationBuilder:
+        """Disable an agent type.
+
+        Args:
+            agent: Either the registry name (string, e.g. ``"value"``) or
+                   the config model class (e.g. ``ValueAgentConfig``).
+        """
+        if isinstance(agent, str):
+            name: str = agent
+        else:
+            from abides_markets.config_system.registry import registry
+
+            _name = registry.name_for_class(agent)
+            if _name is None:
+                raise ValueError(
+                    f"Agent config class {agent.__name__!r} is not registered."
+                )
+            name = _name
+        if name in self._agents:
+            self._agents[name] = self._agents[name].model_copy(
+                update={"enabled": False}
+            )
+        else:
+            self._agents[name] = AgentGroupConfig(enabled=False, count=0, params={})
         return self
 
     def agent_computation_delay_by_type(
         self, agent_type: str, delay: int
     ) -> SimulationBuilder:
-        """Set the computation delay for every agent of a registered type.
-
-        Overrides the simulation-level ``default_computation_delay`` for all
-        agents created from the given group config (``agent_type`` is the
-        registry name, e.g. ``"value"`` or ``"momentum"``).
-        """
-        agents = self._data.setdefault("agents", {})
-        group = agents.setdefault(
-            agent_type, {"enabled": True, "count": 0, "params": {}}
-        )
-        group["params"]["computation_delay"] = delay
+        """Set the computation delay for every agent of a registered type."""
+        if agent_type in self._agents:
+            existing_params = dict(self._agents[agent_type].params)
+            existing_params["computation_delay"] = delay
+            self._agents[agent_type] = self._agents[agent_type].model_copy(
+                update={"params": existing_params}
+            )
+        else:
+            self._agents[agent_type] = AgentGroupConfig(
+                enabled=True, count=0, params={"computation_delay": delay}
+            )
         return self
 
     def agent_computation_delay_by_name(
         self, agent_name: str, delay: int
     ) -> SimulationBuilder:
-        """Override the computation delay of a single agent by its ``name``.
-
-        Resolved post-instantiation by the compiler against
-        :attr:`abides_core.Agent.name`.
-        """
-        overrides = self._data.setdefault("infrastructure", {}).setdefault(
-            "computation_delay_by_name", {}
-        )
+        """Override the computation delay of a single agent by its ``name``."""
+        infra = self._infrastructure or InfrastructureConfig()
+        overrides = dict(infra.computation_delay_by_name)
         overrides[agent_name] = delay
+        self._infrastructure = infra.model_copy(
+            update={"computation_delay_by_name": overrides}
+        )
         return self
 
-    # Back-compat alias: pre-G4 callers passed the registered agent type
-    # name (e.g. ``"value"``); the method stored the delay on the group
-    # params, i.e. it was a by-type override.
     def agent_computation_delay(self, name: str, delay: int) -> SimulationBuilder:
-        """Alias for :meth:`agent_computation_delay_by_type`.
-
-        Kept so existing user code keeps working; new code should call the
-        explicit ``_by_type`` / ``_by_name`` variants.
-        """
+        """Alias for :meth:`agent_computation_delay_by_type`."""
         return self.agent_computation_delay_by_type(name, delay)
 
-    def disable_agent(self, name: str) -> SimulationBuilder:
-        """Disable an agent type."""
-        agents = self._data.setdefault("agents", {})
-        if name in agents:
-            agents[name]["enabled"] = False
-        else:
-            agents[name] = {"enabled": False, "count": 0, "params": {}}
-        return self
+    # ------------------------------------------------------------------
+    # Infrastructure setters
+    # ------------------------------------------------------------------
 
-    def latency(self, **kwargs: Any) -> SimulationBuilder:
-        """Set latency model parameters."""
-        infra = self._data.setdefault("infrastructure", {})
-        lat = infra.setdefault("latency", {})
-        lat.update(kwargs)
+    def latency(self, config: LatencyConfig) -> SimulationBuilder:
+        """Set the latency model config."""
+        infra = self._infrastructure or InfrastructureConfig()
+        self._infrastructure = infra.model_copy(update={"latency": config})
         return self
 
     def computation_delay(self, delay: int) -> SimulationBuilder:
         """Set the default computation delay in nanoseconds."""
-        infra = self._data.setdefault("infrastructure", {})
-        infra["default_computation_delay"] = delay
+        infra = self._infrastructure or InfrastructureConfig()
+        self._infrastructure = infra.model_copy(
+            update={"default_computation_delay": delay}
+        )
         return self
 
-    def seed(self, seed: int | str) -> SimulationBuilder:
+    def infrastructure(self, config: InfrastructureConfig) -> SimulationBuilder:
+        """Replace the entire infrastructure config."""
+        self._infrastructure = config
+        return self
+
+    # ------------------------------------------------------------------
+    # Simulation meta setters
+    # ------------------------------------------------------------------
+
+    def seed(self, seed: int | Literal["random"]) -> SimulationBuilder:
         """Set the RNG seed. Use ``"random"`` for a fresh seed."""
-        sim = self._data.setdefault("simulation", {})
-        sim["seed"] = seed
+        sim = self._simulation or SimulationMeta()
+        self._simulation = sim.model_copy(update={"seed": seed})
         return self
 
     def log_level(self, level: str) -> SimulationBuilder:
         """Set stdout log level."""
-        sim = self._data.setdefault("simulation", {})
-        sim["log_level"] = level
+        sim = self._simulation or SimulationMeta()
+        self._simulation = sim.model_copy(update={"log_level": level})
         return self
 
     def log_orders(self, enabled: bool) -> SimulationBuilder:
         """Set global order logging."""
-        sim = self._data.setdefault("simulation", {})
-        sim["log_orders"] = enabled
+        sim = self._simulation or SimulationMeta()
+        self._simulation = sim.model_copy(update={"log_orders": enabled})
         return self
 
-    def meta(self, **kwargs: Any) -> SimulationBuilder:
-        """Set arbitrary fields on ``SimulationMeta``.
-
-        Convenience escape hatch for fields without a dedicated builder
-        method (``log_root``, ``show_trace_messages``,
-        ``disable_event_log_for``).  Keys are merged into the simulation
-        section and validated by Pydantic at ``build()`` time.
-        """
-        sim = self._data.setdefault("simulation", {})
-        sim.update(kwargs)
+    def meta(self, config: SimulationMeta) -> SimulationBuilder:
+        """Replace the entire simulation meta config."""
+        self._simulation = config
         return self
 
     def event_sinks(self, *sinks: SinkConfig) -> SimulationBuilder:
-        """Set the ``event_sinks`` list on ``SimulationMeta``.
-
-        Each positional argument is a sink config (e.g.
-        ``MemorySinkConfig()``, ``ParquetSinkConfig(...)``).  Replaces
-        any previously configured sink list.  Equivalent to
-        ``.meta(event_sinks=[...])`` but typed and discoverable.
-        """
-        sim = self._data.setdefault("simulation", {})
-        sim["event_sinks"] = list(sinks)
+        """Set the ``event_sinks`` list on ``SimulationMeta``."""
+        sim = self._simulation or SimulationMeta()
+        self._simulation = sim.model_copy(update={"event_sinks": list(sinks)})
         return self
+
+    # ------------------------------------------------------------------
+    # Build
+    # ------------------------------------------------------------------
 
     def build(self) -> SimulationConfig:
         """Validate and return the SimulationConfig.
 
-        Performs two-phase validation:
-        1. Validates the overall config structure via Pydantic.
-        2. Validates each agent group's params against its registered config model,
-           catching unknown parameters, type errors, and missing required fields
-           at build-time rather than compile-time.
-        3. Validates oracle-related constraints:
-           - ValueAgent requires an oracle (oracle must not be None).
-           - When oracle is None, opening_price must be set.
-
         Raises:
-            pydantic.ValidationError: If the configuration is invalid.
-            ValueError: If semantic constraints are violated.
+            ValueError: If the market config is not set, or semantic
+                constraints are violated (ValueAgent without oracle, etc.).
+            pydantic.ValidationError: If the assembled configuration is invalid.
         """
         from abides_markets.config_system.registry import registry
 
-        config: SimulationConfig = SimulationConfig.model_validate(self._data)
+        if self._market is None:
+            raise ValueError(
+                "Market config is required. Call .apply_template() or .market() first."
+            )
+
+        # Re-validate market (catches cross-field constraints deferred by individual setters)
+        validated_market = MarketConfig.model_validate(self._market.model_dump())
+
+        config = SimulationConfig(
+            market=validated_market,
+            agents=self._agents,
+            infrastructure=self._infrastructure or InfrastructureConfig(),
+            simulation=self._simulation or SimulationMeta(),
+        )
 
         # Eager validation: validate agent params against registry config models
         for agent_name, group in config.agents.items():
@@ -273,29 +364,26 @@ class SimulationBuilder:
                 entry = registry.get(agent_name)
             except KeyError as e:
                 raise ValueError(
-                    f"Agent type '{agent_name}' is not registered. "
+                    f"Agent type {agent_name!r} is not registered. "
                     f"Available types: {', '.join(registry.registered_names())}"
                 ) from e
-            # Instantiate the config model to validate params
             try:
                 entry.config_model(**group.params)
             except Exception as e:
                 raise ValueError(
-                    f"Invalid parameters for agent type '{agent_name}': {e}"
+                    f"Invalid parameters for agent type {agent_name!r}: {e}"
                 ) from e
 
         # Oracle-related validation
-        oracle_present = (
-            config.market.oracle is not None or self._oracle_instance is not None
-        )
+        oracle_present = config.market.oracle is not None
         for agent_name, group in config.agents.items():
             if not group.enabled or group.count == 0:
                 continue
             if agent_name == "value" and not oracle_present:
                 raise ValueError(
                     "ValueAgent requires an oracle for fundamental-value observations, "
-                    "but no oracle is configured. Either set market.oracle or use "
-                    "oracle_instance() to inject one."
+                    "but no oracle is configured. Either set market.oracle or remove "
+                    "ValueAgent from the simulation."
                 )
         if not oracle_present and config.market.opening_price is None:
             raise ValueError(
@@ -304,21 +392,44 @@ class SimulationBuilder:
                 "(integer cents, e.g. 10_000 = $100.00)."
             )
 
-        self._cross_validate(config, oracle_present)
-
+        self._cross_validate(config)
         return config
+
+    @classmethod
+    def from_config(cls, config: SimulationConfig) -> SimulationBuilder:
+        """Construct a builder pre-loaded from an existing SimulationConfig.
+
+        Enables round-tripping: ``config.to_builder().seed(99).build()``.
+        """
+        builder = cls()
+        builder._market = config.market
+        builder._agents = dict(config.agents)
+        builder._infrastructure = config.infrastructure
+        builder._simulation = config.simulation
+        return builder
+
+    def to_dict(self) -> dict[str, Any]:
+        """Build and return a plain dict (via model_dump) for inspection.
+
+        Equivalent to ``builder.build().model_dump()``.
+        """
+        result: dict[str, Any] = self.build().model_dump()
+        return result
+
+    def build_and_compile(self) -> dict[str, Any]:
+        """Build, validate, and compile in one step."""
+        from abides_markets.config_system.compiler import compile as compile_config
+
+        config = self.build()
+        return compile_config(config)
 
     # ------------------------------------------------------------------
     # Cross-agent / cross-section consistency checks
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _cross_validate(config: SimulationConfig, oracle_present: bool) -> None:
-        """Emit warnings for semantically suspect but technically valid configs.
-
-        These are soft checks — they emit :mod:`warnings` rather than raising,
-        so a consuming dashboard can capture them via ``warnings.catch_warnings()``.
-        """
+    def _cross_validate(config: SimulationConfig) -> None:
+        """Emit warnings for semantically suspect but technically valid configs."""
         enabled = {
             name: group
             for name, group in config.agents.items()
@@ -326,7 +437,6 @@ class SimulationBuilder:
         }
         enabled_names = set(enabled)
 
-        # Market maker without background liquidity providers
         if "adaptive_market_maker" in enabled_names and not (
             enabled_names & {"noise", "value"}
         ):
@@ -337,7 +447,6 @@ class SimulationBuilder:
                 stacklevel=3,
             )
 
-        # Execution agent without adequate liquidity
         if "pov_execution" in enabled_names:
             bg_count = sum(enabled[n].count for n in ("noise", "value") if n in enabled)
             if bg_count < 10:
@@ -348,9 +457,6 @@ class SimulationBuilder:
                     stacklevel=3,
                 )
 
-        # start_time >= end_time — now caught by MarketConfig model validator;
-        # retained here as defense-in-depth for configs constructed without
-        # model validation.
         if config.market.start_time >= config.market.end_time:
             raise ValueError(
                 f"Market start_time ({config.market.start_time}) is not before "
@@ -358,7 +464,6 @@ class SimulationBuilder:
                 f"is empty or inverted."
             )
 
-        # POV execution window exceeds market hours
         if "pov_execution" in enabled_names:
             from abides_markets.config_system.agent_configs import str_to_ns
 
@@ -377,9 +482,8 @@ class SimulationBuilder:
                         stacklevel=3,
                     )
             except Exception:
-                pass  # Best-effort; don't fail on parse issues
+                pass
 
-        # Excessive agent count
         total_agents = sum(g.count for g in enabled.values())
         if total_agents > 10_000:
             warnings.warn(
@@ -388,28 +492,8 @@ class SimulationBuilder:
                 stacklevel=3,
             )
 
-        # No agents at all
         if total_agents == 0:
             warnings.warn(
                 "No agents are enabled — the simulation will have no participants.",
                 stacklevel=3,
             )
-
-    def get_oracle_instance(self) -> Oracle | None:
-        """Return the pre-built oracle instance, if any was injected via oracle_instance()."""
-        return self._oracle_instance
-
-    def build_and_compile(self) -> dict[str, Any]:
-        """Build, validate, and compile in one step.
-
-        Convenience method that calls ``build()`` then ``compile()``,
-        automatically passing through any pre-built oracle instance.
-        """
-        from abides_markets.config_system.compiler import compile as compile_config
-
-        config = self.build()
-        return compile_config(config, oracle_instance=self._oracle_instance)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return the raw config dict (before validation)."""
-        return deepcopy(self._data)

@@ -626,8 +626,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
         ),
         agent_types=["noise", "value", "momentum", "adaptive_market_maker"],
         scenario_description=(
-            "Deep liquidity with many participants and tight spreads "
-            "across all agent types."
+            "Deep liquidity with many participants and tight spreads across all agent types."
         ),
         regime_tags=["liquid", "deep_book", "tight_spread", "balanced", "full_day"],
         default_risk_guards={},
@@ -653,7 +652,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
         agent_types=["momentum"],
         is_overlay=True,
         scenario_description=(
-            "Overlay adding momentum-following agents to amplify " "directional moves."
+            "Overlay adding momentum-following agents to amplify directional moves."
         ),
         regime_tags=["overlay", "momentum", "trend"],
         default_risk_guards={},
@@ -664,8 +663,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
         agent_types=["pov_execution"],
         is_overlay=True,
         scenario_description=(
-            "Overlay adding a single POV execution agent for "
-            "volume-participation studies."
+            "Overlay adding a single POV execution agent for volume-participation studies."
         ),
         regime_tags=["overlay", "execution", "pov"],
         default_risk_guards={},
@@ -680,8 +678,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
         ),
         agent_types=["noise", "value", "adaptive_market_maker"],
         scenario_description=(
-            "Normal liquidity conditions with low fundamental "
-            "volatility and no megashocks."
+            "Normal liquidity conditions with low fundamental volatility and no megashocks."
         ),
         regime_tags=["stable", "low_vol", "calm", "full_day"],
         default_risk_guards={},
@@ -696,8 +693,7 @@ _TEMPLATE_METADATA: dict[str, TemplateInfo] = {
         ),
         agent_types=["noise", "value", "momentum", "adaptive_market_maker"],
         scenario_description=(
-            "Elevated fundamental volatility with periodic megashocks "
-            "testing strategy resilience."
+            "Elevated fundamental volatility with periodic megashocks testing strategy resilience."
         ),
         regime_tags=["volatile", "high_vol", "megashocks", "full_day"],
         default_risk_guards={},

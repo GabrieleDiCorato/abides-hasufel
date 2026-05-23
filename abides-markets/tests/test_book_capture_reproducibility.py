@@ -27,15 +27,15 @@ _BASELINE_PATH = Path(__file__).parent / "data" / "book_capture_baseline_l2.pkl"
 
 
 def _build_config(book_capture: str | None) -> Any:
-    builder = (
-        SimulationBuilder().from_template("rmsc04").market(end_time="09:32:00").seed(42)
-    )
+    builder = SimulationBuilder().apply_template("rmsc04").end_time("09:32:00").seed(42)
     if book_capture is not None:
         # Pass only book_capture; leaving book_logging at its default avoids
         # the resolver's conflict warning (default True -> "l2") and keeps the
         # legacy publish path (which still gates on book_logging) active for
         # the duration of the EventBus migration.
-        builder = builder.exchange(book_capture=book_capture)
+        from abides_markets.config_system.models import ExchangeConfig
+
+        builder = builder.exchange(ExchangeConfig(book_capture=book_capture))
     return builder.build()
 
 

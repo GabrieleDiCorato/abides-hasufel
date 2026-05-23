@@ -201,13 +201,15 @@ class TestTWAPRegistration:
         assert entry.category == "execution"
 
     def test_builder_integration(self):
+        from abides_markets.config_system.agent_configs import TWAPExecutionAgentConfig
         from abides_markets.config_system.builder import SimulationBuilder
 
         config = (
             SimulationBuilder()
-            .market(oracle=None, opening_price=100_000)
+            .opening_price(100_000)
+            .oracle(None)
             .seed(42)
-            .enable_agent("twap_execution", count=1, quantity=500)
+            .enable_agent(TWAPExecutionAgentConfig(quantity=500), count=1)
             .build()
         )
         assert "twap_execution" in config.agents

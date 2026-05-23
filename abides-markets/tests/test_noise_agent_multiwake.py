@@ -282,8 +282,8 @@ class TestMultiWakeIntegration:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .market(end_time="09:32:00")
+            .apply_template("rmsc04")
+            .end_time("09:32:00")
             .seed(42)
             .enable_agent("noise", count=100, multi_wake=True, wake_up_freq="5s")
             .build()

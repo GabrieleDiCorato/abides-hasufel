@@ -324,8 +324,8 @@ class TestTIFIntegration:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .market(end_time="09:32:00")
+            .apply_template("rmsc04")
+            .end_time("09:32:00")
             .seed(42)
             .build()
         )

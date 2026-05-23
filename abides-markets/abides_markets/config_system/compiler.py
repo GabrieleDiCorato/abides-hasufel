@@ -28,9 +28,13 @@ from abides_core.sinks.log_writer import BZ2PickleLogWriter
 from abides_core.utils import str_to_ns
 from abides_markets.agents import ExchangeAgent
 from abides_markets.config_system.agent_configs import AgentCreationContext
+from abides_markets.config_system.contexts import (
+    ExchangeContext,
+    LatencyContext,
+    OracleContext,
+)
 from abides_markets.config_system.models import (
     BZ2PickleSinkConfig,
-    ExternalDataOracleConfig,
     MeanRevertingOracleConfig,
     MemorySinkConfig,
     OrderBookHistoryMemorySinkConfig,
@@ -41,7 +45,6 @@ from abides_markets.config_system.models import (
     SparseMeanRevertingOracleConfig,
 )
 from abides_markets.config_system.registry import registry
-from abides_markets.utils import generate_latency_model
 
 
 class ConfigError(ValueError):
@@ -80,7 +83,6 @@ _BOOK_EVENT_TYPES: frozenset[str] = frozenset(
 
 def compile(
     config: SimulationConfig,
-    oracle_instance: Any | None = None,
 ) -> dict[str, Any]:
     """Compile a declarative SimulationConfig into a Kernel-compatible runtime dict.
 
@@ -90,9 +92,6 @@ def compile(
 
     Args:
         config: The validated simulation configuration.
-        oracle_instance: An optional pre-built oracle to inject (e.g. an
-            ``ExternalDataOracle``).  When provided, this oracle is used
-            instead of building one from the config's oracle section.
 
     The output dict matches the format returned by ``rmsc04.build_config()``::
 
@@ -125,11 +124,19 @@ def compile(
     # Identity-based seed: depends only on master seed + component name,
     # so adding/removing agent groups never shifts oracle (or any other)
     # component's seed.
-    if oracle_instance is not None:
-        oracle = oracle_instance
+    oracle_rng = np.random.RandomState(seed=_derive_seed(seed, "oracle"))
+    if config.market.oracle is not None:
+        oracle = config.market.oracle.build(
+            OracleContext(
+                mkt_open=mkt_open,
+                mkt_close=mkt_close,
+                ticker=config.market.ticker,
+                random_state=oracle_rng,
+                date_ns=date_ns,
+            )
+        )
     else:
-        oracle_rng = np.random.RandomState(seed=_derive_seed(seed, "oracle"))
-        oracle = _build_oracle(config, mkt_open, mkt_close, oracle_rng)
+        oracle = None
 
     # ── Compile-time validation: ValueAgent requires oracle ───────
     for agent_type_name, group in config.agents.items():
@@ -175,25 +182,16 @@ def compile(
             )
         exchange_opening_prices = {config.market.ticker: config.market.opening_price}
 
-    agents.append(
-        ExchangeAgent(
-            id=0,
-            name="EXCHANGE_AGENT",
-            type="ExchangeAgent",
+    exchange_agent = exc.build(
+        ExchangeContext(
             mkt_open=mkt_open,
             mkt_close=mkt_close,
             symbols=[config.market.ticker],
-            book_logging=exc.book_logging,
-            book_log_depth=exc.book_log_depth,
-            book_capture=exc.book_capture,
-            log_orders=exc.log_orders,
-            pipeline_delay=exc.pipeline_delay,
-            computation_delay=exc.computation_delay,
-            stream_history=exc.stream_history_length,
             random_state=np.random.RandomState(seed=_derive_seed(seed, "exchange")),
             opening_prices=exchange_opening_prices,
         )
     )
+    agents.append(exchange_agent)
     agents[0].category = "infrastructure"
     agent_count += 1
 
@@ -239,10 +237,11 @@ def compile(
 
     # ── Latency ───────────────────────────────────────────────────
     latency_rng = np.random.RandomState(seed=_derive_seed(seed, "latency"))
-    latency_model = generate_latency_model(
-        agent_count,
-        latency_rng,
-        latency_type=config.infrastructure.latency.type,
+    latency_model = config.infrastructure.latency.build(
+        LatencyContext(
+            agent_count=agent_count,
+            random_state=latency_rng,
+        )
     )
 
     # ── Assemble runtime dict ─────────────────────────────────────
@@ -453,71 +452,6 @@ def _resolve_book_symbol(symbol: str | None, agents: list) -> list[str]:
             f"exchange symbols are {available}."
         )
     return [symbol]
-
-
-def _build_oracle(config, mkt_open, mkt_close, oracle_rng):
-    """Construct the oracle from the config's oracle section.
-
-    Returns None when oracle config is None (oracle-less simulation).
-    """
-    oc = config.market.oracle
-
-    if oc is None:
-        return None
-
-    if isinstance(oc, SparseMeanRevertingOracleConfig):
-        from abides_markets.oracles import SparseMeanRevertingOracle
-
-        # Pass market close as the end of the noise agent window for consistency with rmsc04
-        # rmsc04 uses NOISE_MKT_CLOSE = date + "16:00:00"
-        date_ns = pd.to_datetime(config.market.date).value
-        noise_mkt_close = date_ns + str_to_ns("16:00:00")
-
-        symbols = {
-            config.market.ticker: {
-                "r_bar": oc.r_bar,
-                "kappa": (
-                    oc.kappa
-                    if oc.kappa is not None
-                    else math.log(2) / str_to_ns(oc.mean_reversion_half_life)
-                ),
-                "sigma_s": oc.sigma_s,
-                "fund_vol": oc.fund_vol,
-                "megashock_lambda_a": (
-                    oc.megashock_lambda_a
-                    if oc.megashock_lambda_a is not None
-                    else (
-                        0
-                        if oc.megashock_mean_interval is None
-                        else 1.0 / str_to_ns(oc.megashock_mean_interval)
-                    )
-                ),
-                "megashock_mean": oc.megashock_mean,
-                "megashock_var": oc.megashock_var,
-            }
-        }
-        return SparseMeanRevertingOracle(mkt_open, noise_mkt_close, symbols, oracle_rng)
-
-    elif isinstance(oc, MeanRevertingOracleConfig):
-        from abides_markets.oracles import MeanRevertingOracle
-
-        symbols = {
-            config.market.ticker: {
-                "r_bar": oc.r_bar,
-                "kappa": oc.kappa,
-                "sigma_s": oc.sigma_s,
-            }
-        }
-        return MeanRevertingOracle(mkt_open, mkt_close, symbols, oracle_rng)
-
-    elif isinstance(oc, ExternalDataOracleConfig):
-        raise ValueError(
-            "ExternalDataOracleConfig is a marker type — it cannot be compiled "
-            "directly.  Use SimulationBuilder.oracle_instance() to inject a "
-            "pre-built ExternalDataOracle."
-        )
-    else:
-        raise ValueError(f"Unknown oracle type: {type(oc)}")
 
 
 def _get_oracle_params(

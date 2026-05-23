@@ -33,7 +33,6 @@ For **subscribe-mode agents**: call `super().wakeup()` but proceed with one-time
 `MarketConfig.oracle` is **required** (no default) — every config must explicitly choose an oracle or set `oracle: null`.
 - **Oracle present**: ExchangeAgent pulls opening prices from oracle. ValueAgent auto-inherits `r_bar`, `kappa`, `sigma_s` from oracle config (explicit overrides win).
 - **Oracle absent** (`oracle: null`): requires `MarketConfig.opening_price` (integer cents). ValueAgent cannot be used without an oracle.
-- **External data injection**: `ExternalDataOracleConfig` is a marker type (no `data_path`). Build the oracle yourself, then pass via `builder.oracle_instance(my_oracle)` or `compile(config, oracle_instance=my_oracle)`.
 
 ## Custom agent pattern
 Subclass `TradingAgent` for your adapter → define a strategy protocol in your own project → register via `@register_agent(name, agent_class=..., category=...)`.

@@ -27,7 +27,7 @@ Usage via config system::
     from abides_markets.config_system import SimulationBuilder
 
     config = (SimulationBuilder()
-        .from_template("rmsc04")
+        .apply_template("rmsc04")
         .enable_agent(
             "impact_order",
             order_time_offset="01:00:00",   # 1 hour after open

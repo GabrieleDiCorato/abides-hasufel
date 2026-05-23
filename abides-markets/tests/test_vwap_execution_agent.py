@@ -234,13 +234,15 @@ class TestVWAPRegistration:
         assert entry.category == "execution"
 
     def test_builder_integration(self):
+        from abides_markets.config_system.agent_configs import VWAPExecutionAgentConfig
         from abides_markets.config_system.builder import SimulationBuilder
 
         config = (
             SimulationBuilder()
-            .market(oracle=None, opening_price=100_000)
+            .opening_price(100_000)
+            .oracle(None)
             .seed(42)
-            .enable_agent("vwap_execution", count=1, quantity=500)
+            .enable_agent(VWAPExecutionAgentConfig(quantity=500), count=1)
             .build()
         )
         assert "vwap_execution" in config.agents

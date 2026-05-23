@@ -94,8 +94,7 @@ class TradingAgent(FinancialAgent):
         valid = type(self).VALID_STATES
         if valid is not None and value not in valid:
             raise ValueError(
-                f"{type(self).__name__}: invalid state {value!r}. "
-                f"Valid states: {sorted(valid)}"
+                f"{type(self).__name__}: invalid state {value!r}. Valid states: {sorted(valid)}"
             )
         self._state = value
 

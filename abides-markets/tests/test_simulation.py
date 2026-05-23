@@ -48,8 +48,8 @@ def short_config():
     """A minimal rmsc04-based config that finishes in seconds."""
     return (
         SimulationBuilder()
-        .from_template("rmsc04")
-        .market(end_time="09:32:00")  # 2-minute sim
+        .apply_template("rmsc04")
+        .end_time("09:32:00")  # 2-minute sim
         .seed(42)
         .build()
     )

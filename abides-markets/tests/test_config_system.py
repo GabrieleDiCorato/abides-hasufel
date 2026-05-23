@@ -22,6 +22,13 @@ from abides_markets.config_system import (
     save_config,
     validate_config,
 )
+from abides_markets.config_system.agent_configs import (
+    AdaptiveMarketMakerConfig,
+    MomentumAgentConfig,
+    NoiseAgentConfig,
+    POVExecutionAgentConfig,
+    ValueAgentConfig,
+)
 from abides_markets.config_system.models import (
     AgentGroupConfig,
     ExchangeConfig,
@@ -103,7 +110,7 @@ class TestModels:
 
 class TestBuilder:
     def test_from_template_rmsc04(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         assert config.market.ticker == "ABM"
         assert config.agents["noise"].count == 1000
         assert config.agents["value"].count == 102
@@ -113,9 +120,9 @@ class TestBuilder:
     def test_enable_disable_agents(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .disable_agent("momentum")
-            .enable_agent("noise", count=500)
+            .enable_agent(NoiseAgentConfig(), count=500)
             .seed(42)
             .build()
         )
@@ -125,8 +132,9 @@ class TestBuilder:
     def test_market_override(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .market(ticker="AAPL", date="20220101")
+            .apply_template("rmsc04")
+            .ticker("AAPL")
+            .date("20220101")
             .seed(42)
             .build()
         )
@@ -137,8 +145,8 @@ class TestBuilder:
         """Stacking rmsc04 + with_execution should add POV agent."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .from_template("with_execution")
+            .apply_template("rmsc04")
+            .apply_template("with_execution")
             .seed(42)
             .build()
         )
@@ -150,8 +158,8 @@ class TestBuilder:
     def test_enable_agent_with_params(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("value", count=50, r_bar=200_000)
+            .apply_template("rmsc04")
+            .enable_agent(ValueAgentConfig(r_bar=200_000), count=50)
             .seed(42)
             .build()
         )
@@ -160,7 +168,7 @@ class TestBuilder:
 
     def test_unknown_template_raises(self):
         with pytest.raises(KeyError, match="Unknown template"):
-            SimulationBuilder().from_template("nonexistent").build()
+            SimulationBuilder().apply_template("nonexistent").build()
 
     def test_event_sinks_method(self):
         """event_sinks() sets SimulationMeta.event_sinks equivalently to .meta()."""
@@ -172,15 +180,15 @@ class TestBuilder:
         sinks = [MemorySinkConfig(), ParquetSinkConfig(compression="snappy")]
         via_method = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .event_sinks(*sinks)
             .seed(42)
             .build()
         )
         via_meta = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .meta(event_sinks=sinks)
+            .apply_template("rmsc04")
+            .meta(SimulationMeta(event_sinks=sinks))
             .seed(42)
             .build()
         )
@@ -196,7 +204,7 @@ class TestBuilder:
 class TestCompiler:
     def test_compile_rmsc04_produces_valid_runtime(self):
         """Compiling rmsc04 template should produce a complete runtime dict."""
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
 
         # Check all required keys
@@ -213,21 +221,21 @@ class TestCompiler:
         assert len(runtime["agents"]) == 1117
 
     def test_compile_agent_ids_sequential(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         ids = [a.id for a in runtime["agents"]]
         assert ids == list(range(len(ids)))
 
     def test_compile_exchange_is_id_zero(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         assert runtime["agents"][0].id == 0
         assert runtime["agents"][0].type == "ExchangeAgent"
 
     def test_compile_deterministic_seed(self):
         """Same seed should produce identical agent random states."""
-        config1 = SimulationBuilder().from_template("rmsc04").seed(42).build()
-        config2 = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config1 = SimulationBuilder().apply_template("rmsc04").seed(42).build()
+        config2 = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime1 = compile(config1)
         runtime2 = compile(config2)
         assert len(runtime1["agents"]) == len(runtime2["agents"])
@@ -241,23 +249,19 @@ class TestCompiler:
         """Different enable_agent() call order must produce identical seeds."""
         config_a = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-            )
-            .enable_agent("noise", count=5)
-            .enable_agent("value", count=3)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .date("20210205")
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(ValueAgentConfig(), count=3)
             .seed(99)
             .build()
         )
         config_b = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-            )
-            .enable_agent("value", count=3)
-            .enable_agent("noise", count=5)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .date("20210205")
+            .enable_agent(ValueAgentConfig(), count=3)
+            .enable_agent(NoiseAgentConfig(), count=5)
             .seed(99)
             .build()
         )
@@ -269,49 +273,26 @@ class TestCompiler:
             sb = b.random_state.get_state()[1]
             np.testing.assert_array_equal(sa, sb)
 
-    def test_compile_oracle_instance_same_downstream_seeds(self):
-        """Injecting oracle_instance must not shift downstream agent seeds."""
-        # Run 1: oracle built from config
-        config1 = SimulationBuilder().from_template("rmsc04").seed(42).build()
-        runtime1 = compile(config1)
-
-        # Run 2: inject a pre-built oracle (compile still consumes oracle seed slot)
-        config2 = SimulationBuilder().from_template("rmsc04").seed(42).build()
-        # Build the oracle identically so we can inject it
-        oracle_from_run1 = runtime1["oracle"]
-        runtime2 = compile(config2, oracle_instance=oracle_from_run1)
-
-        # All agent random states must match
-        assert len(runtime1["agents"]) == len(runtime2["agents"])
-        for a1, a2 in zip(runtime1["agents"], runtime2["agents"]):
-            s1 = a1.random_state.get_state()[1]
-            s2 = a2.random_state.get_state()[1]
-            np.testing.assert_array_equal(s1, s2)
-
     def test_compile_adding_agent_preserves_existing_seeds(self):
         """Adding a new agent group must not change existing agents' seeds."""
         # Baseline: noise + value only
         config_base = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-            )
-            .enable_agent("noise", count=5)
-            .enable_agent("value", count=3)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .date("20210205")
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(ValueAgentConfig(), count=3)
             .seed(77)
             .build()
         )
         # With extra group: noise + momentum + value
         config_extra = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-            )
-            .enable_agent("noise", count=5)
-            .enable_agent("momentum", count=2)
-            .enable_agent("value", count=3)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .date("20210205")
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(MomentumAgentConfig(), count=2)
+            .enable_agent(ValueAgentConfig(), count=3)
             .seed(77)
             .build()
         )
@@ -343,23 +324,19 @@ class TestCompiler:
         """Changing one group's count must not affect other groups' seeds."""
         config_small = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-            )
-            .enable_agent("noise", count=5)
-            .enable_agent("value", count=3)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .date("20210205")
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(ValueAgentConfig(), count=3)
             .seed(88)
             .build()
         )
         config_large = (
             SimulationBuilder()
-            .market(
-                oracle={"type": "sparse_mean_reverting"},
-                date="20210205",
-            )
-            .enable_agent("noise", count=50)
-            .enable_agent("value", count=3)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .date("20210205")
+            .enable_agent(NoiseAgentConfig(), count=50)
+            .enable_agent(ValueAgentConfig(), count=3)
             .seed(88)
             .build()
         )
@@ -398,7 +375,7 @@ class TestCompiler:
     def test_compile_disabled_agents_excluded(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .disable_agent("momentum")
             .disable_agent("adaptive_market_maker")
             .seed(42)
@@ -411,9 +388,9 @@ class TestCompiler:
     def test_compile_with_execution_agent(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .from_template("with_execution")
-            .market(end_time="16:00:00")
+            .apply_template("rmsc04")
+            .apply_template("with_execution")
+            .end_time("16:00:00")
             .seed(42)
             .build()
         )
@@ -426,7 +403,7 @@ class TestCompiler:
         assert "ExecutionAgent" in agent_types
 
     def test_compile_oracle_is_set(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         oracle = runtime["oracle"]
         assert oracle is not None
@@ -461,7 +438,7 @@ class TestCompiler:
 
 class TestSerialization:
     def test_roundtrip_json(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
             path = Path(f.name)
@@ -476,7 +453,7 @@ class TestSerialization:
             path.unlink(missing_ok=True)
 
     def test_roundtrip_yaml(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
 
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False, mode="w") as f:
             path = Path(f.name)
@@ -490,7 +467,7 @@ class TestSerialization:
             path.unlink(missing_ok=True)
 
     def test_config_to_from_dict(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         d = config_to_dict(config)
         assert isinstance(d, dict)
         # Should be JSON-serializable
@@ -500,7 +477,7 @@ class TestSerialization:
         assert restored.market.ticker == config.market.ticker
 
     def test_json_serializable(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         d = config_to_dict(config)
         serialized = json.dumps(d)
         assert isinstance(serialized, str)
@@ -577,13 +554,12 @@ class TestTemplates:
                 "max_order_rate",
                 "order_rate_window",
             }
-            assert set(guards.keys()) <= allowed, (
-                f"{t['name']} has unknown risk guard keys: "
-                f"{set(guards.keys()) - allowed}"
-            )
+            assert (
+                set(guards.keys()) <= allowed
+            ), f"{t['name']} has unknown risk guard keys: {set(guards.keys()) - allowed}"
 
     def test_liquid_market_template(self):
-        config = SimulationBuilder().from_template("liquid_market").seed(42).build()
+        config = SimulationBuilder().apply_template("liquid_market").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["noise"].count == 100
         assert config.agents["value"].count == 30
@@ -591,7 +567,7 @@ class TestTemplates:
         assert config.agents["adaptive_market_maker"].count == 1
 
     def test_stable_day_template(self):
-        config = SimulationBuilder().from_template("stable_day").seed(42).build()
+        config = SimulationBuilder().apply_template("stable_day").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["noise"].count == 100
         assert config.agents["value"].count == 25
@@ -599,27 +575,27 @@ class TestTemplates:
         assert config.agents["momentum"].enabled is False
 
     def test_volatile_day_template(self):
-        config = SimulationBuilder().from_template("volatile_day").seed(42).build()
+        config = SimulationBuilder().apply_template("volatile_day").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["noise"].count == 100
         assert config.agents["momentum"].count == 5
         assert config.agents["adaptive_market_maker"].count == 1
 
     def test_low_liquidity_template(self):
-        config = SimulationBuilder().from_template("low_liquidity").seed(42).build()
+        config = SimulationBuilder().apply_template("low_liquidity").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["noise"].count == 25
         assert config.agents["value"].count == 10
         assert config.agents["adaptive_market_maker"].enabled is False
 
     def test_trending_day_template(self):
-        config = SimulationBuilder().from_template("trending_day").seed(42).build()
+        config = SimulationBuilder().apply_template("trending_day").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["momentum"].count == 10
         assert config.agents["value"].count == 20
 
     def test_stress_test_template(self):
-        config = SimulationBuilder().from_template("stress_test").seed(42).build()
+        config = SimulationBuilder().apply_template("stress_test").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["noise"].count == 50
         assert config.agents["adaptive_market_maker"].count == 1
@@ -636,7 +612,7 @@ class TestTemplates:
             "trending_day",
             "stress_test",
         ):
-            config = SimulationBuilder().from_template(name).seed(42).build()
+            config = SimulationBuilder().apply_template(name).seed(42).build()
             runtime = compile(config)
             assert "agents" in runtime
             assert len(runtime["agents"]) > 1  # at least exchange + some agents
@@ -645,8 +621,8 @@ class TestTemplates:
         """Scenario templates can be composed with overlay templates."""
         config = (
             SimulationBuilder()
-            .from_template("stable_day")
-            .from_template("with_execution")
+            .apply_template("stable_day")
+            .apply_template("with_execution")
             .seed(42)
             .build()
         )
@@ -688,8 +664,8 @@ class TestTemplateRuntime:
         for name in templates:
             config = (
                 SimulationBuilder()
-                .from_template(name)
-                .market(end_time="10:00:00")  # 30-min window for speed
+                .apply_template(name)
+                .end_time("10:00:00")  # 30-min window for speed
                 .seed(42)
                 .build()
             )
@@ -828,7 +804,7 @@ class TestEquivalence:
         old_config = build_config(seed=seed)
         old_agent_count = len(old_config["agents"])
 
-        new_config = SimulationBuilder().from_template("rmsc04").seed(seed).build()
+        new_config = SimulationBuilder().apply_template("rmsc04").seed(seed).build()
         new_runtime = compile(new_config)
         new_agent_count = len(new_runtime["agents"])
 
@@ -844,7 +820,7 @@ class TestEquivalence:
         old_config = build_config(seed=seed)
         old_types = Counter(type(a).__name__ for a in old_config["agents"])
 
-        new_config = SimulationBuilder().from_template("rmsc04").seed(seed).build()
+        new_config = SimulationBuilder().apply_template("rmsc04").seed(seed).build()
         new_runtime = compile(new_config)
         new_types = Counter(type(a).__name__ for a in new_runtime["agents"])
 
@@ -856,7 +832,7 @@ class TestEquivalence:
 
         old_config = build_config(seed=42)
         new_runtime = compile(
-            SimulationBuilder().from_template("rmsc04").seed(42).build()
+            SimulationBuilder().apply_template("rmsc04").seed(42).build()
         )
 
         old_keys = set(old_config.keys())
@@ -875,7 +851,7 @@ class TestGymCompatibility:
         """config_add_agents() should work on compiled output."""
         from abides_markets.utils import config_add_agents
 
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         original_count = len(runtime["agents"])
 
@@ -940,8 +916,8 @@ class TestCustomRegistration:
             # Build and compile a config using the custom agent
             config = (
                 SimulationBuilder()
-                .from_template("rmsc04")
-                .enable_agent("_test_dummy", count=5, threshold=0.1)
+                .apply_template("rmsc04")
+                .enable_agent(DummyAgentConfig(threshold=0.1), count=5)
                 .seed(42)
                 .build()
             )
@@ -974,8 +950,8 @@ class TestPerAgentComputationDelay:
         """computation_delay should be passable through agent group params."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=10, computation_delay=200)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(computation_delay=200), count=10)
             .seed(42)
             .build()
         )
@@ -985,9 +961,9 @@ class TestPerAgentComputationDelay:
         """Compiler should emit a per-agent delay array reflecting overrides."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=5, computation_delay=200)
-            .enable_agent("value", count=3, computation_delay=500)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(computation_delay=200), count=5)
+            .enable_agent(ValueAgentConfig(computation_delay=500), count=3)
             .seed(42)
             .build()
         )
@@ -1013,7 +989,7 @@ class TestPerAgentComputationDelay:
 
     def test_compiler_emits_default_delays_when_none(self):
         """All entries equal default_computation_delay when no overrides set."""
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         assert "agent_computation_delays" in runtime
         delays = runtime["agent_computation_delays"]
@@ -1025,7 +1001,7 @@ class TestPerAgentComputationDelay:
         """Builder's agent_computation_delay() method should set the param."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .agent_computation_delay("noise", 300)
             .seed(42)
             .build()
@@ -1039,8 +1015,8 @@ class TestPerAgentComputationDelay:
         # by-name override targeting the second one.
         probe = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=2)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(), count=2)
             .seed(42)
             .build()
         )
@@ -1049,8 +1025,8 @@ class TestPerAgentComputationDelay:
         )
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=2)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(), count=2)
             .agent_computation_delay_by_name(target_name, 777)
             .seed(42)
             .build()
@@ -1064,9 +1040,9 @@ class TestPerAgentComputationDelay:
         """Only agents with explicit computation_delay should appear in overrides."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=5)
-            .enable_agent("value", count=3, computation_delay=999)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(ValueAgentConfig(computation_delay=999), count=3)
             .disable_agent("momentum")
             .disable_agent("adaptive_market_maker")
             .seed(42)
@@ -1088,8 +1064,8 @@ class TestPerAgentComputationDelay:
         """computation_delay should survive YAML/JSON serialization."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=5, computation_delay=200)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(computation_delay=200), count=5)
             .seed(42)
             .build()
         )
@@ -1270,8 +1246,8 @@ class TestBuilderAdvanced:
     def test_oracle_override(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .oracle(r_bar=200_000)
+            .apply_template("rmsc04")
+            .oracle(SparseMeanRevertingOracleConfig(r_bar=200_000))
             .seed(42)
             .build()
         )
@@ -1280,8 +1256,8 @@ class TestBuilderAdvanced:
     def test_exchange_override(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_log_depth=20)
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_log_depth=20))
             .seed(42)
             .build()
         )
@@ -1290,7 +1266,7 @@ class TestBuilderAdvanced:
     def test_log_level_override(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .log_level("DEBUG")
             .seed(42)
             .build()
@@ -1300,7 +1276,7 @@ class TestBuilderAdvanced:
     def test_log_orders_override(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .log_orders(False)
             .seed(42)
             .build()
@@ -1310,7 +1286,7 @@ class TestBuilderAdvanced:
     def test_computation_delay_override(self):
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .computation_delay(100)
             .seed(42)
             .build()
@@ -1318,18 +1294,18 @@ class TestBuilderAdvanced:
         assert config.infrastructure.default_computation_delay == 100
 
     def test_to_dict_returns_raw_data(self):
-        builder = SimulationBuilder().from_template("rmsc04").seed(42)
+        builder = SimulationBuilder().apply_template("rmsc04").seed(42)
         d = builder.to_dict()
         assert isinstance(d, dict)
         assert d["simulation"]["seed"] == 42
 
     def test_chaining_returns_same_builder(self):
         builder = SimulationBuilder()
-        result = builder.from_template("rmsc04")
+        result = builder.apply_template("rmsc04")
         assert result is builder
 
     def test_thin_market_no_mm(self):
-        config = SimulationBuilder().from_template("thin_market").seed(42).build()
+        config = SimulationBuilder().apply_template("thin_market").seed(42).build()
         assert config.market.end_time == "16:00:00"
         assert config.agents["noise"].count == 50
         assert config.agents["value"].count == 10
@@ -1344,20 +1320,24 @@ class TestBuilderAdvanced:
 
 class TestCompilerEdgeCases:
     def test_compile_mean_reverting_oracle(self):
-        """Compiler should raise ImportError for MeanRevertingOracle (not yet implemented)."""
+        """MeanRevertingOracle raises ValueError for time ranges larger than 1 ms
+        (nanosecond-resolution pre-generation would exhaust memory).
+        Use SparseMeanRevertingOracle for real simulations."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .oracle(type="mean_reverting", r_bar=150_000, kappa=0.05, sigma_s=100_000)
+            .apply_template("rmsc04")
+            .oracle(
+                MeanRevertingOracleConfig(r_bar=150_000, kappa=0.05, sigma_s=100_000)
+            )
             .seed(42)
             .build()
         )
-        with pytest.raises(ImportError):
+        with pytest.raises(ValueError, match="time range"):
             compile(config)
 
     def test_compile_random_seed(self):
         """Random seed should produce a valid runtime."""
-        config = SimulationBuilder().from_template("rmsc04").build()
+        config = SimulationBuilder().apply_template("rmsc04").build()
         assert config.simulation.seed == "random"
         runtime = compile(config)
         assert isinstance(runtime["seed"], int)
@@ -1366,7 +1346,7 @@ class TestCompilerEdgeCases:
         """Start/stop times should be correct nanosecond timestamps."""
         import pandas as pd
 
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
 
         date_ns = pd.to_datetime("20210205").value
@@ -1374,7 +1354,7 @@ class TestCompilerEdgeCases:
         assert runtime["stop_time"] > date_ns
 
     def test_compile_latency_model_exists(self):
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         assert runtime["agent_latency_model"] is not None
 
@@ -1397,7 +1377,7 @@ class TestCompilerBookSinkAutoRegistration:
             OrderBookSnapshotMemorySink,
         )
 
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
 
         sinks = runtime["event_sinks"]
@@ -1425,8 +1405,8 @@ class TestCompilerBookSinkAutoRegistration:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_capture="off")
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_capture="off"))
             .seed(42)
             .build()
         )
@@ -1460,9 +1440,9 @@ class TestCompilerExplicitEventSinks:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_logging=False, book_capture="off")
-            .meta(event_sinks=[MemorySinkConfig()])
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_logging=False, book_capture="off"))
+            .meta(SimulationMeta(event_sinks=[MemorySinkConfig()]))
             .seed(42)
             .build()
         )
@@ -1480,9 +1460,9 @@ class TestCompilerExplicitEventSinks:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_logging=True)
-            .meta(event_sinks=[MemorySinkConfig()])
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_logging=True))
+            .meta(SimulationMeta(event_sinks=[MemorySinkConfig()]))
             .seed(42)
             .build()
         )
@@ -1501,13 +1481,15 @@ class TestCompilerExplicitEventSinks:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_logging=False, book_capture="off")
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_logging=False, book_capture="off"))
             .meta(
-                event_sinks=[
-                    OrderBookSnapshotMemorySinkConfig(),
-                    OrderBookHistoryMemorySinkConfig(),
-                ]
+                SimulationMeta(
+                    event_sinks=[
+                        OrderBookSnapshotMemorySinkConfig(),
+                        OrderBookHistoryMemorySinkConfig(),
+                    ]
+                )
             )
             .seed(42)
             .build()
@@ -1530,8 +1512,8 @@ class TestCompilerExplicitEventSinks:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_logging=False, book_capture="off")
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_logging=False, book_capture="off"))
             .event_sinks(OrderBookHistoryMemorySinkConfig(symbol="ABM"))
             .seed(42)
             .build()
@@ -1550,9 +1532,13 @@ class TestCompilerExplicitEventSinks:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .exchange(book_logging=False, book_capture="off")
-            .meta(event_sinks=[OrderBookHistoryMemorySinkConfig(symbol="NOPE")])
+            .apply_template("rmsc04")
+            .exchange(ExchangeConfig(book_logging=False, book_capture="off"))
+            .meta(
+                SimulationMeta(
+                    event_sinks=[OrderBookHistoryMemorySinkConfig(symbol="NOPE")]
+                )
+            )
             .seed(42)
             .build()
         )
@@ -1576,12 +1562,14 @@ class TestParquetSinkIntegration:
 
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .market(end_time="09:35:00")  # 5-min window
-            .exchange(book_logging=False, book_capture="off")
+            .apply_template("rmsc04")
+            .end_time("09:35:00")  # 5-min window
+            .exchange(ExchangeConfig(book_logging=False, book_capture="off"))
             .meta(
-                log_root=str(tmp_path),
-                event_sinks=[MemorySinkConfig(), ParquetSinkConfig()],
+                SimulationMeta(
+                    log_root=str(tmp_path),
+                    event_sinks=[MemorySinkConfig(), ParquetSinkConfig()],
+                )
             )
             .seed(42)
             .build()
@@ -1892,34 +1880,28 @@ class TestEagerValidation:
 
     def test_build_rejects_unknown_agent_type(self):
         """build() should reject unregistered agent types."""
-        builder = SimulationBuilder().from_template("rmsc04").seed(42)
-        builder._data["agents"]["nonexistent_type"] = {
-            "enabled": True,
-            "count": 5,
-            "params": {},
-        }
+        builder = SimulationBuilder().apply_template("rmsc04").seed(42)
+        builder._agents["nonexistent_type"] = AgentGroupConfig(
+            enabled=True, count=5, params={}
+        )
         with pytest.raises(ValueError, match="not registered"):
             builder.build()
 
     def test_build_rejects_unknown_agent_params(self):
         """build() should reject unknown parameters for registered agents."""
-        builder = (
-            SimulationBuilder()
-            .from_template("rmsc04")
-            .seed(42)
-            .enable_agent("noise", count=10, totally_fake_param=999)
-        )
-        with pytest.raises(ValueError, match="Invalid parameters.*noise"):
-            builder.build()
+        with pytest.raises(ValueError):
+            SimulationBuilder().apply_template("rmsc04").seed(42).enable_agent(
+                NoiseAgentConfig(totally_fake_param=999), count=10
+            )
 
     def test_build_accepts_valid_params(self):
         """build() should accept valid parameters."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .seed(42)
             .enable_agent(
-                "value", count=10, r_bar=150_000, mean_reversion_half_life="4d"
+                ValueAgentConfig(r_bar=150_000, mean_reversion_half_life="4d"), count=10
             )
             .build()
         )
@@ -1927,12 +1909,10 @@ class TestEagerValidation:
 
     def test_build_disabled_agents_not_validated(self):
         """Disabled agents should not be validated."""
-        builder = SimulationBuilder().from_template("rmsc04").seed(42)
-        builder._data["agents"]["nonexistent_type"] = {
-            "enabled": False,
-            "count": 5,
-            "params": {"bad": True},
-        }
+        builder = SimulationBuilder().apply_template("rmsc04").seed(42)
+        builder._agents["nonexistent_type"] = AgentGroupConfig(
+            enabled=False, count=5, params={"bad": True}
+        )
         # Should not raise
         config = builder.build()
         assert config.agents["nonexistent_type"].enabled is False
@@ -1940,7 +1920,7 @@ class TestEagerValidation:
     def test_validate_config_catches_bad_params(self):
         """validate_config() should catch invalid agent params."""
         config_dict = config_to_dict(
-            SimulationBuilder().from_template("rmsc04").seed(42).build()
+            SimulationBuilder().apply_template("rmsc04").seed(42).build()
         )
         config_dict["agents"]["noise"]["params"]["totally_fake"] = 42
         result = validate_config(config_dict)
@@ -1950,32 +1930,24 @@ class TestEagerValidation:
     def test_validate_config_passes_for_valid(self):
         """validate_config() should pass for valid configs."""
         config_dict = config_to_dict(
-            SimulationBuilder().from_template("rmsc04").seed(42).build()
+            SimulationBuilder().apply_template("rmsc04").seed(42).build()
         )
         result = validate_config(config_dict)
         assert result["valid"] is True
 
     def test_build_rejects_depth_spread_zero(self):
         """build() should reject depth_spread=0 for value agents."""
-        builder = (
-            SimulationBuilder()
-            .from_template("rmsc04")
-            .seed(42)
-            .enable_agent("value", count=5, depth_spread=0)
-        )
         with pytest.raises(ValueError):
-            builder.build()
+            SimulationBuilder().apply_template("rmsc04").seed(42).enable_agent(
+                ValueAgentConfig(depth_spread=0), count=5
+            )
 
     def test_build_rejects_short_window_exceeds_long(self):
         """build() should reject short_window > long_window for momentum agents."""
-        builder = (
-            SimulationBuilder()
-            .from_template("rmsc04")
-            .seed(42)
-            .enable_agent("momentum", count=5, short_window=50, long_window=10)
-        )
         with pytest.raises(ValueError):
-            builder.build()
+            SimulationBuilder().apply_template("rmsc04").seed(42).enable_agent(
+                MomentumAgentConfig(short_window=50, long_window=10), count=5
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -2030,7 +2002,7 @@ class TestOracleOptional:
 
     def test_compile_with_oracle_exchange_no_opening_prices(self):
         """ExchangeAgent should NOT receive opening_prices when oracle is present."""
-        config = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        config = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         runtime = compile(config)
         exchange = runtime["agents"][0]
         assert exchange._opening_prices is None
@@ -2169,20 +2141,21 @@ class TestValueAgentAutoInheritance:
         """
         config = (
             SimulationBuilder()
-            .market(
-                ticker="ABM",
-                date="20210205",
-                start_time="09:30:00",
-                end_time="10:00:00",
-            )
+            .ticker("ABM")
+            .date("20210205")
+            .start_time("09:30:00")
+            .end_time("10:00:00")
             .oracle(
-                type="sparse_mean_reverting",
-                r_bar=250_000,
-                mean_reversion_half_life="16d",
-                fund_vol=1e-4,
+                SparseMeanRevertingOracleConfig(
+                    r_bar=250_000,
+                    mean_reversion_half_life="16d",
+                    fund_vol=1e-4,
+                )
             )
-            .enable_agent("noise", count=10)
-            .enable_agent("value", count=2)  # no explicit r_bar/kappa/sigma_s
+            .enable_agent(NoiseAgentConfig(), count=10)
+            .enable_agent(
+                ValueAgentConfig(), count=2
+            )  # no explicit r_bar/kappa/sigma_s
             .seed(42)
             .build()
         )
@@ -2210,9 +2183,9 @@ class TestBuilderOracleDesign:
         """builder.oracle(type=None) should set oracle to None."""
         builder = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .oracle(type=None)
-            .market(opening_price=100_000)
+            .apply_template("rmsc04")
+            .oracle(None)
+            .opening_price(100_000)
             .disable_agent("value")
             .seed(42)
         )
@@ -2223,9 +2196,9 @@ class TestBuilderOracleDesign:
         """Builder.build() should raise when ValueAgent is enabled and no oracle."""
         builder = (
             SimulationBuilder()
-            .oracle(type=None)
-            .market(opening_price=100_000)
-            .enable_agent("value", count=10)
+            .opening_price(100_000)
+            .oracle(None)
+            .enable_agent(ValueAgentConfig(), count=10)
             .seed(42)
         )
         with pytest.raises(ValueError, match="ValueAgent requires an oracle"):
@@ -2235,55 +2208,13 @@ class TestBuilderOracleDesign:
         """Builder.build() should raise when no oracle and no opening_price."""
         builder = (
             SimulationBuilder()
-            .oracle(type=None)
-            .enable_agent("noise", count=10)
+            .oracle(SparseMeanRevertingOracleConfig())
+            .oracle(None)
+            .enable_agent(NoiseAgentConfig(), count=10)
             .seed(42)
         )
         with pytest.raises(ValueError, match="opening_price"):
             builder.build()
-
-    def test_oracle_instance_injection(self):
-        """oracle_instance() should inject a pre-built oracle."""
-        # Build an oracle manually
-        import pandas as pd
-
-        from abides_core.utils import str_to_ns
-        from abides_markets.oracles import SparseMeanRevertingOracle
-
-        date_ns = pd.to_datetime("20210205").value
-        mkt_open = date_ns + str_to_ns("09:30:00")
-        mkt_close = date_ns + str_to_ns("16:00:00")
-        oracle = SparseMeanRevertingOracle(
-            mkt_open,
-            mkt_close,
-            {
-                "ABM": {
-                    "r_bar": 100_000,
-                    "kappa": 1.67e-16,
-                    "sigma_s": 0,
-                    "fund_vol": 5e-5,
-                    "megashock_lambda_a": 2.77778e-18,
-                    "megashock_mean": 1000,
-                    "megashock_var": 50_000,
-                }
-            },
-            np.random.RandomState(42),
-        )
-
-        builder = (
-            SimulationBuilder()
-            .market(ticker="ABM", date="20210205")
-            .oracle_instance(oracle)
-            .enable_agent("noise", count=10)
-            .seed(42)
-        )
-        config = builder.build()
-        assert config.market.oracle is not None
-        assert builder.get_oracle_instance() is oracle
-
-        # Compile with oracle_instance
-        runtime = builder.build_and_compile()
-        assert runtime["oracle"] is oracle
 
 
 # ---------------------------------------------------------------------------
@@ -2301,7 +2232,6 @@ class TestConstructorConfigAlignment:
         from abides_markets.agents.market_makers.adaptive_market_maker_agent import (
             AdaptiveMarketMakerAgent,
         )
-        from abides_markets.config_system.agent_configs import AdaptiveMarketMakerConfig
 
         config = AdaptiveMarketMakerConfig()
         sig = inspect.signature(AdaptiveMarketMakerAgent.__init__)
@@ -2319,10 +2249,9 @@ class TestConstructorConfigAlignment:
             if param.default is inspect.Parameter.empty:
                 continue
             constructor_val = param.default
-            assert config_val == constructor_val, (
-                f"AMM field '{field_name}': config={config_val!r}, "
-                f"constructor={constructor_val!r}"
-            )
+            assert (
+                config_val == constructor_val
+            ), f"AMM field '{field_name}': config={config_val!r}, constructor={constructor_val!r}"
 
     def test_value_agent_lambda_a_matches_config(self):
         """Config mean_wakeup_gap should convert to a value close to constructor default."""
@@ -2343,12 +2272,12 @@ class TestOracleKwargDrop:
     """Verify oracle(type=None) rejects extra kwargs (§8.3)."""
 
     def test_oracle_type_none_rejects_extra_kwargs(self):
-        with pytest.raises(ValueError, match="silently discarded"):
-            SimulationBuilder().oracle(type=None, r_bar=100_000)
+        with pytest.raises(TypeError):
+            SimulationBuilder().oracle(None, r_bar=100_000)
 
     def test_oracle_type_none_alone_works(self):
-        builder = SimulationBuilder().oracle(type=None)
-        config = builder.market(opening_price=100_000).seed(42).build()
+        builder = SimulationBuilder().opening_price(100_000).oracle(None)
+        config = builder.seed(42).build()
         assert config.market.oracle is None
 
 
@@ -2397,15 +2326,16 @@ class TestTimeWindowGuards:
         """POV agent with offsets exceeding market window should fail at compile."""
         config = (
             SimulationBuilder()
-            .from_template("rmsc04")
+            .apply_template("rmsc04")
             .enable_agent(
-                "pov_execution",
+                POVExecutionAgentConfig(
+                    pov=0.1,
+                    quantity=1000,
+                    direction="BID",
+                    start_time_offset="05:00:00",
+                    end_time_offset="05:00:00",
+                ),
                 count=1,
-                pov=0.1,
-                quantity=1000,
-                direction="BID",
-                start_time_offset="05:00:00",
-                end_time_offset="05:00:00",
             )
             .seed(42)
             .build()
@@ -2587,8 +2517,8 @@ class TestSerializationRoundTrip:
         """Serialize and deserialize — oracle type should survive."""
         original = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .oracle(r_bar=300_000)
+            .apply_template("rmsc04")
+            .oracle(SparseMeanRevertingOracleConfig(r_bar=300_000))
             .seed(42)
             .build()
         )
@@ -2600,8 +2530,8 @@ class TestSerializationRoundTrip:
     def test_config_roundtrip_preserves_agent_counts(self):
         original = (
             SimulationBuilder()
-            .from_template("rmsc04")
-            .enable_agent("noise", count=77)
+            .apply_template("rmsc04")
+            .enable_agent(NoiseAgentConfig(), count=77)
             .seed(42)
             .build()
         )
@@ -2613,7 +2543,7 @@ class TestSerializationRoundTrip:
         """Full file-based save/load roundtrip."""
         import tempfile
 
-        original = SimulationBuilder().from_template("rmsc04").seed(42).build()
+        original = SimulationBuilder().apply_template("rmsc04").seed(42).build()
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             path = Path(f.name)
         try:
@@ -2687,9 +2617,10 @@ class TestOracleRawParameters:
         kappa_val = math.log(2) / str_to_ns("16d")
         config = (
             SimulationBuilder()
-            .market(ticker="ABM", date="20210205")
-            .oracle(type="sparse_mean_reverting", kappa=kappa_val, fund_vol=1e-4)
-            .enable_agent("noise", count=5)
+            .ticker("ABM")
+            .date("20210205")
+            .oracle(SparseMeanRevertingOracleConfig(kappa=kappa_val, fund_vol=1e-4))
+            .enable_agent(NoiseAgentConfig(), count=5)
             .seed(42)
             .build()
         )
@@ -2704,13 +2635,14 @@ class TestOracleRawParameters:
         lambda_val = 1e-15
         config = (
             SimulationBuilder()
-            .market(ticker="ABM", date="20210205")
+            .ticker("ABM")
+            .date("20210205")
             .oracle(
-                type="sparse_mean_reverting",
-                megashock_lambda_a=lambda_val,
-                fund_vol=1e-4,
+                SparseMeanRevertingOracleConfig(
+                    megashock_lambda_a=lambda_val, fund_vol=1e-4
+                )
             )
-            .enable_agent("noise", count=5)
+            .enable_agent(NoiseAgentConfig(), count=5)
             .seed(42)
             .build()
         )
@@ -2721,15 +2653,15 @@ class TestOracleRawParameters:
         kappa_val = 5e-16
         config = (
             SimulationBuilder()
-            .market(ticker="ABM", date="20210205")
+            .ticker("ABM")
+            .date("20210205")
             .oracle(
-                type="sparse_mean_reverting",
-                kappa=kappa_val,
-                r_bar=200_000,
-                fund_vol=1e-4,
+                SparseMeanRevertingOracleConfig(
+                    kappa=kappa_val, r_bar=200_000, fund_vol=1e-4
+                )
             )
-            .enable_agent("noise", count=5)
-            .enable_agent("value", count=1)  # auto-inherit kappa from oracle
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(ValueAgentConfig(), count=1)  # auto-inherit kappa from oracle
             .seed(42)
             .build()
         )
@@ -2828,15 +2760,17 @@ class TestValueAgentRawParameters:
         lambda_val = 1e-11
         config = (
             SimulationBuilder()
-            .market(ticker="ABM", date="20210205")
+            .ticker("ABM")
+            .date("20210205")
             .oracle(
-                type="sparse_mean_reverting",
-                kappa=kappa_val,
-                r_bar=200_000,
-                fund_vol=1e-4,
+                SparseMeanRevertingOracleConfig(
+                    kappa=kappa_val, r_bar=200_000, fund_vol=1e-4
+                )
             )
-            .enable_agent("noise", count=5)
-            .enable_agent("value", count=2, kappa=kappa_val, lambda_a=lambda_val)
+            .enable_agent(NoiseAgentConfig(), count=5)
+            .enable_agent(
+                ValueAgentConfig(kappa=kappa_val, lambda_a=lambda_val), count=2
+            )
             .seed(42)
             .build()
         )
