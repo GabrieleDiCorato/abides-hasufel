@@ -13,49 +13,41 @@ reference.
 ## [0.1.0] - Unreleased
 
 ### Added
-- **`AgentRegistry.name_for_class(cls)`** returns the registered name for a
-  config model class, enabling the typed `enable_agent()` builder method to
-  look up the agent name from the config instance.
-- **`AgentGroupConfig.config` property** returns the resolved typed config
-  instance by looking up the agent name in the registry and constructing
-  the config model from `params`.
-- **`SimulationConfig.to_builder()`** constructs a `SimulationBuilder`
-  pre-loaded from an existing `SimulationConfig`, enabling round-tripping.
-- **`SimulationBuilder.from_config(config)`** classmethod is the builder-side
-  entry point for the same round-trip.
-- **`OracleContext`, `ExchangeContext`, `LatencyContext`** dataclasses in
-  `abides_markets.config_system.contexts` carry runtime values needed by
-  extension config `build()` methods (market hours, random state, etc.).
-- **`build(context)` methods** on `SparseMeanRevertingOracleConfig`,
-  `MeanRevertingOracleConfig`, `ExchangeConfig`, and `LatencyConfig` replace
-  the ad-hoc construction logic previously inlined in the compiler.
+- **`SimulationConfig.to_builder()`** and **`SimulationBuilder.from_config(config)`**
+  let you round-trip an existing config back to a builder for incremental
+  modification, then re-compile.
+- **`SimulationBuilder.to_dict()`** serialises the builder's current state to a
+  plain dict for inspection or snapshot comparison.
+- **Individual market-field setters** — `.ticker()`, `.date()`, `.start_time()`,
+  `.end_time()`, and `.opening_price()` — let you adjust a single market field
+  without replacing the full `MarketConfig`. `.market()` continues to accept a
+  complete `MarketConfig` for wholesale replacement.
+- **`AgentRegistry.name_for_class(cls)`** returns the registered agent name for a
+  given config class.
 
 ### Changed (Breaking)
 - **`SimulationBuilder.from_template()` renamed to `apply_template()`.**
-  All call sites updated; `from_template` is gone.
-- **`SimulationBuilder.enable_agent()` now accepts a typed config instance**
-  instead of a string name plus `**kwargs`. Old form: `.enable_agent("noise",
-  count=10, computation_delay=200)`. New form:
+  Replace every `.from_template(t)` call with `.apply_template(t)`. The old
+  name is gone.
+- **`SimulationBuilder.enable_agent()` now requires a typed config instance.**
+  The string-name-plus-kwargs form is removed. Old:
+  `.enable_agent("noise", count=10, computation_delay=200)`. New:
   `.enable_agent(NoiseAgentConfig(computation_delay=200), count=10)`.
-- **`SimulationBuilder.oracle()` now accepts an `OracleConfig` instance or
-  `None`**, not `type="..."` kwargs.
-- **`SimulationBuilder.meta()` now accepts a `SimulationMeta` instance**,
-  not `**kwargs`.
-- **`SimulationBuilder.latency()` now accepts a `LatencyConfig` instance**,
-  not `**kwargs`.
-- **Individual market-field setters** replace the multi-field `.market()`
-  call: `.ticker()`, `.date()`, `.start_time()`, `.end_time()`,
-  `.oracle()`, `.opening_price()`, `.exchange()`. The `.market()` method
-  still accepts a full `MarketConfig` for wholesale replacement.
+  Keyword arguments that were previously passed inline now belong on the config
+  object.
+- **`SimulationBuilder.oracle()`, `.exchange()`, `.latency()`, and `.meta()` now
+  accept typed instances, not keyword dicts.** For example,
+  `.oracle(SparseMeanRevertingOracleConfig(...))` replaces any kwargs form.
+  Passing `None` to `.oracle()` remains valid.
 
 ### Removed
-- **`ExternalDataOracleConfig`** (marker oracle type for external injection).
-  Subclass one of the concrete oracle classes or open a custom-oracle
-  issue to define the extension point.
-- **`SimulationBuilder.oracle_instance()`** — removed. The external-oracle
-  injection escape hatch is gone.
-- **`compile(oracle_instance=...)` kwarg** — removed.
-- **`run_simulation(oracle_instance=...)` kwarg** — removed.
+- **`ExternalDataOracleConfig`** is removed. Subclass one of the concrete oracle
+  configs (`SparseMeanRevertingOracleConfig`, `MeanRevertingOracleConfig`) to
+  inject custom fundamental data, or open a feature request for a supported
+  extension point.
+- **`SimulationBuilder.oracle_instance()`**, `compile(oracle_instance=...)`, and
+  `run_simulation(oracle_instance=...)` are removed. The external-oracle injection
+  escape hatch is gone with no replacement in this release.
 
 ### Added
 - **`EventType` StrEnum** in `abides_core.telemetry.event_payloads`. All
