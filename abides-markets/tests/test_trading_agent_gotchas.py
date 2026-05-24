@@ -14,6 +14,7 @@ import numpy as np
 
 from abides_core.utils import datetime_str_to_ns, str_to_ns
 from abides_markets.agents.trading_agent import TradingAgent
+from abides_markets.messages.orderbook import OrderRejectedMsg, RejectReason
 from abides_markets.orders import LimitOrder, Side
 
 DATE = datetime_str_to_ns("20210205")
@@ -221,6 +222,17 @@ class TestGetKnownBidAskBeforeData:
         assert bid is None
         assert ask is None
 
+    def test_both_sides_known(self):
+        """Both sides populated → returns prices and volumes from both sides."""
+        agent = _make_agent()
+        agent.known_bids[SYMBOL] = [(10_000, 100)]
+        agent.known_asks[SYMBOL] = [(10_100, 50)]
+        bid, bid_vol, ask, ask_vol = agent.get_known_bid_ask(SYMBOL)
+        assert bid == 10_000
+        assert bid_vol == 100
+        assert ask == 10_100
+        assert ask_vol == 50
+
 
 # ===================================================================
 # wakeup() gating on market hours
@@ -268,3 +280,96 @@ class TestHoldingsIntegrity:
         agent = _make_agent()
         assert isinstance(agent.holdings, dict)
         assert isinstance(agent.holdings["CASH"], int)
+
+
+# ===================================================================
+# get_known_liquidity edge cases
+# ===================================================================
+
+
+class TestGetKnownLiquidity:
+    def test_unknown_symbol_returns_zero_liquidity(self):
+        """get_known_liquidity returns (0, 0) for an unknown symbol, not KeyError."""
+        agent = _make_agent()
+        agent.known_bids = {}
+        agent.known_asks = {}
+        bid_liq, ask_liq = agent.get_known_liquidity("UNKNOWN")
+        assert bid_liq == 0
+        assert ask_liq == 0
+
+
+# ===================================================================
+# on_order_rejected
+# ===================================================================
+
+
+class TestOnOrderRejected:
+    """Tests for the TradingAgent.on_order_rejected() hook."""
+
+    def test_hook_dispatched_via_handle_method(self):
+        """_handle_order_rejected_msg dispatches to on_order_rejected."""
+        rejected_calls: list = []
+
+        class _TestAgent(TradingAgent):
+            def on_order_rejected(self, order_id, reason):
+                rejected_calls.append((order_id, reason))
+
+        agent = _TestAgent(id=0, name="test", random_state=np.random.RandomState(42))
+        msg = OrderRejectedMsg(order_id=42, reason=RejectReason.INVALID_PRICE)
+        agent._handle_order_rejected_msg(msg)
+
+        assert len(rejected_calls) == 1
+        oid, reason = rejected_calls[0]
+        assert oid == 42
+        assert reason is RejectReason.INVALID_PRICE
+
+    def test_default_removes_order_from_self_orders(self):
+        """on_order_rejected() removes the rejected order from self.orders."""
+        agent = _make_agent()
+        fake_order = LimitOrder(
+            agent_id=0,
+            time_placed=0,
+            symbol=SYMBOL,
+            quantity=10,
+            side=Side.BID,
+            limit_price=10_000,
+            order_id=99,
+        )
+        agent.orders[99] = fake_order
+        assert 99 in agent.orders
+        agent.on_order_rejected(99, RejectReason.INVALID_QUANTITY)
+        assert 99 not in agent.orders
+
+    def test_no_logEvent_when_log_orders_false(self):
+        """on_order_rejected() does not call logEvent when log_orders is False (default)."""
+        logEvent_calls: list = []
+
+        class _TestAgent(TradingAgent):
+            def logEvent(self, *args, **kwargs):
+                logEvent_calls.append(args)
+
+        agent = _TestAgent(id=0, name="test", random_state=np.random.RandomState(42))
+        assert agent.log_orders is False
+        agent.on_order_rejected(55, RejectReason.UNKNOWN_SYMBOL)
+        assert logEvent_calls == []
+
+    def test_logEvent_emitted_when_log_orders_true(self):
+        """on_order_rejected() emits EventType.ORDER_REJECTED when log_orders is True."""
+        from abides_core.telemetry.event_payloads import EventType
+
+        logEvent_calls: list = []
+
+        class _TestAgent(TradingAgent):
+            def logEvent(self, event_type, payload=None, **kwargs):
+                logEvent_calls.append((event_type, payload))
+
+        agent = _TestAgent(id=0, name="test", random_state=np.random.RandomState(42))
+        agent.log_orders = True
+        agent.orders[77] = object()
+        agent.on_order_rejected(77, RejectReason.INVALID_PRICE)
+
+        assert any(et is EventType.ORDER_REJECTED for et, _ in logEvent_calls)
+        et, payload = next(
+            (et, p) for et, p in logEvent_calls if et is EventType.ORDER_REJECTED
+        )
+        assert payload == (77, "INVALID_PRICE")

@@ -1,8 +1,7 @@
-import pytest
-
+from abides_markets.messages.orderbook import OrderRejectedMsg, RejectReason
 from abides_markets.orders import MarketOrder, Side
 
-from . import SYMBOL, TIME, setup_book_with_orders
+from . import SYMBOL, TIME, FakeExchangeAgent, OrderBook, setup_book_with_orders
 
 # fmt: off
 
@@ -325,9 +324,9 @@ def test_handle_market_order_ask_4():
 
 
 def test_handle_bad_limit_orders():
-    book, _, _ = setup_book_with_orders()
+    book, agent, _ = setup_book_with_orders()
 
-    # Symbol does not match book
+    # Symbol does not match book — discarded silently at ERROR level, no message sent.
     order = MarketOrder(
         agent_id=1,
         time_placed=TIME,
@@ -335,11 +334,10 @@ def test_handle_bad_limit_orders():
         quantity=70,
         side=Side.ASK,
     )
+    book.handle_market_order(order)
+    assert len(agent.messages) == 0
 
-    with pytest.warns(UserWarning):
-        book.handle_market_order(order)
-
-    # Order quantity not integer
+    # Non-integer quantity → OrderRejectedMsg(INVALID_QUANTITY)
     order = MarketOrder(
         agent_id=1,
         time_placed=TIME,
@@ -347,11 +345,13 @@ def test_handle_bad_limit_orders():
         quantity=1.5,
         side=Side.BID,
     )
+    book.handle_market_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_QUANTITY
+    agent.reset()
 
-    with pytest.warns(UserWarning):
-        book.handle_market_order(order)
-
-    # Order quantity is negative
+    # Negative quantity → OrderRejectedMsg(INVALID_QUANTITY)
     order = MarketOrder(
         agent_id=1,
         time_placed=TIME,
@@ -359,6 +359,29 @@ def test_handle_bad_limit_orders():
         quantity=-10,
         side=Side.BID,
     )
+    book.handle_market_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_QUANTITY
 
-    with pytest.warns(UserWarning):
-        book.handle_market_order(order)
+
+# ---------------------------------------------------------------------------
+# OrderRejectedMsg validation
+# ---------------------------------------------------------------------------
+
+
+def test_order_rejected_zero_quantity():
+    """handle_market_order sends OrderRejectedMsg(INVALID_QUANTITY) for quantity=0."""
+    agent = FakeExchangeAgent()
+    book = OrderBook(agent, SYMBOL)
+    order = MarketOrder(
+        agent_id=1,
+        time_placed=TIME,
+        symbol=SYMBOL,
+        quantity=0,
+        side=Side.BID,
+    )
+    book.handle_market_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_QUANTITY

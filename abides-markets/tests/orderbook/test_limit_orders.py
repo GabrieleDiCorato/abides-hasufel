@@ -1,6 +1,8 @@
-import pytest
-
-from abides_markets.messages.orderbook import OrderExecutedMsg
+from abides_markets.messages.orderbook import (
+    OrderExecutedMsg,
+    OrderRejectedMsg,
+    RejectReason,
+)
 from abides_markets.order_book import OrderBook
 from abides_markets.orders import LimitOrder, Side
 from abides_markets.price_level import PriceLevel
@@ -198,7 +200,7 @@ def test_handle_bad_limit_orders():
     agent = FakeExchangeAgent()
     book = OrderBook(agent, SYMBOL)
 
-    # Symbol does not match book
+    # Symbol does not match book — discarded silently at ERROR level, no message sent.
     order = LimitOrder(
         agent_id=1,
         time_placed=TIME,
@@ -208,11 +210,10 @@ def test_handle_bad_limit_orders():
         is_hidden=True,
         limit_price=100,
     )
+    book.handle_limit_order(order)
+    assert len(agent.messages) == 0
 
-    with pytest.warns(UserWarning):
-        book.handle_limit_order(order)
-
-    # Order quantity not integer
+    # Non-integer quantity → OrderRejectedMsg(INVALID_QUANTITY)
     order = LimitOrder(
         agent_id=1,
         time_placed=TIME,
@@ -222,11 +223,13 @@ def test_handle_bad_limit_orders():
         is_hidden=True,
         limit_price=100,
     )
+    book.handle_limit_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_QUANTITY
+    agent.reset()
 
-    with pytest.warns(UserWarning):
-        book.handle_limit_order(order)
-
-    # Order quantity is negative
+    # Negative quantity → OrderRejectedMsg(INVALID_QUANTITY)
     order = LimitOrder(
         agent_id=1,
         time_placed=TIME,
@@ -236,14 +239,13 @@ def test_handle_bad_limit_orders():
         is_hidden=True,
         limit_price=100,
     )
+    book.handle_limit_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_QUANTITY
+    agent.reset()
 
-    with pytest.warns(UserWarning):
-        book.handle_limit_order(order)
-
-    with pytest.warns(UserWarning):
-        book.handle_limit_order(order)
-
-    # Order limit price is negative
+    # Negative limit price → OrderRejectedMsg(INVALID_PRICE)
     order = LimitOrder(
         agent_id=1,
         time_placed=TIME,
@@ -253,9 +255,10 @@ def test_handle_bad_limit_orders():
         is_hidden=True,
         limit_price=-100,
     )
-
-    with pytest.warns(UserWarning):
-        book.handle_limit_order(order)
+    book.handle_limit_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_PRICE
 
 
 def test_handle_insert_by_id_limit_order():
@@ -417,3 +420,60 @@ def test_all_visible_then_hidden_fills_to_completion():
 
     assert book.asks == []
     assert book.bids == []
+
+
+# ---------------------------------------------------------------------------
+# OrderRejectedMsg validation
+# ---------------------------------------------------------------------------
+
+
+def test_order_rejected_zero_quantity():
+    """handle_limit_order sends OrderRejectedMsg(INVALID_QUANTITY) for quantity=0."""
+    agent = FakeExchangeAgent()
+    book = OrderBook(agent, SYMBOL)
+    order = LimitOrder(
+        agent_id=1,
+        time_placed=TIME,
+        symbol=SYMBOL,
+        quantity=0,
+        side=Side.BID,
+        limit_price=10_000,
+    )
+    book.handle_limit_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_QUANTITY
+
+
+def test_order_rejected_noninteger_price():
+    """handle_limit_order sends OrderRejectedMsg(INVALID_PRICE) for a non-integer limit price."""
+    agent = FakeExchangeAgent()
+    book = OrderBook(agent, SYMBOL)
+    order = LimitOrder(
+        agent_id=1,
+        time_placed=TIME,
+        symbol=SYMBOL,
+        quantity=10,
+        side=Side.BID,
+        limit_price=99.5,
+    )
+    book.handle_limit_order(order)
+    assert len(agent.messages) == 1
+    assert isinstance(agent.messages[0][1], OrderRejectedMsg)
+    assert agent.messages[0][1].reason is RejectReason.INVALID_PRICE
+
+
+def test_order_rejected_quiet_mode_suppresses_message():
+    """quiet=True must suppress the OrderRejectedMsg."""
+    agent = FakeExchangeAgent()
+    book = OrderBook(agent, SYMBOL)
+    order = LimitOrder(
+        agent_id=1,
+        time_placed=TIME,
+        symbol=SYMBOL,
+        quantity=0,
+        side=Side.BID,
+        limit_price=10_000,
+    )
+    book.handle_limit_order(order, quiet=True)
+    assert len(agent.messages) == 0

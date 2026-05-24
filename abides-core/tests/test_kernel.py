@@ -1752,3 +1752,66 @@ class TestLegacyLoggingDeprecationWarnings:
             match=r"Agent.logEvent\(append_summary_log=True\) is deprecated",
         ):
             agent.logEvent("STARTING_CASH", 10_000, append_summary_log=True)
+
+
+# ---------------------------------------------------------------------------
+# Kernel lifecycle state
+# ---------------------------------------------------------------------------
+
+
+class TestKernelLifecycleState:
+    def test_state_advances_to_initialized(self):
+        """Kernel.state transitions from CONSTRUCTED to INITIALIZED after initialize()."""
+        from abides_core.engine.kernel import KernelState
+
+        kernel = Kernel(
+            agents=[],
+            start_time=0,
+            stop_time=1,
+            random_state=np.random.RandomState(seed=42),
+        )
+        assert kernel.state is KernelState.CONSTRUCTED
+        kernel.initialize()
+        assert kernel.state is KernelState.INITIALIZED
+
+
+# ---------------------------------------------------------------------------
+# set_wakeup validation
+# ---------------------------------------------------------------------------
+
+
+class TestSetWakeupValidation:
+    def test_past_wakeup_time_raises_valueerror_with_string_message(self):
+        """ValueError from set_wakeup must carry a formatted string, not raw tuple args."""
+        kernel = Kernel(
+            agents=[],
+            start_time=0,
+            stop_time=1,
+            random_state=np.random.RandomState(seed=42),
+        )
+        kernel.initialize()
+        kernel.current_time = 100
+        try:
+            kernel.set_wakeup(sender_id=0, requested_time=50)
+            raise AssertionError("Expected ValueError")
+        except ValueError as e:
+            assert len(e.args) == 1, f"ValueError has {len(e.args)} args, expected 1"
+            assert "current_time" in str(e)
+
+
+# ---------------------------------------------------------------------------
+# Runner edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestRunnerEdgeCases:
+    def test_start_time_zero_does_not_skip_runner_loop(self):
+        """Runner loop must not falsy-skip when start_time == 0."""
+        kernel = Kernel(
+            agents=[Agent(id=0, name="test", random_state=np.random.RandomState(42))],
+            start_time=0,
+            stop_time=100,
+            random_state=np.random.RandomState(seed=42),
+        )
+        kernel.initialize()
+        kernel.runner()  # must not hang or raise

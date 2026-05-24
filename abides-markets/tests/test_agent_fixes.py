@@ -21,6 +21,7 @@ import pytest
 
 from abides_core.utils import datetime_str_to_ns, str_to_ns
 from abides_markets.agents.examples.momentum_agent import MomentumAgent
+from abides_markets.agents.exchange_agent import ExchangeAgent
 from abides_markets.agents.market_makers.adaptive_market_maker_agent import (
     AdaptiveMarketMakerAgent,
 )
@@ -28,12 +29,13 @@ from abides_markets.agents.noise_agent import NoiseAgent
 from abides_markets.agents.pov_execution_agent import POVExecutionAgent
 from abides_markets.agents.trading_agent import TradingAgent
 from abides_markets.agents.value_agent import ValueAgent
+from abides_markets.messages.orderbook import OrderRejectedMsg, RejectReason
 from abides_markets.oracles.external_data_oracle import ExternalDataOracle
 from abides_markets.oracles.oracle import Oracle
 from abides_markets.oracles.sparse_mean_reverting_oracle import (
     SparseMeanRevertingOracle,
 )
-from abides_markets.orders import Side
+from abides_markets.orders import LimitOrder, Side
 
 # ---------------------------------------------------------------------------
 # Shared constants
@@ -826,3 +828,204 @@ def test_registered_agent_stores_init_param(agent_name, param, agent_cls):
         f"{agent_cls.__name__}.__init__() accepts '{param}' but no class "
         f"in its MRO stores it as self.{param}"
     )
+
+
+# ---------------------------------------------------------------------------
+# SparseMeanRevertingOracle — config dict isolation
+# ---------------------------------------------------------------------------
+
+
+class TestSparseMeanRevertingOracleConfigMutation:
+    def test_does_not_mutate_caller_config(self):
+        """Oracle must not modify the caller's symbols dict."""
+        symbols_config = {
+            "IBM": {
+                "r_bar": 10000,
+                "kappa": 1.67e-16,
+                "sigma_s": 0,
+                "fund_vol": 1e-8,
+                "megashock_lambda_a": 0,
+                "megashock_mean": 0,
+                "megashock_var": 0,
+                "random_state": np.random.RandomState(42),
+            }
+        }
+        original_keys = set(symbols_config["IBM"].keys())
+        SparseMeanRevertingOracle(
+            mkt_open=0,
+            mkt_close=int(1e18),
+            symbols=symbols_config,
+            random_state=np.random.RandomState(99),
+        )
+        assert set(symbols_config["IBM"].keys()) == original_keys
+
+    def test_creates_own_copy_of_symbols(self):
+        """Oracle's internal symbols must be independent of the caller's dict."""
+        symbols_config = {
+            "IBM": {
+                "r_bar": 10000,
+                "kappa": 1.67e-16,
+                "sigma_s": 0,
+                "fund_vol": 1e-8,
+                "megashock_lambda_a": 0,
+                "megashock_mean": 0,
+                "megashock_var": 0,
+                "random_state": np.random.RandomState(42),
+            }
+        }
+        oracle = SparseMeanRevertingOracle(
+            mkt_open=0,
+            mkt_close=int(1e18),
+            symbols=symbols_config,
+            random_state=np.random.RandomState(99),
+        )
+        symbols_config["IBM"]["r_bar"] = 99999
+        assert oracle.symbols["IBM"]["r_bar"] == 10000
+
+
+# ---------------------------------------------------------------------------
+# ExchangeAgent — subscription type attributes
+# ---------------------------------------------------------------------------
+
+
+class TestExchangeAgentSubscriptionTypes:
+    def test_subscription_types_have_expected_attributes(self):
+        """Verify subscription dataclasses carry the expected fields."""
+        l1_sub = ExchangeAgent.L1DataSubscription(agent_id=0, last_update_ts=0, freq=1)
+        assert not hasattr(l1_sub, "depth")
+
+        l2_sub = ExchangeAgent.L2DataSubscription(
+            agent_id=0, last_update_ts=0, freq=1, depth=10
+        )
+        assert hasattr(l2_sub, "depth")
+
+        tv_sub = ExchangeAgent.TransactedVolDataSubscription(
+            agent_id=0, last_update_ts=0, freq=1, lookback="1min"
+        )
+        assert not hasattr(tv_sub, "depth")
+
+        bi_sub = ExchangeAgent.BookImbalanceDataSubscription(
+            agent_id=0, last_update_ts=0, event_in_progress=False, min_imbalance=0.5
+        )
+        assert not hasattr(bi_sub, "depth")
+        assert not hasattr(bi_sub, "freq")
+
+
+# ---------------------------------------------------------------------------
+# ExchangeAgent handlers — unknown symbol → OrderRejectedMsg
+# ---------------------------------------------------------------------------
+
+
+def _make_exchange(symbols=("AAPL",)):
+    """Return an ExchangeAgent whose send_message is monkey-patched to record messages."""
+    sent: list = []
+    exchange = ExchangeAgent(
+        id=0,
+        mkt_open=int(9.5e9),
+        mkt_close=int(4e10),
+        symbols=list(symbols),
+        name="TestExchange",
+        random_state=np.random.RandomState(42),
+        log_orders=False,
+        use_metric_tracker=False,
+    )
+    exchange.send_message = lambda agent_id, msg: sent.append((agent_id, msg))
+    return exchange, sent
+
+
+def _limit(symbol: str, order_id: int = 10) -> LimitOrder:
+    return LimitOrder(
+        agent_id=1,
+        time_placed=0,
+        symbol=symbol,
+        quantity=5,
+        side=Side.BID,
+        limit_price=10_000,
+        order_id=order_id,
+    )
+
+
+class TestExchangeHandlerUnknownSymbolRejection:
+    """Exchange lifecycle handlers send OrderRejectedMsg(UNKNOWN_SYMBOL) for unregistered symbols."""
+
+    def test_handle_cancel_unknown_symbol(self):
+        from abides_markets.messages.order import CancelOrderMsg
+
+        exchange, sent = _make_exchange(symbols=["AAPL"])
+        order = _limit("UNKNOWN", order_id=11)
+        msg = CancelOrderMsg(order=order, tag="", metadata={})
+        exchange._handle_cancel_order(sender_id=1, current_time=0, message=msg)
+
+        assert len(sent) == 1
+        agent_id, reply = sent[0]
+        assert agent_id == 1
+        assert isinstance(reply, OrderRejectedMsg)
+        assert reply.order_id == 11
+        assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+    def test_handle_partial_cancel_unknown_symbol(self):
+        from abides_markets.messages.order import PartialCancelOrderMsg
+
+        exchange, sent = _make_exchange(symbols=["AAPL"])
+        order = _limit("UNKNOWN", order_id=12)
+        msg = PartialCancelOrderMsg(order=order, quantity=2, tag="", metadata={})
+        exchange._handle_partial_cancel_order(sender_id=1, current_time=0, message=msg)
+
+        assert len(sent) == 1
+        _, reply = sent[0]
+        assert isinstance(reply, OrderRejectedMsg)
+        assert reply.order_id == 12
+        assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+    def test_handle_modify_unknown_symbol(self):
+        from abides_markets.messages.order import ModifyOrderMsg
+
+        exchange, sent = _make_exchange(symbols=["AAPL"])
+        old = _limit("UNKNOWN", order_id=13)
+        new = _limit("UNKNOWN", order_id=14)
+        msg = ModifyOrderMsg(old_order=old, new_order=new)
+        exchange._handle_modify_order(sender_id=1, current_time=0, message=msg)
+
+        assert len(sent) == 1
+        _, reply = sent[0]
+        assert isinstance(reply, OrderRejectedMsg)
+        assert reply.order_id == 13
+        assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+    def test_handle_replace_unknown_symbol(self):
+        from abides_markets.messages.order import ReplaceOrderMsg
+
+        exchange, sent = _make_exchange(symbols=["AAPL"])
+        old = _limit("UNKNOWN", order_id=15)
+        new = _limit("UNKNOWN", order_id=16)
+        msg = ReplaceOrderMsg(agent_id=1, old_order=old, new_order=new)
+        exchange._handle_replace_order(sender_id=1, current_time=0, message=msg)
+
+        assert len(sent) == 1
+        _, reply = sent[0]
+        assert isinstance(reply, OrderRejectedMsg)
+        assert reply.order_id == 15
+        assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+    def test_handle_stop_unknown_symbol(self):
+        from abides_markets.messages.order import StopOrderMsg
+        from abides_markets.orders import Side, StopOrder
+
+        exchange, sent = _make_exchange(symbols=["AAPL"])
+        stop = StopOrder(
+            agent_id=1,
+            time_placed=0,
+            symbol="UNKNOWN",
+            quantity=5,
+            side=Side.BID,
+            stop_price=10_000,
+            order_id=17,
+        )
+        msg = StopOrderMsg(order=stop)
+        exchange._handle_stop_order(sender_id=1, current_time=0, message=msg)
+
+        assert len(sent) == 1
+        _, reply = sent[0]
+        assert isinstance(reply, OrderRejectedMsg)
+        assert reply.order_id == 17
+        assert reply.reason is RejectReason.UNKNOWN_SYMBOL
