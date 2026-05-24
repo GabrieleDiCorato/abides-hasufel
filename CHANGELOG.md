@@ -60,6 +60,11 @@ reference.
   were previously silent.
 
 ### Fixed
+- **`ORDER_REJECTED` telemetry is now schema-registered and included in order
+  analytics.** Rejection logs expand to `order_id` and `reason`,
+  `SimulationResult.order_logs()` includes rejection rows, and rich order
+  lifecycles report rejected submitted orders as terminal `"rejected"` orders
+  instead of leaving them as resting.
 - **`BOOK_LIMIT` and `BOOK_EXEC` schema field collision with `InMemorySink`.**
   Both `PayloadSchema` instances had `"agent_id"` as a field name, which silently
   collided with the `"agent_id"` column in `InMemorySink._COMMON_COLS`, causing

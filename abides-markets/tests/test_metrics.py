@@ -1457,6 +1457,43 @@ class TestOrderLifecycles:
         assert lc.filled_qty == 0
         assert lc.resting_time_ns == 4000
 
+    def test_rejected_order(self):
+        """Rejected order has status='rejected' and terminal resting_time_ns."""
+        logs = _make_logs(
+            [
+                {
+                    "EventTime": 1000,
+                    "EventType": "ORDER_SUBMITTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 250,
+                    "quantity": 10,
+                    "side": "BID",
+                    "fill_price": pd.NA,
+                    "symbol": "TEST",
+                },
+                {
+                    "EventTime": 1500,
+                    "EventType": "ORDER_REJECTED",
+                    "agent_id": 1,
+                    "agent_type": "TestAgent",
+                    "order_id": 250,
+                    "reason": "INVALID_PRICE",
+                },
+            ]
+        )
+        agent = _make_agent(agent_id=1)
+        result = _make_result(profile=ResultProfile.FULL, agents=[agent], logs=logs)
+        rich = compute_rich_metrics(result)
+        lcs = rich.agents[0].order_lifecycles
+        assert lcs is not None
+        assert len(lcs) == 1
+        lc = lcs[0]
+        assert lc.status == "rejected"
+        assert lc.filled_qty == 0
+        assert lc.submitted_qty == 10
+        assert lc.resting_time_ns == 500
+
     def test_partially_filled_then_cancelled(self):
         """Order partially filled then cancelled has status='partially_filled'."""
         logs = _make_logs(

@@ -517,7 +517,7 @@ class OrderLifecycle(BaseModel):
 
     Populated when ``ResultProfile.AGENT_LOGS`` is active.  Each record
     tracks a single order from submission through its terminal state
-    (filled, partially filled, or cancelled).
+    (filled, partially filled, cancelled, or rejected).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -531,12 +531,13 @@ class OrderLifecycle(BaseModel):
     submitted_at_ns: int
     """Timestamp of the ORDER_SUBMITTED event (nanoseconds, Unix epoch)."""
 
-    status: Literal["filled", "partially_filled", "cancelled", "resting"]
+    status: Literal["filled", "partially_filled", "cancelled", "rejected", "resting"]
     """Terminal status of the order.
 
     * ``"filled"`` — ``filled_qty == submitted_qty``
     * ``"partially_filled"`` — ``0 < filled_qty < submitted_qty``
     * ``"cancelled"`` — an ORDER_CANCELLED event was observed
+    * ``"rejected"`` — an ORDER_REJECTED event was observed
     * ``"resting"`` — submitted but no terminal event observed by end of sim
     """
 
@@ -844,10 +845,12 @@ class SimulationResult(BaseModel):
             )
         mask = self.logs["EventType"].isin(_ORDER_EVENT_TYPES)
         filtered = self.logs.loc[mask].copy()
-        # Ensure nullable int columns exist even if absent from thin logs
-        for col in ("fill_price", "limit_price"):
+        for col in ("quantity", "fill_price", "limit_price"):
             if col not in filtered.columns:
                 filtered[col] = pd.array([None] * len(filtered), dtype="Int64")
+        for col in ("symbol", "side", "reason"):
+            if col not in filtered.columns:
+                filtered[col] = None
         return cast(DataFrame[OrderLogsSchema], filtered)
 
     def to_dict(self) -> dict[str, Any]:

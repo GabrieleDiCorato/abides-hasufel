@@ -28,10 +28,12 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from abides_core.telemetry.event_payloads import EVENT_TYPE_SCHEMA
+from abides_core.telemetry.event_payloads import EVENT_TYPE_SCHEMA, EventType
+from abides_core.utils import parse_logs_df
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOTS = (
@@ -126,6 +128,36 @@ def _collect_violations() -> tuple[list[str], list[str]]:
 
 class TestEventPayloadSchemaAudit:
     """Fail the build on any structural drift between publishers and the registry."""
+
+    def test_every_static_event_type_has_schema(self) -> None:
+        missing = [
+            event_type
+            for event_type in EventType
+            if event_type not in EVENT_TYPE_SCHEMA
+        ]
+        assert (
+            not missing
+        ), "EventType members missing EVENT_TYPE_SCHEMA entries: " + ", ".join(
+            event_type.value for event_type in missing
+        )
+
+    def test_order_rejected_schema_matches_logged_payload(self) -> None:
+        schema = EVENT_TYPE_SCHEMA[EventType.ORDER_REJECTED]
+        assert schema.name == "ORDER_REJECTION"
+        assert schema.fields == ("order_id", "reason")
+
+    def test_parse_logs_df_expands_order_rejected_payload(self) -> None:
+        agent = SimpleNamespace(
+            id=1,
+            type="TestAgent",
+            log=[(1000, EventType.ORDER_REJECTED, (42, "INVALID_PRICE"))],
+        )
+
+        logs = parse_logs_df([agent])
+
+        assert logs.loc[0, "EventType"] == EventType.ORDER_REJECTED
+        assert logs.loc[0, "order_id"] == 42
+        assert logs.loc[0, "reason"] == "INVALID_PRICE"
 
     @pytest.fixture(scope="class")
     def violations(self) -> tuple[list[str], list[str]]:

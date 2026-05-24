@@ -1260,6 +1260,7 @@ def compute_rich_metrics(
                         "submitted_qty": qty,
                         "filled_qty": 0,
                         "cancelled": False,
+                        "rejected": False,
                         "terminal_time_ns": None,
                         "fill_events": [],
                     }
@@ -1291,6 +1292,15 @@ def compute_rich_metrics(
                         t_ns = int(row.get("EventTime", 0))
                         trk["cancelled"] = True
                         trk["terminal_time_ns"] = t_ns
+            elif evt == "ORDER_REJECTED":
+                oid = row.get("order_id")
+                if oid is not None:
+                    oid = int(oid)
+                    trk = _order_tracker.get(oid)
+                    if trk is not None:
+                        t_ns = int(row.get("EventTime", 0))
+                        trk["rejected"] = True
+                        trk["terminal_time_ns"] = t_ns
 
     # Build per-agent OrderLifecycle lists
     agent_lifecycles: dict[int, list[OrderLifecycle]] = defaultdict(list)
@@ -1298,11 +1308,16 @@ def compute_rich_metrics(
         fq = trk["filled_qty"]
         sq = trk["submitted_qty"]
         cancelled = trk["cancelled"]
+        rejected = trk["rejected"]
         terminal_ns = trk["terminal_time_ns"]
 
-        status: Literal["filled", "partially_filled", "cancelled", "resting"]
+        status: Literal[
+            "filled", "partially_filled", "cancelled", "rejected", "resting"
+        ]
         if cancelled:
             status = "partially_filled" if fq > 0 else "cancelled"
+        elif rejected:
+            status = "rejected"
         elif fq >= sq and sq > 0:
             status = "filled"
         elif fq > 0:

@@ -124,6 +124,7 @@ _ORDER_EVENT_TYPES = frozenset(
         "ORDER_ACCEPTED",
         "ORDER_EXECUTED",
         "ORDER_CANCELLED",
+        "ORDER_REJECTED",
         "PARTIAL_CANCELLED",
         "ORDER_MODIFIED",
         "ORDER_REPLACED",
@@ -137,16 +138,19 @@ class OrderLogsSchema(RawLogsSchema):
     Produced by :meth:`~abides_markets.simulation.SimulationResult.order_logs`.
 
     Inherits the four base columns from :class:`RawLogsSchema` and adds the
-    columns that are guaranteed on every order-related log entry.  Extra
-    per-order-type columns (``limit_price``, ``is_hidden``, etc.) remain
-    accessible but are not declared here.
+    columns that are guaranteed on every order-related log entry.  Rejection
+    rows only guarantee ``order_id`` and ``reason``, so order-detail columns are
+    nullable.  Extra per-order-type columns (``is_hidden``, ``time_in_force``,
+    etc.) remain accessible but are not declared here.
     """
 
-    symbol: Series[str] = pa.Field(description="Trading symbol.")
+    symbol: Series[str] = pa.Field(nullable=True, description="Trading symbol.")
     order_id: Series[pa.Int64] = pa.Field(description="Unique order identifier.")
-    quantity: Series[pa.Int64] = pa.Field(gt=0, description="Order quantity in shares.")
+    quantity: Series[pa.Int64] = pa.Field(
+        gt=0, nullable=True, description="Order quantity in shares."
+    )
     side: Series[str] = pa.Field(
-        isin=["BID", "ASK"], description="Order side: 'BID' or 'ASK'."
+        isin=["BID", "ASK"], nullable=True, description="Order side: 'BID' or 'ASK'."
     )
     fill_price: Series[pa.Int64] = pa.Field(
         gt=0,
@@ -157,6 +161,9 @@ class OrderLogsSchema(RawLogsSchema):
         gt=0,
         nullable=True,
         description="Limit price in cents; None for market orders.",
+    )
+    reason: Series[str] = pa.Field(
+        nullable=True, description="Rejection reason; None unless ORDER_REJECTED."
     )
 
     class Config:

@@ -178,6 +178,17 @@ The payload is the positional tuple returned by
 string formatting (when needed) calls ``.legacy_str()``.
 """
 
+ORDER_REJECTION = PayloadSchema(
+    name="ORDER_REJECTION",
+    version=1,
+    fields=("order_id", "reason"),
+)
+"""Schema for exchange order rejections.
+
+Payload is ``(order_id, reason)`` where ``reason`` is a
+``RejectReason.value`` string.
+"""
+
 HOLDINGS_DELTA = PayloadSchema(
     name="HOLDINGS_DELTA",
     version=2,
@@ -443,6 +454,7 @@ EVENT_TYPE_SCHEMA: dict[EventType, PayloadSchema] = {
     EventType.ORDER_ACCEPTED: ORDER_EVENT,
     EventType.ORDER_EXECUTED: ORDER_EVENT,
     EventType.ORDER_CANCELLED: ORDER_EVENT,
+    EventType.ORDER_REJECTED: ORDER_REJECTION,
     EventType.PARTIAL_CANCELLED: ORDER_EVENT,
     EventType.ORDER_MODIFIED: ORDER_EVENT,
     EventType.ORDER_REPLACED: ORDER_EVENT,
