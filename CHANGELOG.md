@@ -60,22 +60,41 @@ reference.
   were previously silent.
 
 ### Fixed
-- **Order-rejection analytics now surface `OrderRejectedMsg` end to end.**
-  `ORDER_REJECTED` is schema-registered (payload tuple `(order_id, reason)`),
-  rejected submissions are marked terminal `"rejected"` in
-  `OrderLifecycle` (no longer treated as still resting), and rejection
-  rows can be retrieved via the dedicated
-  `SimulationResult.rejected_order_logs()` accessor.
+- **End-to-end order-rejection analytics.** Rejected submissions flow
+  through the bus as typed `OrderRejectedMsg(order_id, reason)` events
+  under the registered `ORDER_REJECTED` schema (payload tuple
+  `(order_id, reason)`). `OrderLifecycle` marks rejected orders
+  terminal as `"rejected"` (they are not tracked as still resting), and
+  `TradingAgent.on_order_rejected()` removes the rejected order from
+  `self.orders` so open-order state stays consistent.
+- **`ExchangeAgent` rejects unknown symbols on every order-lifecycle
+  path.** Limit, market, cancel, partial-cancel, modify, replace, and
+  stop handlers all emit `OrderRejectedMsg(UNKNOWN_SYMBOL)` for
+  requests that reference an unregistered symbol, instead of dropping
+  them silently.
 
 ### Added
-- **`SimulationResult.rejected_order_logs()`** and **`RejectedOrderLogsSchema`** —
-  a dedicated accessor and schema for `ORDER_REJECTED` rows, keeping the
-  strict `OrderLogsSchema` clean of nullable rejection-only columns.
-- **`OrderLifecycle.rejection_latency_ns`** — submission-to-rejection elapsed
-  time for rejected orders. `resting_time_ns` is `None` for rejected orders
-  (they never entered the book).
-- **`OrderRejectedMsg` and `RejectReason`** are re-exported from the top-level
-  `abides_markets` package.
+- **`OrderRejectedMsg` and `RejectReason`** (defined in
+  `abides_markets.messages.orderbook`) are re-exported from the
+  top-level `abides_markets` package. `RejectReason` members are
+  `INVALID_QUANTITY`, `INVALID_PRICE`, and `UNKNOWN_SYMBOL`;
+  `INSUFFICIENT_LIQUIDITY` is reserved in the enum but unused — FOK
+  orders continue to produce `OrderCancelledMsg` per FIX convention.
+- **`TradingAgent.on_order_rejected(order_id, reason)`** is an
+  overridable hook for custom rejection handling. The base
+  implementation logs at `WARNING` level and clears the order from
+  `self.orders`. Orders routed through `OrderBook.handle_limit_order`
+  with `quiet=True` continue to suppress the reject silently,
+  consistent with how `quiet` suppresses fills and accepts.
+- **`SimulationResult.rejected_order_logs()`** returns a DataFrame of
+  `ORDER_REJECTED` rows shaped by the new **`RejectedOrderLogsSchema`**.
+  This accessor is separate from the strict `order_logs()`, which
+  excludes rejections to keep its schema free of nullable
+  rejection-only columns.
+- **`OrderLifecycle.rejection_latency_ns: int | None`** —
+  submission-to-rejection elapsed time for rejected orders.
+  `resting_time_ns` is `None` for rejected orders (they never entered
+  the book).
 - **`BOOK_LIMIT` and `BOOK_EXEC` schema field collision with `InMemorySink`.**
   Both `PayloadSchema` instances had `"agent_id"` as a field name, which silently
   collided with the `"agent_id"` column in `InMemorySink._COMMON_COLS`, causing
@@ -325,31 +344,10 @@ reference.
   drops anything else with a logger warning.
 - Repeated `OrderBook.history` / `book_log2` reads no longer emit
   spurious deprecation warnings during normal operation.
-- **`TradingAgent.on_order_rejected()` removes the rejected order from
-  `self.orders`**, keeping open-order tracking consistent after a
-  rejection.
-- **`ExchangeAgent` cancel, partial-cancel, modify, replace, and stop
-  handlers** send `OrderRejectedMsg(UNKNOWN_SYMBOL)` for requests that
-  reference an unregistered symbol, rather than dropping them silently.
-- **`RejectReason.INSUFFICIENT_LIQUIDITY`** is reserved in the enum; FOK
-  orders continue to produce `OrderCancelledMsg` per FIX convention.
 - **`create_limit_order`** logs a `WARNING` instead of emitting a
   `DeprecationWarning` when the requested quantity is zero.
 - **Symbol-mismatch paths in `OrderBook`** log at `ERROR` level instead
   of emitting a `DeprecationWarning`.
-
-### Added
-- **`RejectReason` enum and `OrderRejectedMsg`** in
-  `abides_markets.messages.orderbook`. `RejectReason` carries three
-  members — `INVALID_QUANTITY`, `INVALID_PRICE`, `UNKNOWN_SYMBOL` —
-  and `OrderRejectedMsg(order_id: int, reason: RejectReason)` is the
-  typed message `ExchangeAgent` now sends when it would previously
-  have called `warnings.warn`. `TradingAgent` dispatches incoming
-  `OrderRejectedMsg` to an overridable `on_order_rejected(order_id,
-  reason)` hook; the base implementation logs at `WARNING` level.
-  Orders routed through `OrderBook.handle_limit_order` with
-  `quiet=True` continue to suppress the reject silently, consistent
-  with how `quiet` suppresses fills and accepts.
 
 ---
 
