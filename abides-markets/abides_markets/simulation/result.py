@@ -833,6 +833,10 @@ class SimulationResult(BaseModel):
     def order_logs(self) -> DataFrame[OrderLogsSchema]:
         """Return the order-event subset of the log DataFrame, schema-validated.
 
+        Includes ``ORDER_REJECTED`` rows. Rejection rows only guarantee
+        ``order_id`` and ``reason``; order-detail columns such as ``symbol``,
+        ``quantity``, and ``side`` may be null.
+
         Raises
         ------
         RuntimeError

@@ -207,7 +207,7 @@ One entry per agent. Combines data from `AgentData`, `EquityCurve`,
 ### `OrderLifecycle`
 
 One entry per submitted order, reconstructed from `ORDER_SUBMITTED`,
-`ORDER_EXECUTED`, and `ORDER_CANCELLED` log events. Populated on
+`ORDER_EXECUTED`, `ORDER_CANCELLED`, and `ORDER_REJECTED` log events. Populated on
 `RichAgentMetrics.order_lifecycles` when `ResultProfile.AGENT_LOGS` is active.
 
 | Field | Type | Definition |
@@ -215,7 +215,7 @@ One entry per submitted order, reconstructed from `ORDER_SUBMITTED`,
 | `order_id` | `int` | Unique order identifier. |
 | `agent_id` | `int` | Agent that submitted the order. |
 | `submitted_at_ns` | `int` | Timestamp of the `ORDER_SUBMITTED` event (nanoseconds, Unix epoch). |
-| `status` | `Literal["filled", "partially_filled", "cancelled", "resting"]` | Terminal status. `"filled"` when `filled_qty == submitted_qty`; `"partially_filled"` when `0 < filled_qty < submitted_qty`; `"cancelled"` when an `ORDER_CANCELLED` event was observed; `"resting"` when no terminal event occurred by end of simulation. |
+| `status` | `Literal["filled", "partially_filled", "cancelled", "rejected", "resting"]` | Terminal status. `"filled"` when `filled_qty == submitted_qty`; `"partially_filled"` when `0 < filled_qty < submitted_qty` or a partially filled order is cancelled; `"cancelled"` when an `ORDER_CANCELLED` event was observed with no fills; `"rejected"` when an `ORDER_REJECTED` event was observed; `"resting"` when no terminal event occurred by end of simulation. |
 | `filled_qty` | `int` | Total quantity filled across all execution events. |
 | `submitted_qty` | `int` | Quantity specified in the original `ORDER_SUBMITTED` event. |
 | `resting_time_ns` | `int \| None` | Elapsed time from submission to terminal state (nanoseconds). `None` when the order is still `"resting"` at simulation end. |
@@ -441,7 +441,7 @@ methods:
 |:---|:---|:---|
 | `get_agents_by_category(category: str)` | `list[AgentData]` | Filter agents by `agent_category` (registry category string). |
 | `summary()` | `str` | Concise human/LLM-readable narrative. Succeeds regardless of profile. |
-| `order_logs()` | `DataFrame[OrderLogsSchema]` | Order-event subset of the log DataFrame. Raises `RuntimeError` if `AGENT_LOGS` was not active. |
+| `order_logs()` | `DataFrame[OrderLogsSchema]` | Order-event subset of the log DataFrame, including `ORDER_REJECTED` rows. Raises `RuntimeError` if `AGENT_LOGS` was not active. |
 | `to_dict()` | `dict[str, Any]` | Fully JSON-serialisable dict (no numpy arrays or DataFrames). |
 | `to_json()` | `str` | JSON string representation. |
 | `summary_dict()` | `dict[str, Any]` | Structured dict for dashboard widgets: `metadata`, `markets`, `agent_leaderboard`, `execution_summary`, `warnings`. |
@@ -547,16 +547,18 @@ Base schema for `SimulationResult.logs`. Non-strict (extra columns pass through)
 ### `OrderLogsSchema`
 
 Schema for `SimulationResult.order_logs()`. Extends `RawLogsSchema` with order-specific
-columns. Non-strict (extra per-event-type columns are retained).
+columns. Non-strict (extra per-event-type columns are retained). Rejection rows only
+guarantee `order_id` and `reason`, so order-detail columns are nullable.
 
 | Column | dtype | Nullable | Description |
 |:---|:---|:---|:---|
-| `symbol` | `str` | No | Trading symbol. |
+| `symbol` | `str` | Yes | Trading symbol. |
 | `order_id` | `Int64` | No | Unique order identifier. |
-| `quantity` | `Int64` | No | Order quantity in shares (> 0). |
-| `side` | `str` | No | `"BID"` or `"ASK"`. |
+| `quantity` | `Int64` | Yes | Order quantity in shares (> 0). |
+| `side` | `str` | Yes | `"BID"` or `"ASK"`. |
 | `fill_price` | `Int64` | Yes | Fill price in cents; `None` unless `ORDER_EXECUTED`. |
 | `limit_price` | `Int64` | Yes | Limit price in cents; `None` for market orders. |
+| `reason` | `str` | Yes | Rejection reason; `None` unless `ORDER_REJECTED`. |
 
 ---
 

@@ -1215,8 +1215,8 @@ def compute_rich_metrics(
     +-----------------------------------+---------------------+------------+
     | vwap, trade_count, inventory_std  | TRADE_ATTRIBUTION   | None / 0   |
     +-----------------------------------+---------------------+------------+
-    | fill_rate_pct, order_to_trade,    | AGENT_LOGS          | None       |
-    | market_ott_ratio                  |                     |            |
+    | fill_rate_pct, order_to_trade,    | AGENT_LOGS          | None / []  |
+    | market_ott_ratio, order_lifecycles |                     |            |
     +-----------------------------------+---------------------+------------+
 
     Full output requires ``ResultProfile.FULL`` (=QUANT | AGENT_LOGS).

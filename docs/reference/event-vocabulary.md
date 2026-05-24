@@ -24,7 +24,7 @@ statically):
 |---|---|---|
 | `parse_logs_df` | `abides-core/abides_core/utils.py` | `EventType` + `event_dict` keys projected to columns |
 | `SimulationResult.order_logs` | `abides-markets/abides_markets/simulation/result.py` | Filters on `_ORDER_EVENT_TYPES` |
-| `metrics._compute_per_agent_order_stats` | `abides-markets/abides_markets/simulation/metrics.py` | Branches on `ORDER_SUBMITTED`, `ORDER_EXECUTED`, `ORDER_CANCELLED` |
+| `compute_rich_metrics` | `abides-markets/abides_markets/simulation/metrics.py` | Branches on `ORDER_SUBMITTED`, `ORDER_EXECUTED`, `ORDER_CANCELLED`, `ORDER_REJECTED` |
 | `reconstruct_holdings` | `abides-markets/abides_markets/utils.py` | Folds `HOLDINGS_UPDATED` delta rows into a snapshot dict |
 | Tests | `abides-core/tests/`, `abides-markets/tests/` | Assert specific event types; treat as binding contract |
 | External readers | — | Any agent log is part of the public vocabulary; renames require a deprecation cycle |
