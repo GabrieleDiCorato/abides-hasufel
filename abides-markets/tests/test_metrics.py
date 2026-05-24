@@ -1492,7 +1492,10 @@ class TestOrderLifecycles:
         assert lc.status == "rejected"
         assert lc.filled_qty == 0
         assert lc.submitted_qty == 10
-        assert lc.resting_time_ns == 500
+        # Rejected orders never rested in the book; their submission-to-terminal
+        # elapsed time is reported as rejection_latency_ns instead.
+        assert lc.resting_time_ns is None
+        assert lc.rejection_latency_ns == 500
 
     def test_partially_filled_then_cancelled(self):
         """Order partially filled then cancelled has status='partially_filled'."""

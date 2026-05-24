@@ -60,11 +60,22 @@ reference.
   were previously silent.
 
 ### Fixed
-- **Order-rejection analytics now include `OrderRejectedMsg` rows end to end.**
-  `ORDER_REJECTED` telemetry is schema-registered, rejection logs expand to
-  `order_id` and `reason`, `SimulationResult.order_logs()` includes rejection
-  rows, and rich order lifecycles mark rejected submissions as terminal
-  `"rejected"` orders instead of treating them as resting.
+- **Order-rejection analytics now surface `OrderRejectedMsg` end to end.**
+  `ORDER_REJECTED` is schema-registered (payload tuple `(order_id, reason)`),
+  rejected submissions are marked terminal `"rejected"` in
+  `OrderLifecycle` (no longer treated as still resting), and rejection
+  rows can be retrieved via the dedicated
+  `SimulationResult.rejected_order_logs()` accessor.
+
+### Added
+- **`SimulationResult.rejected_order_logs()`** and **`RejectedOrderLogsSchema`** —
+  a dedicated accessor and schema for `ORDER_REJECTED` rows, keeping the
+  strict `OrderLogsSchema` clean of nullable rejection-only columns.
+- **`OrderLifecycle.rejection_latency_ns`** — submission-to-rejection elapsed
+  time for rejected orders. `resting_time_ns` is `None` for rejected orders
+  (they never entered the book).
+- **`OrderRejectedMsg` and `RejectReason`** are re-exported from the top-level
+  `abides_markets` package.
 - **`BOOK_LIMIT` and `BOOK_EXEC` schema field collision with `InMemorySink`.**
   Both `PayloadSchema` instances had `"agent_id"` as a field name, which silently
   collided with the `"agent_id"` column in `InMemorySink._COMMON_COLS`, causing
@@ -317,9 +328,6 @@ reference.
 - **`TradingAgent.on_order_rejected()` removes the rejected order from
   `self.orders`**, keeping open-order tracking consistent after a
   rejection.
-- **Rejected orders emit an `EventType.ORDER_REJECTED` telemetry event**,
-  making rejections queryable in post-hoc log analysis via
-  `parse_logs_df` with filter `"ORDER_REJECTED"`.
 - **`ExchangeAgent` cancel, partial-cancel, modify, replace, and stop
   handlers** send `OrderRejectedMsg(UNKNOWN_SYMBOL)` for requests that
   reference an unregistered symbol, rather than dropping them silently.

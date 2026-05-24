@@ -1314,6 +1314,11 @@ def compute_rich_metrics(
         status: Literal[
             "filled", "partially_filled", "cancelled", "rejected", "resting"
         ]
+        # In current production code an order_id receives at most one of
+        # ORDER_CANCELLED / ORDER_REJECTED — they are mutually exclusive
+        # terminal events.  If both are ever observed (e.g. merged logs or
+        # a future bug), `cancelled` wins because a cancellation implies the
+        # order was accepted into the book first.
         if cancelled:
             status = "partially_filled" if fq > 0 else "cancelled"
         elif rejected:
@@ -1326,8 +1331,15 @@ def compute_rich_metrics(
             status = "resting"
 
         resting_time: int | None = None
+        rejection_latency: int | None = None
         if terminal_ns is not None:
-            resting_time = terminal_ns - trk["submitted_at_ns"]
+            elapsed = terminal_ns - trk["submitted_at_ns"]
+            if status == "rejected":
+                # Rejected orders never entered the book; report the time to
+                # rejection separately rather than as a "resting" duration.
+                rejection_latency = elapsed
+            else:
+                resting_time = elapsed
 
         lc = OrderLifecycle(
             order_id=oid,
@@ -1337,6 +1349,7 @@ def compute_rich_metrics(
             filled_qty=fq,
             submitted_qty=sq,
             resting_time_ns=resting_time,
+            rejection_latency_ns=rejection_latency,
             fill_events=trk["fill_events"],
         )
         agent_lifecycles[trk["agent_id"]].append(lc)

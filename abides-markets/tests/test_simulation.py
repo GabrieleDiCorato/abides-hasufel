@@ -470,14 +470,39 @@ class TestOrderLogs:
                 "ORDER_ACCEPTED",
                 "ORDER_EXECUTED",
                 "ORDER_CANCELLED",
-                "ORDER_REJECTED",
                 "PARTIAL_CANCELLED",
                 "ORDER_MODIFIED",
                 "ORDER_REPLACED",
             }
         )
 
-    def test_order_logs_includes_rejections(self):
+    def test_order_logs_excludes_rejections(self):
+        logs = pd.DataFrame(
+            {
+                "EventTime": pd.array([1000, 1500], dtype="Int64"),
+                "EventType": ["ORDER_SUBMITTED", "ORDER_REJECTED"],
+                "agent_id": pd.array([1, 1], dtype="Int64"),
+                "agent_type": ["NoiseAgent", "NoiseAgent"],
+                "order_id": pd.array([100, 100], dtype="Int64"),
+                "symbol": ["ABM", None],
+                "quantity": pd.array([10, pd.NA], dtype="Int64"),
+                "side": ["BID", None],
+                "reason": [None, "INVALID_PRICE"],
+            }
+        )
+        result = SimulationResult(
+            metadata=_make_metadata(),
+            markets={"ABM": _make_market_summary()},
+            agents=[_make_agent_data()],
+            logs=logs,
+            profile=ResultProfile.FULL,
+        )
+
+        df = result.order_logs()
+
+        assert list(df["EventType"]) == ["ORDER_SUBMITTED"]
+
+    def test_rejected_order_logs_returns_rejections(self):
         logs = pd.DataFrame(
             {
                 "EventTime": pd.array([1000], dtype="Int64"),
@@ -496,13 +521,16 @@ class TestOrderLogs:
             profile=ResultProfile.FULL,
         )
 
-        df = result.order_logs()
+        df = result.rejected_order_logs()
 
         assert list(df["EventType"]) == ["ORDER_REJECTED"]
         assert df.loc[0, "order_id"] == 100
         assert df.loc[0, "reason"] == "INVALID_PRICE"
-        assert pd.isna(df.loc[0, "quantity"])
-        assert pd.isna(df.loc[0, "symbol"])
+
+    def test_rejected_order_logs_raises_without_logs_profile(self):
+        result = _make_simulation_result(include_logs=False)
+        with pytest.raises(RuntimeError, match="Agent logs were not extracted"):
+            result.rejected_order_logs()
 
     def test_order_logs_raises_without_logs_profile(self):
         result = _make_simulation_result(include_logs=False)

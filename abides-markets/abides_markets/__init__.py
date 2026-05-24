@@ -10,6 +10,7 @@ from .agents import (
     TradingAgent,
     ValueAgent,
 )
+from .messages.orderbook import OrderRejectedMsg, RejectReason
 from .order_book import OrderBook
 from .orders import LimitOrder, MarketOrder, Order, Side, StopOrder, TimeInForce
 from .price_level import PriceLevel
@@ -34,4 +35,7 @@ __all__ = [
     "Side",
     "StopOrder",
     "TimeInForce",
+    # Order-book messages
+    "OrderRejectedMsg",
+    "RejectReason",
 ]

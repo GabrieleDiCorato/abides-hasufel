@@ -42,6 +42,7 @@ DataFrame schemas (Pandera)::
         L2DataFrameSchema,
         RawLogsSchema,
         OrderLogsSchema,
+        RejectedOrderLogsSchema,
     )
 """
 
@@ -97,6 +98,7 @@ from .schemas import (
     L2DataFrameSchema,
     OrderLogsSchema,
     RawLogsSchema,
+    RejectedOrderLogsSchema,
 )
 
 __all__ = [
@@ -156,4 +158,5 @@ __all__ = [
     "L2DataFrameSchema",
     "RawLogsSchema",
     "OrderLogsSchema",
+    "RejectedOrderLogsSchema",
 ]

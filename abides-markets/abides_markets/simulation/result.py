@@ -37,10 +37,12 @@ from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
 from .profiles import ResultProfile
 from .schemas import (
     _ORDER_EVENT_TYPES,
+    _REJECTED_ORDER_EVENT_TYPES,
     L1DataFrameSchema,
     L2DataFrameSchema,
     OrderLogsSchema,
     RawLogsSchema,
+    RejectedOrderLogsSchema,
 )
 
 # ---------------------------------------------------------------------------
@@ -548,9 +550,19 @@ class OrderLifecycle(BaseModel):
     """Quantity specified in the original ORDER_SUBMITTED event."""
 
     resting_time_ns: int | None = None
-    """Elapsed time from submission to terminal state (nanoseconds).
+    """Elapsed time the order spent resting in the book (nanoseconds).
 
-    ``None`` when the order is still ``"resting"`` at simulation end.
+    Measured from submission to terminal state for orders that actually entered
+    the book (``"filled"``, ``"partially_filled"``, ``"cancelled"``).  ``None``
+    for ``"resting"`` orders (no terminal event observed) and for ``"rejected"``
+    orders (the order never entered the book — see :attr:`rejection_latency_ns`
+    instead).
+    """
+
+    rejection_latency_ns: int | None = None
+    """Time between submission and rejection (nanoseconds).
+
+    Populated only for ``status == "rejected"``; ``None`` otherwise.
     """
 
     fill_events: list[tuple[int, int, int]] = []
@@ -833,9 +845,10 @@ class SimulationResult(BaseModel):
     def order_logs(self) -> DataFrame[OrderLogsSchema]:
         """Return the order-event subset of the log DataFrame, schema-validated.
 
-        Includes ``ORDER_REJECTED`` rows. Rejection rows only guarantee
-        ``order_id`` and ``reason``; order-detail columns such as ``symbol``,
-        ``quantity``, and ``side`` may be null.
+        Excludes ``ORDER_REJECTED`` rows because they lack the ``symbol``,
+        ``quantity``, and ``side`` columns guaranteed by
+        :class:`~abides_markets.simulation.schemas.OrderLogsSchema`.  Use
+        :meth:`rejected_order_logs` for the rejection subset.
 
         Raises
         ------
@@ -848,14 +861,36 @@ class SimulationResult(BaseModel):
                 "(or ResultProfile.FULL) to access order logs."
             )
         mask = self.logs["EventType"].isin(_ORDER_EVENT_TYPES)
+        return cast(DataFrame[OrderLogsSchema], self.logs.loc[mask].copy())
+
+    def rejected_order_logs(self) -> DataFrame[RejectedOrderLogsSchema]:
+        """Return the order-rejection subset of the log DataFrame.
+
+        Each row corresponds to an ``ORDER_REJECTED`` event emitted by
+        :class:`~abides_markets.agents.TradingAgent` when an
+        ``OrderRejectedMsg`` is received.  Only ``order_id`` and ``reason``
+        are guaranteed; the original order's symbol / quantity / side are not
+        part of the rejection payload.
+
+        Raises
+        ------
+        RuntimeError
+            If ``ResultProfile.AGENT_LOGS`` was not set when the simulation ran.
+        """
+        if self.logs is None or ResultProfile.AGENT_LOGS not in self.profile:
+            raise RuntimeError(
+                "Agent logs were not extracted. Re-run with ResultProfile.AGENT_LOGS "
+                "(or ResultProfile.FULL) to access order logs."
+            )
+        mask = self.logs["EventType"].isin(_REJECTED_ORDER_EVENT_TYPES)
         filtered = self.logs.loc[mask].copy()
-        for col in ("quantity", "fill_price", "limit_price"):
+        for col in ("order_id",):
             if col not in filtered.columns:
                 filtered[col] = pd.array([None] * len(filtered), dtype="Int64")
-        for col in ("symbol", "side", "reason"):
+        for col in ("reason",):
             if col not in filtered.columns:
                 filtered[col] = None
-        return cast(DataFrame[OrderLogsSchema], filtered)
+        return cast(DataFrame[RejectedOrderLogsSchema], filtered)
 
     def to_dict(self) -> dict[str, Any]:
         """Return a fully JSON-serialisable dict (no numpy arrays, no DataFrames).

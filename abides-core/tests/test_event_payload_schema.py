@@ -159,6 +159,30 @@ class TestEventPayloadSchemaAudit:
         assert logs.loc[0, "order_id"] == 42
         assert logs.loc[0, "reason"] == "INVALID_PRICE"
 
+    def test_in_memory_sink_buckets_order_rejected_by_schema(self) -> None:
+        """ORDER_REJECTED events land in a typed bucket with order_id/reason
+        columns (not the GENERIC ``payload`` column).
+
+        This exercises the InMemorySink fast path: the schema registration
+        for ORDER_REJECTED must drive bucket layout in the sink, otherwise
+        the fast-path branch of ``parse_logs_df`` would degrade rejections
+        to a single ``payload`` column.
+        """
+        from abides_core.sinks.event_sinks import InMemorySink
+
+        sink = InMemorySink()
+        sink.on_simulation_start({})
+        # Wire layout: (agent_id, agent_type, sim_time_ns, event_type, payload, seq)
+        sink.on_event(
+            (1, "TestAgent", 1000, EventType.ORDER_REJECTED, (42, "INVALID_PRICE"), 0)
+        )
+
+        bucket = sink._cols[EventType.ORDER_REJECTED]
+        assert "order_id" in bucket and "reason" in bucket
+        assert "payload" not in bucket  # would indicate GENERIC fallback
+        assert bucket["order_id"] == [42]
+        assert bucket["reason"] == ["INVALID_PRICE"]
+
     @pytest.fixture(scope="class")
     def violations(self) -> tuple[list[str], list[str]]:
         return _collect_violations()
