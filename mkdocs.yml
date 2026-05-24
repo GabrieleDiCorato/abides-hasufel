@@ -56,6 +56,9 @@ nav:
   - For LLM / Agent Builders:
     - Integration Gotchas: reference/llm-gotchas.md
   - Changelog: changelog.md
+  - Examples:
+    - Markets Demo: notebooks/demo_ABIDES-Markets.ipynb
+    - Config System Demo: notebooks/demo_Config_System.ipynb
 
 markdown_extensions:
   - pymdownx.snippets:
@@ -71,3 +74,7 @@ markdown_extensions:
 
 plugins:
   - search
+  - mkdocs-jupyter:
+      execute: true
+      kernel_name: python3
+      include_requirejs: true

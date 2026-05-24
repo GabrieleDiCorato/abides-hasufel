@@ -34,4 +34,4 @@ jobs:
         run: uv sync --dev
 
       - name: Build and deploy
-        run: uv run mkdocs gh-deploy --force
+        run: uv run python -m mkdocs gh-deploy --force
