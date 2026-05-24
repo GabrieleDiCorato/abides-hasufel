@@ -309,6 +309,21 @@ reference.
   drops anything else with a logger warning.
 - Repeated `OrderBook.history` / `book_log2` reads no longer emit
   spurious deprecation warnings during normal operation.
+- **`TradingAgent.on_order_rejected()` removes the rejected order from
+  `self.orders`**, keeping open-order tracking consistent after a
+  rejection.
+- **Rejected orders emit an `EventType.ORDER_REJECTED` telemetry event**,
+  making rejections queryable in post-hoc log analysis via
+  `parse_logs_df` with filter `"ORDER_REJECTED"`.
+- **`ExchangeAgent` cancel, partial-cancel, modify, replace, and stop
+  handlers** send `OrderRejectedMsg(UNKNOWN_SYMBOL)` for requests that
+  reference an unregistered symbol, rather than dropping them silently.
+- **`RejectReason.INSUFFICIENT_LIQUIDITY`** is reserved in the enum; FOK
+  orders continue to produce `OrderCancelledMsg` per FIX convention.
+- **`create_limit_order`** logs a `WARNING` instead of emitting a
+  `DeprecationWarning` when the requested quantity is zero.
+- **Symbol-mismatch paths in `OrderBook`** log at `ERROR` level instead
+  of emitting a `DeprecationWarning`.
 
 ### Added
 - **`RejectReason` enum and `OrderRejectedMsg`** in
