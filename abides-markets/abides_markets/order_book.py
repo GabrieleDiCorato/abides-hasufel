@@ -172,8 +172,10 @@ class OrderBook:
         """
 
         if order.symbol != self.symbol:
-            warnings.warn(
-                f"{order.symbol} order discarded. Does not match OrderBook symbol: {self.symbol}"
+            logger.error(
+                "%s order discarded. Does not match OrderBook symbol: %s",
+                order.symbol,
+                self.symbol,
             )
             return
 
@@ -279,10 +281,11 @@ class OrderBook:
         """
 
         if order.symbol != self.symbol:
-            warnings.warn(
-                f"{order.symbol} order discarded. Does not match OrderBook symbol: {self.symbol}"
+            logger.error(
+                "%s order discarded. Does not match OrderBook symbol: %s",
+                order.symbol,
+                self.symbol,
             )
-
             return
 
         if (order.quantity <= 0) or (int(order.quantity) != order.quantity):

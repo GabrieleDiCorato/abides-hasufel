@@ -793,8 +793,9 @@ class ExchangeAgent(FinancialAgent):
         metadata = message.metadata
         logger.debug(f"{self.name} received CANCEL_ORDER: {message.order}")
         if message.order.symbol not in self.order_books:
-            warnings.warn(
-                f"Cancellation request discarded. Unknown symbol: {message.order.symbol}"
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(message.order.order_id, RejectReason.UNKNOWN_SYMBOL),
             )
         else:
             self.order_books[message.order.symbol].cancel_order(
@@ -814,8 +815,9 @@ class ExchangeAgent(FinancialAgent):
             f"{self.name} received PARTIAL_CANCEL_ORDER: {message.order}, new order: {message.quantity}"
         )
         if message.order.symbol not in self.order_books:
-            warnings.warn(
-                f"Partial cancellation request discarded. Unknown symbol: {message.order.symbol}"
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(message.order.order_id, RejectReason.UNKNOWN_SYMBOL),
             )
         else:
             self.order_books[message.order.symbol].partial_cancel_order(
@@ -832,8 +834,9 @@ class ExchangeAgent(FinancialAgent):
             f"{self.name} received MODIFY_ORDER: {old_order}, new order: {new_order}"
         )
         if old_order.symbol not in self.order_books:
-            warnings.warn(
-                f"Modification request discarded. Unknown symbol: {old_order.symbol}"
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(old_order.order_id, RejectReason.UNKNOWN_SYMBOL),
             )
         else:
             self.order_books[old_order.symbol].modify_order(old_order, new_order)
@@ -849,8 +852,9 @@ class ExchangeAgent(FinancialAgent):
             f"{self.name} received REPLACE_ORDER: {order}, new order: {new_order}"
         )
         if order.symbol not in self.order_books:
-            warnings.warn(
-                f"Replacement request discarded. Unknown symbol: {order.symbol}"
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(order.order_id, RejectReason.UNKNOWN_SYMBOL),
             )
         else:
             # INVARIANT: same reasoning as _handle_limit_order — TradingAgent
@@ -865,7 +869,10 @@ class ExchangeAgent(FinancialAgent):
         order = message.order
         logger.debug(f"{self.name} received STOP_ORDER: {order}")
         if order.symbol not in self.order_books:
-            warnings.warn(f"Stop Order discarded. Unknown symbol: {order.symbol}")
+            self.send_message(
+                sender_id,
+                OrderRejectedMsg(order.order_id, RejectReason.UNKNOWN_SYMBOL),
+            )
         else:
             self.stop_orders[order.symbol].append((order, sender_id))
             if self.log_orders:

@@ -13,6 +13,7 @@ class RejectReason(Enum):
     INVALID_QUANTITY = "INVALID_QUANTITY"
     INVALID_PRICE = "INVALID_PRICE"
     UNKNOWN_SYMBOL = "UNKNOWN_SYMBOL"
+    INSUFFICIENT_LIQUIDITY = "INSUFFICIENT_LIQUIDITY"  # reserved; FOK still sends OrderCancelledMsg (FIX-correct)
 
 
 @dataclass

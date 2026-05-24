@@ -9,6 +9,7 @@ from abides_markets.messages.orderbook import OrderRejectedMsg, RejectReason
 from abides_markets.oracles.sparse_mean_reverting_oracle import (
     SparseMeanRevertingOracle,
 )
+from abides_markets.orders import LimitOrder
 
 # --- Kernel lifecycle state ---
 
@@ -337,3 +338,192 @@ def test_on_order_rejected_hook_dispatched():
     oid, reason = rejected_calls[0]
     assert oid == 42
     assert reason is RejectReason.INVALID_PRICE
+
+
+def test_on_order_rejected_removes_from_orders():
+    """on_order_rejected() default removes the order from self.orders."""
+    from abides_markets.orders import LimitOrder, Side
+
+    agent = TradingAgent(id=0, name="test", random_state=np.random.RandomState(42))
+    # Simulate an order that was placed and stored before sending to exchange.
+    fake_order = LimitOrder(
+        agent_id=0,
+        time_placed=0,
+        symbol="IBM",
+        quantity=10,
+        side=Side.BID,
+        limit_price=10_000,
+        order_id=99,
+    )
+    agent.orders[99] = fake_order
+    assert 99 in agent.orders
+
+    agent.on_order_rejected(99, RejectReason.INVALID_QUANTITY)
+
+    assert 99 not in agent.orders, "Rejected order must be removed from self.orders"
+
+
+def test_on_order_rejected_no_logEvent_when_log_orders_false():
+    """on_order_rejected() must not call logEvent when log_orders is False (default)."""
+    logEvent_calls: list = []
+
+    class _TestAgent(TradingAgent):
+        def logEvent(self, *args, **kwargs):
+            logEvent_calls.append(args)
+
+    agent = _TestAgent(id=0, name="test", random_state=np.random.RandomState(42))
+    assert agent.log_orders is False
+    agent.on_order_rejected(55, RejectReason.UNKNOWN_SYMBOL)
+
+    assert logEvent_calls == []
+
+
+def test_on_order_rejected_logs_event_when_log_orders_true():
+    """on_order_rejected() emits EventType.ORDER_REJECTED when log_orders is True."""
+    from abides_core.telemetry.event_payloads import EventType
+
+    logEvent_calls: list = []
+
+    class _TestAgent(TradingAgent):
+        def logEvent(self, event_type, payload=None, **kwargs):
+            logEvent_calls.append((event_type, payload))
+
+    agent = _TestAgent(id=0, name="test", random_state=np.random.RandomState(42))
+    agent.log_orders = True
+    agent.orders[77] = object()  # placeholder
+
+    agent.on_order_rejected(77, RejectReason.INVALID_PRICE)
+
+    assert any(
+        et is EventType.ORDER_REJECTED for et, _ in logEvent_calls
+    ), f"Expected ORDER_REJECTED logEvent, got: {logEvent_calls}"
+    et, payload = next(
+        (et, p) for et, p in logEvent_calls if et is EventType.ORDER_REJECTED
+    )
+    assert payload == (77, "INVALID_PRICE")
+
+
+# --- Exchange handlers: unknown-symbol → OrderRejectedMsg ---
+
+
+def _make_exchange(symbols=("AAPL",)):
+    """Return an ExchangeAgent whose send_message is monkey-patched to record messages."""
+    sent: list = []
+    exchange = ExchangeAgent(
+        id=0,
+        mkt_open=int(9.5e9),
+        mkt_close=int(4e10),
+        symbols=list(symbols),
+        name="TestExchange",
+        random_state=np.random.RandomState(42),
+        log_orders=False,
+        use_metric_tracker=False,
+    )
+    exchange.send_message = lambda agent_id, msg: sent.append((agent_id, msg))
+    return exchange, sent
+
+
+def _limit(symbol: str, order_id: int = 10) -> LimitOrder:
+    from abides_markets.orders import Side
+
+    return LimitOrder(
+        agent_id=1,
+        time_placed=0,
+        symbol=symbol,
+        quantity=5,
+        side=Side.BID,
+        limit_price=10_000,
+        order_id=order_id,
+    )
+
+
+def test_handle_cancel_unknown_symbol_sends_reject():
+    """_handle_cancel_order sends OrderRejectedMsg(UNKNOWN_SYMBOL) for an unknown symbol."""
+    from abides_markets.messages.order import CancelOrderMsg
+
+    exchange, sent = _make_exchange(symbols=["AAPL"])
+    order = _limit("UNKNOWN", order_id=11)
+    msg = CancelOrderMsg(order=order, tag="", metadata={})
+    exchange._handle_cancel_order(sender_id=1, current_time=0, message=msg)
+
+    assert len(sent) == 1
+    agent_id, reply = sent[0]
+    assert agent_id == 1
+    assert isinstance(reply, OrderRejectedMsg)
+    assert reply.order_id == 11
+    assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+
+def test_handle_partial_cancel_unknown_symbol_sends_reject():
+    """_handle_partial_cancel_order sends OrderRejectedMsg(UNKNOWN_SYMBOL) for an unknown symbol."""
+    from abides_markets.messages.order import PartialCancelOrderMsg
+
+    exchange, sent = _make_exchange(symbols=["AAPL"])
+    order = _limit("UNKNOWN", order_id=12)
+    msg = PartialCancelOrderMsg(order=order, quantity=2, tag="", metadata={})
+    exchange._handle_partial_cancel_order(sender_id=1, current_time=0, message=msg)
+
+    assert len(sent) == 1
+    _, reply = sent[0]
+    assert isinstance(reply, OrderRejectedMsg)
+    assert reply.order_id == 12
+    assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+
+def test_handle_modify_unknown_symbol_sends_reject():
+    """_handle_modify_order sends OrderRejectedMsg(UNKNOWN_SYMBOL) for an unknown symbol."""
+    from abides_markets.messages.order import ModifyOrderMsg
+
+    exchange, sent = _make_exchange(symbols=["AAPL"])
+    old = _limit("UNKNOWN", order_id=13)
+    new = _limit("UNKNOWN", order_id=14)
+    msg = ModifyOrderMsg(old_order=old, new_order=new)
+    exchange._handle_modify_order(sender_id=1, current_time=0, message=msg)
+
+    assert len(sent) == 1
+    _, reply = sent[0]
+    assert isinstance(reply, OrderRejectedMsg)
+    assert reply.order_id == 13
+    assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+
+def test_handle_replace_unknown_symbol_sends_reject():
+    """_handle_replace_order sends OrderRejectedMsg(UNKNOWN_SYMBOL) for an unknown symbol."""
+    from abides_markets.messages.order import ReplaceOrderMsg
+
+    exchange, sent = _make_exchange(symbols=["AAPL"])
+    old = _limit("UNKNOWN", order_id=15)
+    new = _limit("UNKNOWN", order_id=16)
+    msg = ReplaceOrderMsg(agent_id=1, old_order=old, new_order=new)
+    exchange._handle_replace_order(sender_id=1, current_time=0, message=msg)
+
+    assert len(sent) == 1
+    _, reply = sent[0]
+    assert isinstance(reply, OrderRejectedMsg)
+    assert reply.order_id == 15
+    assert reply.reason is RejectReason.UNKNOWN_SYMBOL
+
+
+def test_handle_stop_unknown_symbol_sends_reject():
+    """_handle_stop_order sends OrderRejectedMsg(UNKNOWN_SYMBOL) for an unknown symbol."""
+    from abides_markets.messages.order import StopOrderMsg
+    from abides_markets.orders import Side, StopOrder
+
+    exchange, sent = _make_exchange(symbols=["AAPL"])
+    stop = StopOrder(
+        agent_id=1,
+        time_placed=0,
+        symbol="UNKNOWN",
+        quantity=5,
+        side=Side.BID,
+        stop_price=10_000,
+        order_id=17,
+    )
+    msg = StopOrderMsg(order=stop)
+    exchange._handle_stop_order(sender_id=1, current_time=0, message=msg)
+
+    assert len(sent) == 1
+    _, reply = sent[0]
+    assert isinstance(reply, OrderRejectedMsg)
+    assert reply.order_id == 17
+    assert reply.reason is RejectReason.UNKNOWN_SYMBOL

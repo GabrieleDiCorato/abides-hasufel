@@ -771,7 +771,9 @@ class TradingAgent(FinancialAgent):
             return order
 
         else:
-            warnings.warn(f"TradingAgent ignored limit order of quantity zero: {order}")
+            logger.warning(
+                "TradingAgent ignored limit order of quantity zero: %s", order
+            )
 
     def place_limit_order(
         self,
@@ -1338,12 +1340,10 @@ class TradingAgent(FinancialAgent):
         This hook is invoked asynchronously: the rejection arrives in
         ``receive_message()`` like any other exchange response.
 
-        The rejected order remains in ``self.orders`` when this hook fires.
-        ``place_limit_order()`` stored it there before sending; the default
-        implementation does **not** remove it.  Subclasses that maintain an
-        accurate open-order set must call ``self.orders.pop(order_id, None)``
-        in the override.  The original order is accessible via
-        ``self.orders.get(order_id)`` before popping.
+        The default implementation removes the order from ``self.orders``
+        (the order never entered the book, so keeping it would corrupt open-order
+        tracking).  Subclasses that need to inspect the order before removal should
+        call ``self.orders.get(order_id)`` *before* calling ``super()``.
 
         If ``quiet=True`` was passed to ``OrderBook.handle_limit_order``, this
         hook is not called — the reject message is suppressed.
@@ -1356,6 +1356,9 @@ class TradingAgent(FinancialAgent):
             reason: A ``RejectReason`` enum value describing why the exchange
                 rejected the order.
         """
+        self.orders.pop(order_id, None)
+        if self.log_orders:
+            self.logEvent(EventType.ORDER_REJECTED, (order_id, reason.value))
         logger.warning("Order %s rejected by exchange: %s", order_id, reason.value)
 
     def market_closed(self) -> None:
