@@ -275,7 +275,7 @@ class TestMeanReversionIntegration:
             SimulationBuilder()
             .apply_template("rmsc04")
             .end_time("09:32:00")
-            .enable_agent("mean_reversion", count=5, window=5)
+            .enable_agent(MeanReversionAgentConfig(window=5), count=5)
             .seed(42)
             .build()
         )
