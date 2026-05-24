@@ -170,15 +170,19 @@ class OrderLogsSchema(RawLogsSchema):
 
 
 class RejectedOrderLogsSchema(RawLogsSchema):
-    """Schema for the order-rejection subset of the log DataFrame.
+    """Schema for the ``ORDER_REJECTED`` subset of the log DataFrame.
 
     Produced by
     :meth:`~abides_markets.simulation.SimulationResult.rejected_order_logs`.
 
     Rejection rows are emitted by :class:`~abides_markets.agents.TradingAgent`
-    when an ``OrderRejectedMsg`` is received.  Only ``order_id`` and ``reason``
-    are guaranteed; the original order's ``symbol``, ``quantity``, and ``side``
-    are not part of the rejection payload.
+    in response to an
+    :class:`~abides_markets.messages.orderbook.OrderRejectedMsg`.  The
+    rejection payload is ``(order_id, reason)`` only — the original order's
+    ``symbol``, ``quantity``, and ``side`` are not retained, which is why they
+    are absent from this schema (and from
+    :class:`OrderLogsSchema`, which excludes rejection rows entirely).
+    Non-strict, so any extra columns surviving ``parse_logs_df`` pass through.
     """
 
     order_id: Series[pa.Int64] = pa.Field(description="Unique order identifier.")

@@ -23,7 +23,8 @@ statically):
 | Consumer | Location | What it reads |
 |---|---|---|
 | `parse_logs_df` | `abides-core/abides_core/utils.py` | `EventType` + `event_dict` keys projected to columns |
-| `SimulationResult.order_logs` | `abides-markets/abides_markets/simulation/result.py` | Filters on `_ORDER_EVENT_TYPES` |
+| `SimulationResult.order_logs` | `abides-markets/abides_markets/simulation/result.py` | Filters on `_ORDER_EVENT_TYPES` (everything except `ORDER_REJECTED`) |
+| `SimulationResult.rejected_order_logs` | `abides-markets/abides_markets/simulation/result.py` | Filters on `_REJECTED_ORDER_EVENT_TYPES` (`ORDER_REJECTED` only) |
 | `compute_rich_metrics` | `abides-markets/abides_markets/simulation/metrics.py` | Branches on `ORDER_SUBMITTED`, `ORDER_EXECUTED`, `ORDER_CANCELLED`, `ORDER_REJECTED` |
 | `reconstruct_holdings` | `abides-markets/abides_markets/utils.py` | Folds `HOLDINGS_UPDATED` delta rows into a snapshot dict |
 | Tests | `abides-core/tests/`, `abides-markets/tests/` | Assert specific event types; treat as binding contract |
@@ -101,9 +102,12 @@ any request targeting an unregistered symbol produces a rejection before the
 `OrderBook` is consulted.
 
 When `self.log_orders` is `True`, `TradingAgent.on_order_rejected()` emits
-`EventType.ORDER_REJECTED` with payload `(order_id, reason.value)`.  Filter
-the `parse_logs_df` output on `EventType == "ORDER_REJECTED"` to enumerate
-all rejections for a simulation run.
+`EventType.ORDER_REJECTED` with payload `(order_id, reason.value)`. Rejection rows
+are excluded from `SimulationResult.order_logs()` because they do not carry the
+`symbol`, `quantity`, or `side` columns that schema guarantees. Use
+`SimulationResult.rejected_order_logs()` (returning
+`DataFrame[RejectedOrderLogsSchema]`) to enumerate rejections, or filter the
+`parse_logs_df` output directly on `EventType == "ORDER_REJECTED"`.
 
 `RejectReason` values:
 

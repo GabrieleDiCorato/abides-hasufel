@@ -560,9 +560,12 @@ class OrderLifecycle(BaseModel):
     """
 
     rejection_latency_ns: int | None = None
-    """Time between submission and rejection (nanoseconds).
+    """Elapsed time between submission and rejection (nanoseconds).
 
-    Populated only for ``status == "rejected"``; ``None`` otherwise.
+    Measured from the ``ORDER_SUBMITTED`` event to the matching
+    ``ORDER_REJECTED`` event.  Populated only when ``status == "rejected"``;
+    ``None`` otherwise.  Rejected orders never enter the book, so
+    :attr:`resting_time_ns` is always ``None`` in that case.
     """
 
     fill_events: list[tuple[int, int, int]] = []
@@ -864,13 +867,15 @@ class SimulationResult(BaseModel):
         return cast(DataFrame[OrderLogsSchema], self.logs.loc[mask].copy())
 
     def rejected_order_logs(self) -> DataFrame[RejectedOrderLogsSchema]:
-        """Return the order-rejection subset of the log DataFrame.
+        """Return the ``ORDER_REJECTED`` subset of the log DataFrame, schema-validated.
 
-        Each row corresponds to an ``ORDER_REJECTED`` event emitted by
-        :class:`~abides_markets.agents.TradingAgent` when an
-        ``OrderRejectedMsg`` is received.  Only ``order_id`` and ``reason``
-        are guaranteed; the original order's symbol / quantity / side are not
-        part of the rejection payload.
+        One row per rejection emitted by :class:`~abides_markets.agents.TradingAgent`
+        in response to an :class:`~abides_markets.messages.orderbook.OrderRejectedMsg`.
+        The schema (:class:`~abides_markets.simulation.schemas.RejectedOrderLogsSchema`)
+        guarantees only ``order_id`` and ``reason``; the original order's symbol,
+        quantity, and side are not part of the rejection payload and are not
+        reconstructed here.  Use :meth:`order_logs` for the non-rejection lifecycle
+        events that do carry those columns.
 
         Raises
         ------

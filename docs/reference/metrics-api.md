@@ -218,7 +218,8 @@ One entry per submitted order, reconstructed from `ORDER_SUBMITTED`,
 | `status` | `Literal["filled", "partially_filled", "cancelled", "rejected", "resting"]` | Terminal status. `"filled"` when `filled_qty == submitted_qty`; `"partially_filled"` when `0 < filled_qty < submitted_qty` or a partially filled order is cancelled; `"cancelled"` when an `ORDER_CANCELLED` event was observed with no fills; `"rejected"` when an `ORDER_REJECTED` event was observed; `"resting"` when no terminal event occurred by end of simulation. |
 | `filled_qty` | `int` | Total quantity filled across all execution events. |
 | `submitted_qty` | `int` | Quantity specified in the original `ORDER_SUBMITTED` event. |
-| `resting_time_ns` | `int \| None` | Elapsed time from submission to terminal state (nanoseconds). `None` when the order is still `"resting"` at simulation end. |
+| `resting_time_ns` | `int \| None` | Elapsed time the order spent resting in the book (nanoseconds), measured from submission to terminal state. Populated for `"filled"`, `"partially_filled"`, and `"cancelled"` orders. `None` for `"resting"` orders (no terminal event before simulation end) and for `"rejected"` orders (the order never entered the book — see `rejection_latency_ns`). |
+| `rejection_latency_ns` | `int \| None` | Elapsed time between the `ORDER_SUBMITTED` event and the `ORDER_REJECTED` event (nanoseconds). Populated only when `status == "rejected"`; `None` otherwise. |
 | `fill_events` | `list[tuple[int, int, int]]` | Per-fill details as `(time_ns, price_cents, qty)` tuples. Empty list if no fills occurred. |
 
 ---
@@ -441,7 +442,8 @@ methods:
 |:---|:---|:---|
 | `get_agents_by_category(category: str)` | `list[AgentData]` | Filter agents by `agent_category` (registry category string). |
 | `summary()` | `str` | Concise human/LLM-readable narrative. Succeeds regardless of profile. |
-| `order_logs()` | `DataFrame[OrderLogsSchema]` | Order-event subset of the log DataFrame, including `ORDER_REJECTED` rows. Raises `RuntimeError` if `AGENT_LOGS` was not active. |
+| `order_logs()` | `DataFrame[OrderLogsSchema]` | Order-event subset of the log DataFrame, excluding `ORDER_REJECTED` rows. Every row has a `symbol`, `quantity`, and `side`. Raises `RuntimeError` if `AGENT_LOGS` was not active. |
+| `rejected_order_logs()` | `DataFrame[RejectedOrderLogsSchema]` | `ORDER_REJECTED` subset of the log DataFrame, carrying `order_id` and `reason` only. Raises `RuntimeError` if `AGENT_LOGS` was not active. |
 | `to_dict()` | `dict[str, Any]` | Fully JSON-serialisable dict (no numpy arrays or DataFrames). |
 | `to_json()` | `str` | JSON string representation. |
 | `summary_dict()` | `dict[str, Any]` | Structured dict for dashboard widgets: `metadata`, `markets`, `agent_leaderboard`, `execution_summary`, `warnings`. |
@@ -546,19 +548,34 @@ Base schema for `SimulationResult.logs`. Non-strict (extra columns pass through)
 
 ### `OrderLogsSchema`
 
-Schema for `SimulationResult.order_logs()`. Extends `RawLogsSchema` with order-specific
-columns. Non-strict (extra per-event-type columns are retained). Rejection rows only
-guarantee `order_id` and `reason`, so order-detail columns are nullable.
+Schema for `SimulationResult.order_logs()`. Extends `RawLogsSchema` with the columns
+guaranteed on every order-lifecycle event (submit, accept, execute, cancel,
+partial-cancel, modify, replace). `ORDER_REJECTED` rows are excluded — see
+`RejectedOrderLogsSchema` below. Non-strict (extra per-event-type columns such as
+`is_hidden` or `time_in_force` are retained).
 
 | Column | dtype | Nullable | Description |
 |:---|:---|:---|:---|
-| `symbol` | `str` | Yes | Trading symbol. |
+| `symbol` | `str` | No | Trading symbol. |
 | `order_id` | `Int64` | No | Unique order identifier. |
-| `quantity` | `Int64` | Yes | Order quantity in shares (> 0). |
-| `side` | `str` | Yes | `"BID"` or `"ASK"`. |
+| `quantity` | `Int64` | No | Order quantity in shares (> 0). |
+| `side` | `str` | No | `"BID"` or `"ASK"`. |
 | `fill_price` | `Int64` | Yes | Fill price in cents; `None` unless `ORDER_EXECUTED`. |
 | `limit_price` | `Int64` | Yes | Limit price in cents; `None` for market orders. |
-| `reason` | `str` | Yes | Rejection reason; `None` unless `ORDER_REJECTED`. |
+
+### `RejectedOrderLogsSchema`
+
+Schema for `SimulationResult.rejected_order_logs()`. Extends `RawLogsSchema`. Rejection
+payloads carry only the rejected order's id and the reason — the original symbol,
+quantity, and side are not part of the `OrderRejectedMsg` contract. Non-strict.
+
+| Column | dtype | Nullable | Description |
+|:---|:---|:---|:---|
+| `order_id` | `Int64` | No | Unique order identifier. |
+| `reason` | `str` | No | Rejection reason, e.g. `"INVALID_PRICE"`, `"UNKNOWN_SYMBOL"`. Corresponds to a `RejectReason` enum value. |
+
+See [event-vocabulary.md](event-vocabulary.md#orderrejectedmsg) for the full
+`RejectReason` table.
 
 ---
 
@@ -629,5 +646,6 @@ from abides_markets.simulation import (
     L2DataFrameSchema,
     RawLogsSchema,
     OrderLogsSchema,
+    RejectedOrderLogsSchema,
 )
 ```
