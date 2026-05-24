@@ -95,13 +95,24 @@ All are defined in `abides_markets.messages.orderbook`.
 
 Fields: `order_id: int`, `reason: RejectReason`.
 
+`OrderRejectedMsg` is sent for limit and market order submissions and for
+cancel, partial-cancel, modify, replace, and stop-order lifecycle requests —
+any request targeting an unregistered symbol produces a rejection before the
+`OrderBook` is consulted.
+
+When `self.log_orders` is `True`, `TradingAgent.on_order_rejected()` emits
+`EventType.ORDER_REJECTED` with payload `(order_id, reason.value)`.  Filter
+the `parse_logs_df` output on `EventType == "ORDER_REJECTED"` to enumerate
+all rejections for a simulation run.
+
 `RejectReason` values:
 
 | Value | Condition |
 |---|---|
-| `UNKNOWN_SYMBOL` | Symbol not registered on the exchange; sent by `ExchangeAgent` before the order reaches any `OrderBook` |
+| `UNKNOWN_SYMBOL` | Symbol not registered on the exchange; sent by `ExchangeAgent` before the order reaches any `OrderBook`; applies to all order lifecycle messages |
 | `INVALID_QUANTITY` | Quantity ≤ 0 or non-integer; checked by `OrderBook.handle_limit_order` and `handle_market_order` |
 | `INVALID_PRICE` | Limit price < 0 or non-integer; checked by `OrderBook.handle_limit_order` (not applicable to market orders) |
+| `INSUFFICIENT_LIQUIDITY` | Reserved; not currently emitted — FOK orders that cannot be fully filled send `OrderCancelledMsg` (FIX `OrdStatus=Canceled`) |
 
 For the full rejection contract — including `self.orders` state after rejection,
 the override pattern, and `quiet=True` suppression — see

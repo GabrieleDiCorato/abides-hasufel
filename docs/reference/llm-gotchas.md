@@ -370,31 +370,46 @@ place_limit_order() → LimitOrderMsg → Exchange
 `OrderRejectedMsg` arrives in `receive_message()` **asynchronously**, like any
 other exchange response — it is never a synchronous error return.
 
-When the exchange cannot accept an order, `TradingAgent` dispatches to
-`on_order_rejected(order_id, reason)`.  Override that hook to react; the
-default logs at `WARNING` and returns.
+`OrderRejectedMsg` is sent for **any** order lifecycle message targeting an
+unregistered symbol — not only limit and market orders.  Cancel, partial-cancel,
+modify, replace, and stop-order requests for an unknown symbol each produce a
+rejection with `RejectReason.UNKNOWN_SYMBOL` before the `OrderBook` is
+consulted.
+
+When the exchange rejects an order, `TradingAgent` dispatches to
+`on_order_rejected(order_id, reason)`.  Override that hook to react.
+
+**The default implementation removes the order from `self.orders` automatically**
+— the order never entered the book, so retaining it would corrupt open-order
+tracking.  Subclasses that need to inspect the order *before* removal must call
+`self.orders.get(order_id)` before calling `super()`.
+
+```python
+def on_order_rejected(self, order_id: int, reason: RejectReason) -> None:
+    order = self.orders.get(order_id)    # inspect BEFORE super() removes it
+    super().on_order_rejected(order_id, reason)
+    if reason == RejectReason.INVALID_PRICE:
+        ...  # react to specific reason
+```
+
+When `self.log_orders` is `True`, the default hook emits
+`logEvent(EventType.ORDER_REJECTED, (order_id, reason.value))`, making
+rejections visible in post-hoc analysis via `parse_logs_df`.  Filter on
+`"ORDER_REJECTED"` in the resulting DataFrame.
 
 Rejection reasons (`RejectReason` enum in `abides_markets.messages.orderbook`):
 
 | Reason | Condition |
 |--------|----------|
-| `UNKNOWN_SYMBOL` | Symbol not registered on this exchange |
-| `INVALID_QUANTITY` | Quantity ≤ 0 or non-integer |
+| `UNKNOWN_SYMBOL` | Symbol not registered on this exchange; applies to all order lifecycle messages |
+| `INVALID_QUANTITY` | Quantity ≤ 0 or non-integer; checked by `OrderBook` |
 | `INVALID_PRICE` | Limit price < 0 or non-integer (limit orders only) |
+| `INSUFFICIENT_LIQUIDITY` | Reserved; not currently emitted — see FOK note below |
 
-**Rejected orders remain in `self.orders`.**  `place_limit_order()` stores a
-deepcopy in `self.orders` before sending the `LimitOrderMsg`.  When the
-rejection arrives, `self.orders[order_id]` still holds that copy.  The default
-hook does **not** remove it.  Subclasses that maintain an accurate open-order
-set must call `self.orders.pop(order_id, None)` in the override.
-
-```python
-def on_order_rejected(self, order_id: int, reason: RejectReason) -> None:
-    order = self.orders.pop(order_id, None)  # remove from tracking
-    logger.warning("Order %s rejected: %s", order_id, reason.value)
-    if reason == RejectReason.INVALID_PRICE:
-        ...  # react to specific reason
-```
+**FOK orders**: a fill-or-kill order that cannot be fully matched sends
+`OrderCancelledMsg`, **not** `OrderRejectedMsg`.  Agents must handle
+`order_cancelled()` for FOK outcomes (FIX `OrdStatus=Canceled` is the correct
+status for a fully unfilled FOK).
 
 `quiet=True` (passed to `OrderBook.handle_limit_order`) suppresses the reject:
 no `OrderRejectedMsg` is sent and `on_order_rejected` is never called.  This
