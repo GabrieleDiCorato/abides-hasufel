@@ -14,7 +14,6 @@ Covers:
 from copy import deepcopy
 
 import numpy as np
-import pytest
 
 from abides_core.utils import datetime_str_to_ns, str_to_ns
 from abides_markets.agents.trading_agent import TradingAgent
@@ -232,12 +231,15 @@ class TestCreateLimitOrderPositionLimit:
         assert order is not None
         assert order.quantity == 30  # room=100-70=30
 
-    def test_zero_quantity_still_warns(self):
+    def test_zero_quantity_still_warns(self, caplog):
         """Quantity 0 should trigger the existing warning, not the position check."""
+        import logging
+
         agent = _make_agent(position_limit=100)
-        with pytest.warns(UserWarning, match="quantity zero"):
+        with caplog.at_level(logging.WARNING):
             result = agent.create_limit_order(SYMBOL, 0, Side.BID, 10_000)
         assert result is None
+        assert any("quantity zero" in r.message for r in caplog.records)
 
 
 # ===================================================================

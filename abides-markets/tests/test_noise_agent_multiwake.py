@@ -278,6 +278,7 @@ class TestMultiWakeIntegration:
     def test_multi_wake_simulation(self):
         """Multi-wake noise agents run without crash in a full simulation."""
         from abides_markets.config_system import SimulationBuilder
+        from abides_markets.config_system.agent_configs import NoiseAgentConfig
         from abides_markets.simulation import run_simulation
 
         config = (
@@ -285,7 +286,9 @@ class TestMultiWakeIntegration:
             .apply_template("rmsc04")
             .end_time("09:32:00")
             .seed(42)
-            .enable_agent("noise", count=100, multi_wake=True, wake_up_freq="5s")
+            .enable_agent(
+                NoiseAgentConfig(multi_wake=True, wake_up_freq="5s"), count=100
+            )
             .build()
         )
         result = run_simulation(config)
