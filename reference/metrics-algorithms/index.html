@@ -1,0 +1,1926 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent-Based Interactive Discrete Event Simulation for financial markets research">
+      
+      
+      
+        <link rel="canonical" href="https://gabrieledicorato.github.io/abides-ng/reference/metrics-algorithms/">
+      
+      
+        <link rel="prev" href="../event-vocabulary/">
+      
+      
+        <link rel="next" href="../../project/reproducibility/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Metrics Algorithms - ABIDES-NG</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#metrics-algorithms" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABIDES-NG" class="md-header__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABIDES-NG
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Metrics Algorithms
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../config-system/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../kernel-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../project/reproducibility/" class="md-tabs__link">
+          
+  
+  
+  Operations & Governance
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../llm-gotchas/" class="md-tabs__link">
+          
+  
+  
+  For LLM / Agent Builders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../notebooks/demo_ABIDES-Markets/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABIDES-NG" class="md-nav__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABIDES-NG
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/one-pager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../custom-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a Custom Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parallel-simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Experiments in Parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kernel-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernel & Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-agent-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Agent Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Agent Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-profit-loss-pnl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Profit &amp; Loss (PnL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-execution-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Execution Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-market-microstructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Market Microstructure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Market Microstructure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nan-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NaN semantics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#21-volatility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Volatility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-spread-liquidity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Spread &amp; Liquidity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-lob-imbalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 LOB Imbalance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-vpin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 VPIN
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-market-resilience" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Market Resilience
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-market-ott-ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Market OTT Ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-market-impact-strategy-vs-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Market Impact (Strategy vs. Baseline)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-comparative-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Comparative Evaluation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Comparative Evaluation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#diagnostic-feedback-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostic feedback patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations & Governance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations & Governance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/release-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For LLM / Agent Builders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For LLM / Agent Builders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm-gotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_ABIDES-Markets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markets Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_Config_System/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIDES Declarative Configuration System — Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="metrics-algorithms">Metrics Algorithms<a class="headerlink" href="#metrics-algorithms" title="Permanent link">&para;</a></h1>
+<p><em>For microstructure researchers and regulatory-research teams who need
+the exact formula, edge-case behaviour, and citation behind every
+metric the simulator reports.</em></p>
+<p>Canonical functional reference for all quantitative metrics in
+ABIDES-NG. Metrics are organised into three groups: <strong>agent
+performance</strong>, <strong>market microstructure</strong>, and <strong>market impact</strong>
+(strategy vs. baseline deltas). For the Python API that exposes them,
+see <a href="../metrics-api/">Computing Metrics</a>.</p>
+<blockquote>
+<p><strong>Data conventions:</strong> All prices are integer cents. Times in the L1 <code>time</code>
+column are nanoseconds since midnight; <code>EventTime</code> is nanoseconds since epoch.</p>
+</blockquote>
+<hr />
+<h2 id="1-agent-performance">1. Agent Performance<a class="headerlink" href="#1-agent-performance" title="Permanent link">&para;</a></h2>
+<p>These metrics assess the standalone performance of trading agents.
+Enriched per-agent metrics live on <code>RichAgentMetrics</code> (returned by <code>compute_rich_metrics()</code>);
+core PnL fields are always present on <code>AgentData</code> (returned by <code>run_simulation()</code>).</p>
+<h3 id="11-profit-loss-pnl">1.1 Profit &amp; Loss (PnL)<a class="headerlink" href="#11-profit-loss-pnl" title="Permanent link">&para;</a></h3>
+<p>Total PnL decomposes into realized and unrealized components.</p>
+<ul>
+<li><strong>Realized PnL</strong>: Cash change from closed trades.
+  $$PnL_{\text{realized}} = Cash_{\text{end}} - Cash_{\text{start}}$$</li>
+<li><strong>Unrealized PnL</strong>: Mark-to-market value of residual inventory at end of
+  simulation, valued at the last observed two-sided mid-price.
+  $$PnL_{\text{unrealized}} = Inventory_{\text{end}} \times P_{\text{mid,end}}$$</li>
+<li><strong>Total PnL</strong>:
+  $$PnL_{\text{total}} = PnL_{\text{realized}} + PnL_{\text{unrealized}}$$</li>
+</ul>
+<blockquote>
+<p><code>compute_agent_pnl()</code> computes mark-to-market PnL for each agent.
+Call <code>compute_rich_metrics(result)</code> to access enriched metrics on <code>RichAgentMetrics</code>.</p>
+</blockquote>
+<p><strong>Fields on <code>AgentData</code>:</strong> <code>pnl_cents</code>, <code>starting_cash_cents</code>, <code>mark_to_market_cents</code>.
+<strong>Field on <code>RichAgentMetrics</code>:</strong> <code>total_pnl_cents</code>.</p>
+<hr />
+<h3 id="12-execution-quality">1.2 Execution Quality<a class="headerlink" href="#12-execution-quality" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>Fill Rate</strong>: Fraction of submitted orders that were executed.
+  A low fill rate indicates passive orders are not crossing the spread or
+  prices are moving adversely.
+  $$\text{FillRate} = \frac{N_{\text{executed}}}{N_{\text{submitted}}}$$</p>
+</li>
+<li>
+<p><strong>Trade Count</strong>: Total number of <code>ORDER_EXECUTED</code> events for the strategic
+  agent. Indicates activity level and turnover.</p>
+</li>
+<li>
+<p><strong>Traded Volume</strong>: Total shares executed, summed over all fills.
+  $$V_{\text{total}} = \sum_i \text{quantity}_i$$</p>
+</li>
+<li>
+<p><strong>Effective Spread</strong>: Average cost of immediacy measured relative to the
+  mid-price at the moment of each fill.
+  $$\text{EffSpread} = \frac{1}{N_{\text{fills}}} \sum_i 2\,\left| P_{\text{fill},i} - P_{\text{mid},i} \right|$$
+  $P_{\text{mid},i}$ is taken from the L1 snapshot nearest in time to fill $i$
+  (join on <code>EventTime</code> ↔ <code>time</code>). Units: cents. Returns <code>None</code> if no two-sided
+  L1 rows exist.</p>
+</li>
+</ul>
+<p><strong>Fields on <code>RichAgentMetrics</code>:</strong> <code>fill_rate_pct</code> (requires <code>AGENT_LOGS</code>),
+<code>trade_count</code> (number of fill events; requires <code>TRADE_ATTRIBUTION</code>).
+<code>effective_spread</code> is available via the standalone function <code>compute_effective_spread(fills, l1)</code>
+and is not stored in any result model.</p>
+<hr />
+<h3 id="13-risk">1.3 Risk<a class="headerlink" href="#13-risk" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>Sharpe Ratio</strong>: Annualised risk-adjusted return computed from the
+  mark-to-market PnL curve reconstructed fill-by-fill.
+  $$\text{Sharpe} = \frac{\bar{r}}{\sigma_r} \times \sqrt{\frac{T_{\text{ns/year}}}{\Delta t_{\text{median}}}}$$
+  Returns <code>None</code> if fewer than 30 observations or $\sigma_r = 0$ (flat PnL).</p>
+</li>
+<li>
+<p><strong>Max Drawdown</strong>: Maximum peak-to-trough decline of the PnL curve. Always
+  $\geq 0$; units: cents.
+  $$\text{MaxDrawdown} = \max_t!\left(\max_{s \leq t} PnL_s - PnL_t\right)$$
+  Returns <code>None</code> if fewer than 2 observations.</p>
+</li>
+<li>
+<p><strong>Inventory Std</strong>: Standard deviation of the agent's intraday inventory
+  (share count), reconstructed fill-by-fill from <code>ORDER_EXECUTED</code> events.
+  High values indicate large, volatile positional exposure.
+  Returns <code>None</code> if fewer than 2 fills.</p>
+</li>
+</ul>
+<p><strong>Fields on <code>RichAgentMetrics</code>:</strong> <code>sharpe_ratio</code>, <code>max_drawdown_cents</code>, <code>inventory_std</code>.</p>
+<hr />
+<h2 id="2-market-microstructure">2. Market Microstructure<a class="headerlink" href="#2-market-microstructure" title="Permanent link">&para;</a></h2>
+<p>These metrics describe the quality and dynamics of the limit order book.
+They are computed from the <strong>L1 snapshot DataFrame</strong> with columns:
+<code>time</code> (ns since midnight), <code>bid_price</code>, <code>bid_qty</code>, <code>ask_price</code>, <code>ask_qty</code>
+(prices in cents).</p>
+<p>Stored microstructure metrics live on <code>MicrostructureMetrics</code> (under
+<code>MarketSummary.microstructure</code>, populated by <code>compute_rich_metrics()</code>). Metrics
+labelled "Standalone function" are not stored in any result model and must be
+called explicitly.</p>
+<h3 id="nan-semantics">NaN semantics<a class="headerlink" href="#nan-semantics" title="Permanent link">&para;</a></h3>
+<p><code>bid_price</code> or <code>ask_price</code> is <code>NaN</code> when that side of the book is <strong>genuinely
+empty</strong> — no resting orders at any price level. This is an economically meaningful
+state and must <strong>never be forward-filled</strong>.</p>
+<p>A <strong>two-sided row</strong> is one where both <code>bid_price</code> and <code>ask_price</code> are non-NaN.
+Most microstructure metrics are defined only over two-sided rows.</p>
+<hr />
+<h3 id="21-volatility">2.1 Volatility<a class="headerlink" href="#21-volatility" title="Permanent link">&para;</a></h3>
+<p>Annualised standard deviation of mid-price returns, computed only from
+two-sided snapshots.</p>
+<ol>
+<li>Filter: <code>two_sided = l1.dropna(subset=["bid_price", "ask_price"])</code>.</li>
+<li>Compute mid-price: $P_{\text{mid},t} = (P_{\text{bid},t} + P_{\text{ask},t}) / 2$.</li>
+<li>Compute returns: $r_t = P_{\text{mid},t} / P_{\text{mid},t-1} - 1$ (no <code>fillna</code>).</li>
+<li>Annualise from median inter-snapshot interval $\Delta t$ (ns):
+   $$\sigma_{\text{ann}} = \text{std}(r) \times \sqrt{\frac{T_{\text{ns/year}}}{\Delta t_{\text{median}}}}$$</li>
+</ol>
+<p>Returns <code>None</code> if fewer than 30 two-sided return observations. Using
+<code>pct_change</code> without <code>fillna</code> ensures one-sided states do not contribute
+artificial zero returns.</p>
+<p><strong>Standalone function:</strong> <code>compute_volatility(l1: L1Snapshots) → float | None</code>.
+Not stored in any result model.</p>
+<hr />
+<h3 id="22-spread-liquidity">2.2 Spread &amp; Liquidity<a class="headerlink" href="#22-spread-liquidity" title="Permanent link">&para;</a></h3>
+<p>All computed from two-sided rows.</p>
+<ul>
+<li>
+<p><strong>Mean Spread</strong>: Time-averaged quoted spread.
+  $$\bar{s} = \frac{1}{N} \sum_t (P_{\text{ask},t} - P_{\text{bid},t})$$
+  Units: cents.</p>
+</li>
+<li>
+<p><strong>Average Bid Liquidity</strong>: Mean quantity resting at best bid.
+  $$\bar{Q}<em>{\text{bid}} = \frac{1}{N} \sum_t Q</em>{\text{bid},t}$$</p>
+</li>
+<li>
+<p><strong>Average Ask Liquidity</strong>: Same for the ask side.
+  $$\bar{Q}<em>{\text{ask}} = \frac{1}{N} \sum_t Q</em>{\text{ask},t}$$</p>
+</li>
+</ul>
+<p><strong>Standalone functions:</strong> <code>compute_mean_spread(l1)</code>, <code>compute_avg_liquidity(l1)</code>.
+Not stored in any result model. For session-wide liquidity stats, see
+<code>MarketSummary.liquidity</code> (<code>total_exchanged_volume</code>, <code>pct_time_no_bid</code>,
+<code>pct_time_no_ask</code>, <code>vwap_cents</code>).</p>
+<hr />
+<h3 id="23-lob-imbalance">2.3 LOB Imbalance<a class="headerlink" href="#23-lob-imbalance" title="Permanent link">&para;</a></h3>
+<p>Measures directional pressure in the limit order book
+(Cont, Kukanov &amp; Stoikov, 2014).</p>
+<p>$$I_t = \frac{Q_t^{\text{bid}} - Q_t^{\text{ask}}}{Q_t^{\text{bid}} + Q_t^{\text{ask}}} \in [-1,\, 1]$$</p>
+<ul>
+<li>$I_t &gt; 0$: more quantity on the bid (buying pressure).</li>
+<li>$I_t &lt; 0$: more quantity on the ask (selling pressure).</li>
+<li>$I_t \approx 0$: balanced book.</li>
+</ul>
+<p>Computed on all rows where both <code>bid_qty</code> and <code>ask_qty</code> are non-zero.</p>
+<ul>
+<li><strong><code>lob_imbalance_mean</code></strong>: Mean of $I_t$. Persistent positive values indicate
+  sustained directional bias; a well-functioning market maker keeps this near 0.</li>
+<li><strong><code>lob_imbalance_std</code></strong>: Std of $I_t$. High values indicate erratic LOB
+  composition.</li>
+</ul>
+<p>Returns <code>None</code> if no valid rows exist.</p>
+<p><strong>Fields on <code>MicrostructureMetrics</code>:</strong> <code>lob_imbalance_mean</code>, <code>lob_imbalance_std</code>.</p>
+<hr />
+<h3 id="24-vpin">2.4 VPIN<a class="headerlink" href="#24-vpin" title="Permanent link">&para;</a></h3>
+<p>Volume-Synchronized Probability of Informed Trading
+(Easley, López de Prado &amp; O'Hara, 2012). Measures the probability that
+order flow is driven by informed traders.</p>
+<p><strong>Algorithm:</strong></p>
+<ol>
+<li>Classify each fill as buy- or sell-initiated using the <strong>Lee-Ready tick test</strong>:</li>
+<li>$P_{\text{fill}} &gt; P_{\text{mid}}$ → buy;</li>
+<li>$P_{\text{fill}} &lt; P_{\text{mid}}$ → sell;</li>
+<li>$P_{\text{fill}} = P_{\text{mid}}$ → tick rule (compare to previous trade).</li>
+<li>Partition fills into equal-volume buckets of size
+   $V_{\text{bucket}} = V_{\text{total}} / 50$.</li>
+<li>For each bucket $\tau$:
+   $$\text{OI}<em>\tau = \frac{|V</em>\tau^{\text{buy}} - V_\tau^{\text{sell}}|}{V_{\text{bucket}}}$$</li>
+<li>$$\text{VPIN} = \frac{1}{n} \sum_{\tau=1}^{n} \text{OI}_\tau \in [0,\, 1]$$</li>
+</ol>
+<p><strong>Interpretation:</strong>
+- Low ($\approx 0$): balanced order flow; low adverse-selection risk.
+- High ($\approx 1$): heavily directional; high informed-trading probability —
+  a strategy with high VPIN should reduce order aggressiveness.</p>
+<p>Returns <code>None</code> if fewer than 20 fills.</p>
+<p><strong>Standalone function:</strong> <code>compute_vpin(fills, l1, *, n_buckets=50, min_fills=20) → float | None</code>.
+Not stored in any result model.</p>
+<hr />
+<h3 id="25-market-resilience">2.5 Market Resilience<a class="headerlink" href="#25-market-resilience" title="Permanent link">&para;</a></h3>
+<p>How quickly does the bid-ask spread recover after a shock
+(Foucault, Kadan &amp; Kandel, 2013)?</p>
+<p><strong>Algorithm:</strong></p>
+<ol>
+<li>Compute spread series $s_t = P_{\text{ask},t} - P_{\text{bid},t}$ on
+   two-sided rows.</li>
+<li>Compute rolling mean $\bar{s}$ and rolling std $\sigma_s$
+   (window = min(100 ticks, 10 % of data)).</li>
+<li>Identify <strong>shock events</strong>: $s_t &gt; \bar{s} + 2\sigma_s$.</li>
+<li>For each shock, record the <strong>recovery time</strong>: elapsed nanoseconds until
+   $s_t \leq \bar{s} + \sigma_s$.</li>
+<li>Report the mean recovery time.</li>
+</ol>
+<p><strong>Interpretation:</strong>
+- Long recovery time: the market heals slowly after spread widening — fragile,
+  low-liquidity conditions. A strategy that increases this value is degrading
+  market quality.</p>
+<p>Returns <code>None</code> if no shock events are detected.</p>
+<p><strong>Field on <code>MicrostructureMetrics</code>:</strong> <code>resilience_mean_ns</code> (units: nanoseconds).</p>
+<hr />
+<h3 id="26-market-ott-ratio">2.6 Market OTT Ratio<a class="headerlink" href="#26-market-ott-ratio" title="Permanent link">&para;</a></h3>
+<p>Market-wide order-to-trade ratio (MiFID II RTS 9).</p>
+<p>$$\text{OTT} = \frac{N_{\text{submissions}}}{N_{\text{fills}}}$$</p>
+<p>Counted across <strong>all agents</strong> in the simulation.</p>
+<p><strong>Interpretation:</strong>
+- Elevated OTT indicates quote-stuffing or excessive cancellations.
+- Complement to the per-agent OTT (which measures only the strategic agent's
+  own behaviour). MiFID II reference threshold: 4:1.</p>
+<p>Returns <code>None</code> if no fills occurred.</p>
+<p><strong>Field on <code>MicrostructureMetrics</code>:</strong> <code>market_ott_ratio</code>. Requires <code>AGENT_LOGS</code> profile.</p>
+<hr />
+<h2 id="3-market-impact-strategy-vs-baseline">3. Market Impact (Strategy vs. Baseline)<a class="headerlink" href="#3-market-impact-strategy-vs-baseline" title="Permanent link">&para;</a></h2>
+<p>Each delta metric is the percentage change from a <strong>Baseline Run</strong> (strategic
+agent disabled or replaced by noise) to the <strong>Strategy Run</strong> (active agent).</p>
+<p>$$\Delta X\,(\%) = \frac{X_{\text{strategy}} - X_{\text{baseline}}}{X_{\text{baseline}}} \times 100$$</p>
+<p>Returns <code>None</code> if either value is <code>None</code> or if the baseline value is zero.</p>
+<p>These delta metrics are <strong>not stored in any result model</strong>. To compute them,
+run two simulations (strategy and baseline) and compare the <code>MicrostructureMetrics</code>
+and <code>RichAgentMetrics</code> objects returned by <code>compute_rich_metrics()</code> for each.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Metric</th>
+<th>Positive means the strategy...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>volatility_delta_pct</code></td>
+<td>Volatility</td>
+<td>...increases price noise</td>
+</tr>
+<tr>
+<td><code>spread_delta_pct</code></td>
+<td>Mean spread</td>
+<td>...widens spreads (worse liquidity)</td>
+</tr>
+<tr>
+<td><code>bid_liquidity_delta_pct</code></td>
+<td>Avg bid liquidity</td>
+<td>...adds bid-side depth</td>
+</tr>
+<tr>
+<td><code>ask_liquidity_delta_pct</code></td>
+<td>Avg ask liquidity</td>
+<td>...adds ask-side depth</td>
+</tr>
+<tr>
+<td><code>lob_imbalance_delta_pct</code></td>
+<td>LOB imbalance mean</td>
+<td>...increases directional book bias</td>
+</tr>
+<tr>
+<td><code>vpin_delta_pct</code></td>
+<td>VPIN</td>
+<td>...increases informed-flow probability</td>
+</tr>
+<tr>
+<td><code>resilience_delta_pct</code></td>
+<td>Mean recovery time</td>
+<td>...degrades market resilience</td>
+</tr>
+<tr>
+<td><code>ott_ratio_delta_pct</code></td>
+<td>OTT ratio</td>
+<td>...increases cancellation noise</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-comparative-evaluation">4. Comparative Evaluation<a class="headerlink" href="#4-comparative-evaluation" title="Permanent link">&para;</a></h2>
+<p>Without a built-in <code>ComparisonResult</code> model, multi-run comparison is done manually
+by running two simulations and diffing their <code>compute_rich_metrics()</code> outputs.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Category</th>
+<th style="text-align: left;">Key indicators</th>
+<th style="text-align: left;">Actionable signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Alpha generation</strong></td>
+<td style="text-align: left;"><code>total_pnl_cents</code>, <code>sharpe_ratio</code></td>
+<td style="text-align: left;">Is the strategy profitable on a risk-adjusted basis?</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Execution quality</strong></td>
+<td style="text-align: left;"><code>fill_rate_pct</code>, <code>trade_count</code>, <code>compute_effective_spread()</code></td>
+<td style="text-align: left;">Is the strategy efficiently accessing liquidity?</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Inventory risk</strong></td>
+<td style="text-align: left;"><code>max_drawdown_cents</code>, <code>inventory_std</code></td>
+<td style="text-align: left;">Is the strategy taking on excessive positional risk?</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Market quality</strong></td>
+<td style="text-align: left;"><code>spread_delta_pct</code>, <code>volatility_delta_pct</code></td>
+<td style="text-align: left;">Is the strategy improving or degrading the book?</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Microstructure</strong></td>
+<td style="text-align: left;"><code>vpin_delta_pct</code>, <code>resilience_delta_pct</code>, <code>ott_ratio_delta_pct</code></td>
+<td style="text-align: left;">Is the strategy introducing toxicity or fragility?</td>
+</tr>
+</tbody>
+</table>
+<h3 id="diagnostic-feedback-patterns">Diagnostic feedback patterns<a class="headerlink" href="#diagnostic-feedback-patterns" title="Permanent link">&para;</a></h3>
+<ul>
+<li><em>High PnL, high <code>volatility_delta_pct</code></em>: strategy is profitable but
+  destabilising the market.</li>
+<li><em>Low <code>fill_rate_pct</code>, low PnL</em>: strategy is too passive; orders are not crossing
+  the spread.</li>
+<li><em>High <code>compute_vpin()</code> result</em>: aggressive directional flow — consider reducing order
+  aggressiveness or size.</li>
+<li><em>High <code>inventory_std</code>, high <code>max_drawdown_cents</code></em>: strategy is taking on large
+  unhedged positions.</li>
+<li><em>Positive <code>resilience_delta_pct</code></em>: strategy is slowing spread recovery —
+  consider reducing order frequency or size.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3474 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent-Based Interactive Discrete Event Simulation for financial markets research">
+      
+      
+      
+        <link rel="canonical" href="https://gabrieledicorato.github.io/abides-ng/reference/metrics-api/">
+      
+      
+        <link rel="prev" href="../data-extraction/">
+      
+      
+        <link rel="next" href="../parallel-simulation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Computing Metrics - ABIDES-NG</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#computing-metrics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABIDES-NG" class="md-header__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABIDES-NG
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Computing Metrics
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../config-system/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../kernel-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../project/reproducibility/" class="md-tabs__link">
+          
+  
+  
+  Operations & Governance
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../llm-gotchas/" class="md-tabs__link">
+          
+  
+  
+  For LLM / Agent Builders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../notebooks/demo_ABIDES-Markets/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABIDES-NG" class="md-nav__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABIDES-NG
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/one-pager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../custom-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a Custom Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-availability-by-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Availability by Profile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runner-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runner Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runner Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run_simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_simulation()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run_batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_batch()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compute_rich_metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_rich_metrics()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#return-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Return Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#richsimulationmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RichSimulationMetrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#microstructuremetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MicrostructureMetrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#richagentmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RichAgentMetrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orderlifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OrderLifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fillrecord" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FillRecord
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standalone-compute-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standalone Compute Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Standalone Compute Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#market-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market-Level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent-Level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-fill-tier-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Fill (Tier 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structural-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structural Helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#existing-models-from-simulationresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Existing Models (from SimulationResult)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Existing Models (from SimulationResult)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#marketsummary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MarketSummary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#liquiditymetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LiquidityMetrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AgentData
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExecutionMetrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#equitycurve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EquityCurve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simulationmetadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SimulationMetadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tradeattribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TradeAttribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l1snapshots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L1Snapshots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l2snapshots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L2Snapshots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simulationresult-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SimulationResult Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sign-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sign Conventions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sign Conventions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#slippage-slippage_bps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slippage (slippage_bps)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adverse-selection-adverse_selection_bps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adverse Selection (adverse_selection_bps)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostic-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostic Patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extractors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extractors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataframe-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataFrame Schemas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DataFrame Schemas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#l1dataframeschema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L1DataFrameSchema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l2dataframeschema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L2DataFrameSchema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rawlogsschema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RawLogsSchema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orderlogsschema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OrderLogsSchema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rejectedorderlogsschema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RejectedOrderLogsSchema
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#import-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Paths
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parallel-simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Experiments in Parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kernel-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernel & Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics-algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations & Governance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations & Governance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/release-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For LLM / Agent Builders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For LLM / Agent Builders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm-gotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_ABIDES-Markets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markets Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_Config_System/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIDES Declarative Configuration System — Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="computing-metrics">Computing Metrics<a class="headerlink" href="#computing-metrics" title="Permanent link">&para;</a></h1>
+<p><em>For execution-quality analysts, microstructure researchers, and risk
+teams who need typed, audit-grade analytics on a finished simulation.</em></p>
+<p>Complete reference for the <code>abides_markets.simulation</code> metrics surface:
+standalone compute functions, the <code>compute_rich_metrics()</code> convenience
+API, and the Pydantic models that carry the results. For the
+underlying formulae and academic citations, see
+<a href="../metrics-algorithms/">Metrics Algorithms</a>.</p>
+<blockquote>
+<p><strong>Audience:</strong> quantitative researchers, financial-industry
+practitioners, and LLM tool-calling agents building on ABIDES-NG.</p>
+<p><strong>Data conventions:</strong> All prices are <strong>integer cents</strong> (<code>$100.00 = 10_000</code>).
+All timestamps are <strong>nanoseconds since Unix epoch</strong> (<code>int64</code>).
+Basis-point fields use <code>1 bp = 0.01%</code> (<code>10_000 bps = 100%</code>).
+Fields that cannot be computed from the available data degrade to <code>None</code>
+(or <code>0</code> / <code>0.0</code> for counters and percentages).</p>
+</blockquote>
+<hr />
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">compute_rich_metrics</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">ResultProfile</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">run_simulation</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># 1. Run a simulation with enough extraction depth</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">result</span> <span class="o">=</span> <span class="n">run_simulation</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="n">ResultProfile</span><span class="o">.</span><span class="n">QUANT</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># 2. Compute all metrics in one call</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">rich</span> <span class="o">=</span> <span class="n">compute_rich_metrics</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># 3. Access structured results</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">rich</span><span class="o">.</span><span class="n">agents</span><span class="p">:</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_id</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_type</span><span class="si">}</span><span class="s2">: &quot;</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>          <span class="sa">f</span><span class="s2">&quot;PnL=</span><span class="si">{</span><span class="n">agent</span><span class="o">.</span><span class="n">total_pnl_cents</span><span class="si">}</span><span class="s2">¢  Sharpe=</span><span class="si">{</span><span class="n">agent</span><span class="o">.</span><span class="n">sharpe_ratio</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="k">for</span> <span class="n">sym</span><span class="p">,</span> <span class="n">mkt</span> <span class="ow">in</span> <span class="n">rich</span><span class="o">.</span><span class="n">markets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">m</span> <span class="o">=</span> <span class="n">mkt</span><span class="o">.</span><span class="n">microstructure</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sym</span><span class="si">}</span><span class="s2">: imbalance=</span><span class="si">{</span><span class="n">m</span><span class="o">.</span><span class="n">lob_imbalance_mean</span><span class="si">}</span><span class="s2">  &quot;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>          <span class="sa">f</span><span class="s2">&quot;resilience=</span><span class="si">{</span><span class="n">m</span><span class="o">.</span><span class="n">resilience_mean_ns</span><span class="si">}</span><span class="s2">ns&quot;</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="data-availability-by-profile">Data Availability by Profile<a class="headerlink" href="#data-availability-by-profile" title="Permanent link">&para;</a></h2>
+<p>Richer <code>ResultProfile</code> flags yield richer metrics. All fields degrade
+gracefully when the required data is absent — no exceptions are raised.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Metric group</th>
+<th style="text-align: left;">Minimum profile</th>
+<th style="text-align: left;">Absent →</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>total_pnl_cents</code>, <code>end_inventory</code></td>
+<td style="text-align: left;"><code>SUMMARY</code></td>
+<td style="text-align: left;">Always present</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>sharpe_ratio</code>, <code>max_drawdown_cents</code></td>
+<td style="text-align: left;"><code>QUANT</code> (includes <code>EQUITY_CURVE</code>)</td>
+<td style="text-align: left;"><code>None</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>lob_imbalance_*</code>, <code>resilience_mean_ns</code>, <code>pct_time_two_sided</code></td>
+<td style="text-align: left;"><code>QUANT</code> (includes <code>L1_SERIES</code>)</td>
+<td style="text-align: left;"><code>None</code> / <code>0.0</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>vwap_cents</code>, <code>trade_count</code>, <code>inventory_std</code></td>
+<td style="text-align: left;"><code>QUANT</code> (includes <code>TRADE_ATTRIBUTION</code>)</td>
+<td style="text-align: left;"><code>None</code> / <code>0</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>slippage_bps</code>, <code>adverse_selection_bps</code></td>
+<td style="text-align: left;"><code>QUANT</code> + <code>include_fills=True</code></td>
+<td style="text-align: left;"><code>None</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>fill_rate_pct</code>, <code>order_to_trade_ratio</code>, <code>market_ott_ratio</code>, <code>order_lifecycles</code></td>
+<td style="text-align: left;"><code>FULL</code> (includes <code>AGENT_LOGS</code>)</td>
+<td style="text-align: left;"><code>None</code> / <code>[]</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> Use <code>ResultProfile.QUANT</code> for analysis workloads.
+Add <code>ResultProfile.AGENT_LOGS</code> (i.e. <code>ResultProfile.FULL</code>) when
+order-level fill-rate, OTT metrics, or per-order lifecycle tracking are needed.</p>
+<hr />
+<h2 id="runner-functions">Runner Functions<a class="headerlink" href="#runner-functions" title="Permanent link">&para;</a></h2>
+<h3 id="run_simulation"><code>run_simulation()</code><a class="headerlink" href="#run_simulation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">run_simulation</span><span class="p">(</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">config</span><span class="p">:</span> <span class="n">SimulationConfig</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">profile</span><span class="p">:</span> <span class="n">ResultProfile</span> <span class="o">=</span> <span class="n">ResultProfile</span><span class="o">.</span><span class="n">SUMMARY</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">log_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">extractors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ResultExtractor</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">runtime_agents</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">TradingAgent</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimulationResult</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>config</code></td>
+<td style="text-align: left;"><code>SimulationConfig</code></td>
+<td style="text-align: left;">Validated config from <code>SimulationBuilder</code> or direct construction.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>profile</code></td>
+<td style="text-align: left;"><code>ResultProfile</code></td>
+<td style="text-align: left;">Controls which data is extracted. Default: <code>SUMMARY</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>log_dir</code></td>
+<td style="text-align: left;"><code>str \| None</code></td>
+<td style="text-align: left;">Directory for ABIDES log files. Auto-assigned (UUID) when <code>None</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extractors</code></td>
+<td style="text-align: left;"><code>list[ResultExtractor] \| None</code></td>
+<td style="text-align: left;">Plugin extractors contributing to <code>SimulationResult.extensions</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>runtime_agents</code></td>
+<td style="text-align: left;"><code>list[TradingAgent] \| None</code></td>
+<td style="text-align: left;">Pre-built agents injected after compilation (bypass config system).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> <code>SimulationResult</code></p>
+<hr />
+<h3 id="run_batch"><code>run_batch()</code><a class="headerlink" href="#run_batch" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">run_batch</span><span class="p">(</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">configs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SimulationConfig</span><span class="p">],</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">profile</span><span class="p">:</span> <span class="n">ResultProfile</span> <span class="o">=</span> <span class="n">ResultProfile</span><span class="o">.</span><span class="n">SUMMARY</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">n_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">extractors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ResultExtractor</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">log_dir_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">worker_initializer</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SimulationResult</span><span class="p">]</span>
+</code></pre></div>
+<p>Runs multiple simulations in parallel (multiprocessing, <code>spawn</code> context) and
+returns results in input order.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>configs</code></td>
+<td style="text-align: left;"><code>list[SimulationConfig]</code></td>
+<td style="text-align: left;">One config per simulation. Use explicit integer seeds for reproducibility.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>profile</code></td>
+<td style="text-align: left;"><code>ResultProfile</code></td>
+<td style="text-align: left;">Applied to every simulation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>n_workers</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Worker processes. Defaults to <code>os.cpu_count()</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extractors</code></td>
+<td style="text-align: left;"><code>list[ResultExtractor] \| None</code></td>
+<td style="text-align: left;">Must be picklable (no lambdas).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>log_dir_prefix</code></td>
+<td style="text-align: left;"><code>str \| None</code></td>
+<td style="text-align: left;">Worker <em>i</em> writes to <code>{prefix}_{i}</code>; UUID suffix when <code>None</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>worker_initializer</code></td>
+<td style="text-align: left;"><code>Callable[[], None] \| None</code></td>
+<td style="text-align: left;">Called once per worker before any simulation runs. Use to register custom agents via <code>@register_agent</code> in spawned processes. Must be picklable.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> <code>list[SimulationResult]</code> — same order as <code>configs</code>.</p>
+<hr />
+<h2 id="compute_rich_metrics"><code>compute_rich_metrics()</code><a class="headerlink" href="#compute_rich_metrics" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_rich_metrics</span><span class="p">(</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">result</span><span class="p">:</span> <span class="n">SimulationResult</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">include_fills</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">adverse_selection_windows</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RichSimulationMetrics</span>
+</code></pre></div>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>result</code></td>
+<td style="text-align: left;"><code>SimulationResult</code></td>
+<td style="text-align: left;">Output of <code>run_simulation()</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>include_fills</code></td>
+<td style="text-align: left;"><code>bool</code></td>
+<td style="text-align: left;">If <code>True</code>, produce per-fill <code>FillRecord</code> entries (Tier 3). Default <code>False</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>adverse_selection_windows</code></td>
+<td style="text-align: left;"><code>Sequence[str \| int]</code></td>
+<td style="text-align: left;">Look-ahead windows for adverse-selection computation. Accepts <code>"100ms"</code>, <code>"1s"</code>, <code>"5s"</code>, or raw nanosecond integers.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> <code>RichSimulationMetrics</code> (see model reference below).</p>
+<hr />
+<h2 id="return-models">Return Models<a class="headerlink" href="#return-models" title="Permanent link">&para;</a></h2>
+<h3 id="richsimulationmetrics"><code>RichSimulationMetrics</code><a class="headerlink" href="#richsimulationmetrics" title="Permanent link">&para;</a></h3>
+<p>Top-level return type of <code>compute_rich_metrics()</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>markets</code></td>
+<td style="text-align: left;"><code>dict[str, MarketSummary]</code></td>
+<td style="text-align: left;">Per-symbol market data with <code>microstructure</code> populated.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agents</code></td>
+<td style="text-align: left;"><code>list[RichAgentMetrics]</code></td>
+<td style="text-align: left;">Per-agent enriched analytics (one entry per <code>TradingAgent</code>).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>fills</code></td>
+<td style="text-align: left;"><code>list[FillRecord] \| None</code></td>
+<td style="text-align: left;">Per-fill execution records; <code>None</code> unless <code>include_fills=True</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="microstructuremetrics"><code>MicrostructureMetrics</code><a class="headerlink" href="#microstructuremetrics" title="Permanent link">&para;</a></h3>
+<p>Attached to each <code>MarketSummary</code> under the <code>microstructure</code> field.
+All fields are <code>None</code> when the required L1 series or agent logs are absent.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Definition</th>
+<th style="text-align: left;">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>lob_imbalance_mean</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Mean L1 order-book imbalance: $\frac{Q_{\text{bid}} - Q_{\text{ask}}}{Q_{\text{bid}} + Q_{\text{ask}}}$. Range $[-1, 1]$. Near 0 = balanced; positive = buying pressure.</td>
+<td style="text-align: left;">Cont, Kukanov &amp; Stoikov (2014)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>lob_imbalance_std</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Standard deviation of L1 imbalance. High values = erratic LOB composition.</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>resilience_mean_ns</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Mean spread recovery time after shock events (spread &gt; $\mu + 2\sigma$), in nanoseconds. <code>None</code> if no shocks detected. Longer = more fragile market.</td>
+<td style="text-align: left;">Foucault, Kadan &amp; Kandel (2013)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>market_ott_ratio</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Market-wide order-to-trade ratio: $N_{\text{submissions}} / N_{\text{fills}}$. MiFID II RTS 9 reference threshold: 4:1. Requires <code>AGENT_LOGS</code>.</td>
+<td style="text-align: left;">MiFID II RTS 9</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>pct_time_two_sided</code></td>
+<td style="text-align: left;"><code>float</code></td>
+<td style="text-align: left;">Percentage of L1 observations with both bid and ask present (0–100). Complement of <code>pct_time_no_bid</code>/<code>pct_time_no_ask</code>.</td>
+<td style="text-align: left;"></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> <code>volatility</code>, <code>mean_spread</code>, <code>avg_bid_liquidity</code>, <code>avg_ask_liquidity</code>, and
+<code>vpin</code> are <strong>not</strong> fields on <code>MicrostructureMetrics</code>. They are available as standalone
+compute functions — see <a href="#standalone-compute-functions">Standalone Compute Functions</a>.</p>
+</blockquote>
+<hr />
+<h3 id="richagentmetrics"><code>RichAgentMetrics</code><a class="headerlink" href="#richagentmetrics" title="Permanent link">&para;</a></h3>
+<p>One entry per agent. Combines data from <code>AgentData</code>, <code>EquityCurve</code>,
+<code>TradeAttribution</code>, and <code>AGENT_LOGS</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Definition</th>
+<th style="text-align: left;">Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>agent_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Unique agent identifier.</td>
+<td style="text-align: left;"><code>AgentData</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_type</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Agent class name.</td>
+<td style="text-align: left;"><code>AgentData</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_name</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Display name.</td>
+<td style="text-align: left;"><code>AgentData</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>total_pnl_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Mark-to-market PnL: $\text{ending_cash} + \sum(\text{inventory}<em>s \times P</em>{\text{last},s}) - \text{starting_cash}$. Always present.</td>
+<td style="text-align: left;"><code>AgentData.pnl_cents</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>sharpe_ratio</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Annualised Sharpe ratio from equity curve: $\frac{\bar{r}}{\sigma_r} \times \sqrt{\frac{T_{\text{ns/year}}}{\Delta t_{\text{median}}}}$. <code>None</code> if &lt; 30 observations or $\sigma_r = 0$.</td>
+<td style="text-align: left;"><code>EQUITY_CURVE</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>max_drawdown_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Peak-to-trough drawdown in cents: $\max_t(\max_{s \le t} \text{NAV}_s - \text{NAV}_t)$. 0 if monotonically increasing.</td>
+<td style="text-align: left;"><code>EQUITY_CURVE</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>fill_rate_pct</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Percentage of submitted orders that received at least one fill: $N_{\text{executed}} / N_{\text{submitted}} \times 100$. Requires <code>AGENT_LOGS</code>.</td>
+<td style="text-align: left;"><code>AGENT_LOGS</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>order_to_trade_ratio</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Per-agent OTT: $N_{\text{submitted}} / N_{\text{executed}}$. <code>None</code> if no executions. Requires <code>AGENT_LOGS</code>.</td>
+<td style="text-align: left;"><code>AGENT_LOGS</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>vwap_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Per-agent volume-weighted average fill price: $\sum(P_i \times Q_i) / \sum Q_i$. Integer cents, floor-divided.</td>
+<td style="text-align: left;"><code>TRADE_ATTRIBUTION</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>trade_count</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Number of fills involving this agent (both passive and aggressive sides). 0 if <code>TRADE_ATTRIBUTION</code> absent.</td>
+<td style="text-align: left;"><code>TRADE_ATTRIBUTION</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>end_inventory</code></td>
+<td style="text-align: left;"><code>dict[str, int]</code></td>
+<td style="text-align: left;">Final position per symbol (shares), excluding <code>CASH</code>. Empty dict if agent holds only cash.</td>
+<td style="text-align: left;"><code>AgentData.final_holdings</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>inventory_std</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Standard deviation of intraday inventory reconstructed fill-by-fill. High values = large positional swings. <code>None</code> if &lt; 2 fills.</td>
+<td style="text-align: left;"><code>TRADE_ATTRIBUTION</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>order_lifecycles</code></td>
+<td style="text-align: left;"><code>list[OrderLifecycle] \| None</code></td>
+<td style="text-align: left;">Per-order lifecycle records. <code>None</code> when <code>AGENT_LOGS</code> profile is not active. See <code>OrderLifecycle</code> below.</td>
+<td style="text-align: left;"><code>AGENT_LOGS</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="orderlifecycle"><code>OrderLifecycle</code><a class="headerlink" href="#orderlifecycle" title="Permanent link">&para;</a></h3>
+<p>One entry per submitted order, reconstructed from <code>ORDER_SUBMITTED</code>,
+<code>ORDER_EXECUTED</code>, <code>ORDER_CANCELLED</code>, and <code>ORDER_REJECTED</code> log events. Populated on
+<code>RichAgentMetrics.order_lifecycles</code> when <code>ResultProfile.AGENT_LOGS</code> is active.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>order_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Unique order identifier.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Agent that submitted the order.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>submitted_at_ns</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Timestamp of the <code>ORDER_SUBMITTED</code> event (nanoseconds, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>status</code></td>
+<td style="text-align: left;"><code>Literal["filled", "partially_filled", "cancelled", "rejected", "resting"]</code></td>
+<td style="text-align: left;">Terminal status. <code>"filled"</code> when <code>filled_qty == submitted_qty</code>; <code>"partially_filled"</code> when <code>0 &lt; filled_qty &lt; submitted_qty</code> or a partially filled order is cancelled; <code>"cancelled"</code> when an <code>ORDER_CANCELLED</code> event was observed with no fills; <code>"rejected"</code> when an <code>ORDER_REJECTED</code> event was observed; <code>"resting"</code> when no terminal event occurred by end of simulation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>filled_qty</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Total quantity filled across all execution events.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>submitted_qty</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Quantity specified in the original <code>ORDER_SUBMITTED</code> event.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>resting_time_ns</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Elapsed time the order spent resting in the book (nanoseconds), measured from submission to terminal state. Populated for <code>"filled"</code>, <code>"partially_filled"</code>, and <code>"cancelled"</code> orders. <code>None</code> for <code>"resting"</code> orders (no terminal event before simulation end) and for <code>"rejected"</code> orders (the order never entered the book — see <code>rejection_latency_ns</code>).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>rejection_latency_ns</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Elapsed time between the <code>ORDER_SUBMITTED</code> event and the <code>ORDER_REJECTED</code> event (nanoseconds). Populated only when <code>status == "rejected"</code>; <code>None</code> otherwise.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>fill_events</code></td>
+<td style="text-align: left;"><code>list[tuple[int, int, int]]</code></td>
+<td style="text-align: left;">Per-fill details as <code>(time_ns, price_cents, qty)</code> tuples. Empty list if no fills occurred.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="fillrecord"><code>FillRecord</code><a class="headerlink" href="#fillrecord" title="Permanent link">&para;</a></h3>
+<p>One entry per agent per fill (each <code>TradeAttribution</code> produces two records —
+one for the passive/maker side, one for the aggressive/taker side).
+Only populated when <code>include_fills=True</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>time_ns</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Fill timestamp (nanoseconds, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Agent involved in this fill.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>side</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;"><code>"BUY"</code> or <code>"SELL"</code> from this agent's perspective.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>price_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Fill price in integer cents.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>quantity</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Number of shares filled.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>slippage_bps</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Signed slippage vs contemporaneous L1 mid-price. For a BUY: $\text{bps} = (P_{\text{fill}} - P_{\text{mid}}) \times 10{,}000 / P_{\text{mid}}$. Positive = paid above mid (costly). For a SELL the sign is negated so positive = received below mid (costly). <code>None</code> when no two-sided L1 quote exists.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>adverse_selection_bps</code></td>
+<td style="text-align: left;"><code>dict[str, int \| None]</code></td>
+<td style="text-align: left;">Mid-price move at configurable look-ahead windows. Keys are window labels (e.g. <code>"100ms"</code>, <code>"1s"</code>). For a BUY: positive = price rose after fill (favorable); negative = adverse selection. For a SELL the sign is inverted. <code>None</code> per window when the mid-price lookup fails.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="standalone-compute-functions">Standalone Compute Functions<a class="headerlink" href="#standalone-compute-functions" title="Permanent link">&para;</a></h2>
+<p>Each function below can be called independently with plain Python data.
+They do not require a running simulation.</p>
+<h3 id="market-level">Market-Level<a class="headerlink" href="#market-level" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Function</th>
+<th style="text-align: left;">Signature</th>
+<th style="text-align: left;">Returns</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>compute_vwap</code></td>
+<td style="text-align: left;"><code>(trades: Sequence[tuple[int, int]])</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">VWAP from <code>(price_cents, qty)</code> pairs. Floor-divided.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_liquidity_metrics</code></td>
+<td style="text-align: left;"><code>(trades, *, pct_time_no_bid, pct_time_no_ask, total_exchanged_volume, last_trade_cents)</code></td>
+<td style="text-align: left;"><code>LiquidityMetrics</code></td>
+<td style="text-align: left;">Session-level stats.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_mean_spread</code></td>
+<td style="text-align: left;"><code>(l1: L1Snapshots)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Time-averaged quoted spread (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_effective_spread</code></td>
+<td style="text-align: left;"><code>(fills, l1: L1Snapshots)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Mean $2 \times |P_{\text{fill}} - P_{\text{mid}}|$ (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_volatility</code></td>
+<td style="text-align: left;"><code>(l1: L1Snapshots)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Annualised mid-price return volatility. Requires ≥ 30 two-sided observations.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_avg_liquidity</code></td>
+<td style="text-align: left;"><code>(l1: L1Snapshots)</code></td>
+<td style="text-align: left;"><code>tuple[float \| None, float \| None]</code></td>
+<td style="text-align: left;"><code>(avg_bid_qty, avg_ask_qty)</code> at best price.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_lob_imbalance</code></td>
+<td style="text-align: left;"><code>(l1: L1Snapshots)</code></td>
+<td style="text-align: left;"><code>tuple[float \| None, float \| None]</code></td>
+<td style="text-align: left;"><code>(mean, std)</code> of $(Q_b - Q_a)/(Q_b + Q_a)$.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_resilience</code></td>
+<td style="text-align: left;"><code>(l1: L1Snapshots, *, window_frac)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Mean spread recovery time (ns).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_vpin</code></td>
+<td style="text-align: left;"><code>(fills, l1, *, n_buckets, min_fills)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">VPIN (Easley et al. 2012).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_market_ott_ratio</code></td>
+<td style="text-align: left;"><code>(n_submissions, n_fills)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Market-wide order-to-trade ratio.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="agent-level">Agent-Level<a class="headerlink" href="#agent-level" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Function</th>
+<th style="text-align: left;">Signature</th>
+<th style="text-align: left;">Returns</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>compute_agent_pnl</code></td>
+<td style="text-align: left;"><code>(holdings, starting_cash_cents, last_trade_prices, ...)</code></td>
+<td style="text-align: left;"><code>AgentData</code></td>
+<td style="text-align: left;">Mark-to-market PnL from plain holdings dict.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_execution_metrics</code></td>
+<td style="text-align: left;"><code>(fills, target_quantity, filled_quantity, ...)</code></td>
+<td style="text-align: left;"><code>ExecutionMetrics</code></td>
+<td style="text-align: left;">VWAP slippage, participation rate, implementation shortfall.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_equity_curve</code></td>
+<td style="text-align: left;"><code>(fill_events: Sequence[tuple[int, int, int]], *, l1: L1Snapshots \| None = None)</code></td>
+<td style="text-align: left;"><code>EquityCurve \| None</code></td>
+<td style="text-align: left;">NAV time-series from <code>(time_ns, nav_cents, peak_nav_cents)</code> tuples. When <code>l1</code> is provided, one observation per two-sided L1 tick (carry-forward).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_sharpe_ratio</code></td>
+<td style="text-align: left;"><code>(curve: EquityCurve \| None)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Annualised Sharpe from equity curve.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_inventory_std</code></td>
+<td style="text-align: left;"><code>(fills: Sequence[tuple[str, int]])</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Inventory volatility from <code>(side, quantity)</code> pairs.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_order_fill_rate</code></td>
+<td style="text-align: left;"><code>(n_executed, n_submitted)</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Order-level fill rate (0–100).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="per-fill-tier-3">Per-Fill (Tier 3)<a class="headerlink" href="#per-fill-tier-3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Function</th>
+<th style="text-align: left;">Signature</th>
+<th style="text-align: left;">Returns</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>compute_fill_slippage</code></td>
+<td style="text-align: left;"><code>(fill_price_cents, fill_time_ns, side, l1)</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Signed slippage vs L1 mid (basis points).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_adverse_selection</code></td>
+<td style="text-align: left;"><code>(fill_price_cents, fill_time_ns, side, l1, window_ns)</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Mid-price move at look-ahead window (basis points).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="structural-helpers">Structural Helpers<a class="headerlink" href="#structural-helpers" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Function</th>
+<th style="text-align: left;">Signature</th>
+<th style="text-align: left;">Returns</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>compute_l1_close</code></td>
+<td style="text-align: left;"><code>(book_log2)</code></td>
+<td style="text-align: left;"><code>L1Close</code></td>
+<td style="text-align: left;">Last L1 snapshot from raw book log.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_l1_series</code></td>
+<td style="text-align: left;"><code>(book_log2)</code></td>
+<td style="text-align: left;"><code>L1Snapshots</code></td>
+<td style="text-align: left;">Full L1 time-series from raw book log.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_l2_series</code></td>
+<td style="text-align: left;"><code>(book_log2)</code></td>
+<td style="text-align: left;"><code>L2Snapshots</code></td>
+<td style="text-align: left;">Full sparse L2 series from raw book log.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_trade_attribution</code></td>
+<td style="text-align: left;"><code>(exec_entries)</code></td>
+<td style="text-align: left;"><code>list[TradeAttribution]</code></td>
+<td style="text-align: left;">Per-execution causal records.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>compute_metrics</code></td>
+<td style="text-align: left;"><code>(*, book_log2, exec_trades, agent_holdings, ...)</code></td>
+<td style="text-align: left;"><code>dict[str, Any]</code></td>
+<td style="text-align: left;">Canonical metric set from raw data (low-level orchestrator).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="existing-models-from-simulationresult">Existing Models (from <code>SimulationResult</code>)<a class="headerlink" href="#existing-models-from-simulationresult" title="Permanent link">&para;</a></h2>
+<p>These models are populated by <code>run_simulation()</code> and also used by
+<code>compute_rich_metrics()</code>.</p>
+<h3 id="marketsummary"><code>MarketSummary</code><a class="headerlink" href="#marketsummary" title="Permanent link">&para;</a></h3>
+<p>Per-symbol container. The <code>microstructure</code> field is populated by
+<code>compute_rich_metrics()</code> and is <code>None</code> when accessed directly from
+<code>SimulationResult</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Profile requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>symbol</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Always</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>l1_close</code></td>
+<td style="text-align: left;"><code>L1Close</code></td>
+<td style="text-align: left;">Always</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>liquidity</code></td>
+<td style="text-align: left;"><code>LiquidityMetrics</code></td>
+<td style="text-align: left;">Always</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>l1_series</code></td>
+<td style="text-align: left;"><code>L1Snapshots \| None</code></td>
+<td style="text-align: left;"><code>L1_SERIES</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>l2_series</code></td>
+<td style="text-align: left;"><code>L2Snapshots \| None</code></td>
+<td style="text-align: left;"><code>L2_SERIES</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>trades</code></td>
+<td style="text-align: left;"><code>list[TradeAttribution] \| None</code></td>
+<td style="text-align: left;"><code>TRADE_ATTRIBUTION</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>microstructure</code></td>
+<td style="text-align: left;"><code>MicrostructureMetrics \| None</code></td>
+<td style="text-align: left;">Populated by <code>compute_rich_metrics()</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="liquiditymetrics"><code>LiquidityMetrics</code><a class="headerlink" href="#liquiditymetrics" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>pct_time_no_bid</code></td>
+<td style="text-align: left;"><code>float</code></td>
+<td style="text-align: left;">% of session with empty bid (0–100).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>pct_time_no_ask</code></td>
+<td style="text-align: left;"><code>float</code></td>
+<td style="text-align: left;">% of session with empty ask (0–100).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>total_exchanged_volume</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Total shares traded.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>last_trade_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Last trade price (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>vwap_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Session VWAP (cents).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="agentdata"><code>AgentData</code><a class="headerlink" href="#agentdata" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>agent_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Unique ID.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_type</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Class name.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_name</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Display name.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_category</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Registry category.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>final_holdings</code></td>
+<td style="text-align: left;"><code>dict[str, int]</code></td>
+<td style="text-align: left;"><code>{"CASH": cents, "TICKER": shares}</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>starting_cash_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Initial cash (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>mark_to_market_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Portfolio value at close (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>pnl_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Absolute PnL (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>pnl_pct</code></td>
+<td style="text-align: left;"><code>float</code></td>
+<td style="text-align: left;">PnL as % of starting cash.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>execution_metrics</code></td>
+<td style="text-align: left;"><code>ExecutionMetrics \| None</code></td>
+<td style="text-align: left;">For execution-category agents only.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>equity_curve</code></td>
+<td style="text-align: left;"><code>EquityCurve \| None</code></td>
+<td style="text-align: left;">Requires <code>EQUITY_CURVE</code> profile flag.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="executionmetrics"><code>ExecutionMetrics</code><a class="headerlink" href="#executionmetrics" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>target_quantity</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Intended shares.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>filled_quantity</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Shares filled.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>fill_rate_pct</code></td>
+<td style="text-align: left;"><code>float</code></td>
+<td style="text-align: left;"><code>filled / target × 100</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>avg_fill_price_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Average fill price (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>vwap_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Session VWAP (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>vwap_slippage_bps</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Slippage vs VWAP (bps).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>participation_rate_pct</code></td>
+<td style="text-align: left;"><code>float \| None</code></td>
+<td style="text-align: left;">Agent volume / total volume × 100.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>arrival_price_cents</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Mid at first order (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>implementation_shortfall_bps</code></td>
+<td style="text-align: left;"><code>int \| None</code></td>
+<td style="text-align: left;">Shortfall vs arrival (bps).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="equitycurve"><code>EquityCurve</code><a class="headerlink" href="#equitycurve" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>times_ns</code></td>
+<td style="text-align: left;"><code>list[int]</code></td>
+<td style="text-align: left;">Timestamp per observation. One entry per fill in fill-only mode; one entry per two-sided L1 tick when <code>l1</code> is provided to <code>compute_equity_curve()</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>nav_cents</code></td>
+<td style="text-align: left;"><code>list[int]</code></td>
+<td style="text-align: left;">NAV at each observation (cents). In L1-sampled mode, the most recent fill NAV is carried forward.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>peak_nav_cents</code></td>
+<td style="text-align: left;"><code>list[int]</code></td>
+<td style="text-align: left;">High-water mark at each observation (cents).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>max_drawdown_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Property: max peak-to-trough (cents).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="simulationmetadata"><code>SimulationMetadata</code><a class="headerlink" href="#simulationmetadata" title="Permanent link">&para;</a></h3>
+<p>Simulation-level identifiers and timing. Always present in <code>SimulationResult.metadata</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>seed</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">RNG seed used for the run.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>tickers</code></td>
+<td style="text-align: left;"><code>list[str]</code></td>
+<td style="text-align: left;">Symbols traded in the simulation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>sim_start_ns</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Simulation start time (nanoseconds, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>sim_end_ns</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Simulation stop time (nanoseconds, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>wall_clock_elapsed_s</code></td>
+<td style="text-align: left;"><code>float</code></td>
+<td style="text-align: left;">Wall-clock seconds elapsed during the discrete-event loop.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>config_snapshot</code></td>
+<td style="text-align: left;"><code>dict[str, Any]</code></td>
+<td style="text-align: left;">JSON-serialisable subset of the <code>SimulationConfig</code> that produced this result.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="tradeattribution"><code>TradeAttribution</code><a class="headerlink" href="#tradeattribution" title="Permanent link">&para;</a></h3>
+<p>Causal attribution for a single execution (fill). One record per <code>EXEC</code> event in the
+order-book history. Available in <code>MarketSummary.trades</code> when <code>TRADE_ATTRIBUTION</code> profile
+flag is active.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>time_ns</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Execution timestamp (nanoseconds, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>passive_agent_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Agent ID of the resting order (maker).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>aggressive_agent_id</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Agent ID of the incoming order (taker).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>side</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Side of the passive order: <code>"BUY"</code> or <code>"SELL"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>price_cents</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Execution price in integer cents.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>quantity</code></td>
+<td style="text-align: left;"><code>int</code></td>
+<td style="text-align: left;">Number of shares executed.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="l1snapshots"><code>L1Snapshots</code><a class="headerlink" href="#l1snapshots" title="Permanent link">&para;</a></h3>
+<p>Full L1 time-series as parallel numpy arrays. Available in <code>MarketSummary.l1_series</code>
+when <code>L1_SERIES</code> profile flag is active.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>times_ns</code></td>
+<td style="text-align: left;"><code>np.ndarray</code></td>
+<td style="text-align: left;">Event timestamps (ns, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bid_prices</code></td>
+<td style="text-align: left;"><code>np.ndarray</code></td>
+<td style="text-align: left;">Best bid prices (integer cents; <code>pd.NA</code> when side is empty).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bid_quantities</code></td>
+<td style="text-align: left;"><code>np.ndarray</code></td>
+<td style="text-align: left;">Quantities at best bid (<code>pd.NA</code> when side is empty).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ask_prices</code></td>
+<td style="text-align: left;"><code>np.ndarray</code></td>
+<td style="text-align: left;">Best ask prices (integer cents; <code>pd.NA</code> when side is empty).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ask_quantities</code></td>
+<td style="text-align: left;"><code>np.ndarray</code></td>
+<td style="text-align: left;">Quantities at best ask (<code>pd.NA</code> when side is empty).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Method:</strong> <code>as_dataframe() → DataFrame[L1DataFrameSchema]</code> — converts to a wide
+DataFrame with columns <code>time_ns</code>, <code>bid_price_cents</code>, <code>bid_qty</code>, <code>ask_price_cents</code>,
+<code>ask_qty</code> (all nullable <code>Int64</code>). Pass this to standalone compute functions.</p>
+<hr />
+<h3 id="l2snapshots"><code>L2Snapshots</code><a class="headerlink" href="#l2snapshots" title="Permanent link">&para;</a></h3>
+<p>Full sparse L2 order-book snapshots. Available in <code>MarketSummary.l2_series</code>
+when <code>L2_SERIES</code> profile flag is active.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>times_ns</code></td>
+<td style="text-align: left;"><code>np.ndarray</code></td>
+<td style="text-align: left;">Event timestamps (ns, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bids</code></td>
+<td style="text-align: left;"><code>list[list[tuple[int, int]]]</code></td>
+<td style="text-align: left;">Per-snapshot bid levels as <code>(price_cents, qty)</code> pairs, best-first.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>asks</code></td>
+<td style="text-align: left;"><code>list[list[tuple[int, int]]]</code></td>
+<td style="text-align: left;">Per-snapshot ask levels as <code>(price_cents, qty)</code> pairs, best-first.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Method:</strong> <code>as_dataframe() → DataFrame[L2DataFrameSchema]</code> — converts to a tidy
+long DataFrame with columns <code>time_ns</code>, <code>side</code>, <code>level</code>, <code>price_cents</code>, <code>qty</code>. Only
+observed resting levels are present (no zero-padding); <code>price_cents &gt; 0</code>, <code>qty &gt; 0</code>.</p>
+<hr />
+<h3 id="simulationresult-methods"><code>SimulationResult</code> Methods<a class="headerlink" href="#simulationresult-methods" title="Permanent link">&para;</a></h3>
+<p><code>SimulationResult</code> is the immutable return type of <code>run_simulation()</code>. In addition
+to its data fields (see <code>MarketSummary</code>, <code>AgentData</code>, etc.), it exposes the following
+methods:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Returns</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>get_agents_by_category(category: str)</code></td>
+<td style="text-align: left;"><code>list[AgentData]</code></td>
+<td style="text-align: left;">Filter agents by <code>agent_category</code> (registry category string).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>summary()</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Concise human/LLM-readable narrative. Succeeds regardless of profile.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>order_logs()</code></td>
+<td style="text-align: left;"><code>DataFrame[OrderLogsSchema]</code></td>
+<td style="text-align: left;">Order-event subset of the log DataFrame, excluding <code>ORDER_REJECTED</code> rows. Every row has a <code>symbol</code>, <code>quantity</code>, and <code>side</code>. Raises <code>RuntimeError</code> if <code>AGENT_LOGS</code> was not active.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>rejected_order_logs()</code></td>
+<td style="text-align: left;"><code>DataFrame[RejectedOrderLogsSchema]</code></td>
+<td style="text-align: left;"><code>ORDER_REJECTED</code> subset of the log DataFrame, carrying <code>order_id</code> and <code>reason</code> only. Raises <code>RuntimeError</code> if <code>AGENT_LOGS</code> was not active.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>to_dict()</code></td>
+<td style="text-align: left;"><code>dict[str, Any]</code></td>
+<td style="text-align: left;">Fully JSON-serialisable dict (no numpy arrays or DataFrames).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>to_json()</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">JSON string representation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>summary_dict()</code></td>
+<td style="text-align: left;"><code>dict[str, Any]</code></td>
+<td style="text-align: left;">Structured dict for dashboard widgets: <code>metadata</code>, <code>markets</code>, <code>agent_leaderboard</code>, <code>execution_summary</code>, <code>warnings</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="sign-conventions">Sign Conventions<a class="headerlink" href="#sign-conventions" title="Permanent link">&para;</a></h2>
+<h3 id="slippage-slippage_bps">Slippage (<code>slippage_bps</code>)<a class="headerlink" href="#slippage-slippage_bps" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Direction</th>
+<th style="text-align: left;">Positive value means</th>
+<th style="text-align: left;">Negative value means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">BUY</td>
+<td style="text-align: left;">Paid above mid (costly)</td>
+<td style="text-align: left;">Paid below mid (favorable)</td>
+</tr>
+<tr>
+<td style="text-align: left;">SELL</td>
+<td style="text-align: left;">Received below mid (costly)</td>
+<td style="text-align: left;">Received above mid (favorable)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="adverse-selection-adverse_selection_bps">Adverse Selection (<code>adverse_selection_bps</code>)<a class="headerlink" href="#adverse-selection-adverse_selection_bps" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Direction</th>
+<th style="text-align: left;">Positive value means</th>
+<th style="text-align: left;">Negative value means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">BUY</td>
+<td style="text-align: left;">Price rose after fill (favorable)</td>
+<td style="text-align: left;">Price fell after fill (adverse)</td>
+</tr>
+<tr>
+<td style="text-align: left;">SELL</td>
+<td style="text-align: left;">Price fell after fill (favorable)</td>
+<td style="text-align: left;">Price rose after fill (adverse)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="diagnostic-patterns">Diagnostic Patterns<a class="headerlink" href="#diagnostic-patterns" title="Permanent link">&para;</a></h2>
+<p>Common interpretation patterns for practitioners and LLM agents:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Observation</th>
+<th style="text-align: left;">Diagnosis</th>
+<th style="text-align: left;">Suggested action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">High <code>total_pnl_cents</code>, high <code>lob_imbalance_std</code></td>
+<td style="text-align: left;">Profitable but destabilising the book.</td>
+<td style="text-align: left;">Reduce order aggressiveness or size.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Low <code>fill_rate_pct</code>, low <code>total_pnl_cents</code></td>
+<td style="text-align: left;">Strategy too passive; orders not crossing spread.</td>
+<td style="text-align: left;">Increase limit price aggressiveness or use market orders.</td>
+</tr>
+<tr>
+<td style="text-align: left;">High <code>order_to_trade_ratio</code></td>
+<td style="text-align: left;">Excessive cancellations / quote-stuffing.</td>
+<td style="text-align: left;">Reduce quote update frequency.</td>
+</tr>
+<tr>
+<td style="text-align: left;">High <code>inventory_std</code>, high <code>max_drawdown_cents</code></td>
+<td style="text-align: left;">Large unhedged positional risk.</td>
+<td style="text-align: left;">Tighten inventory limits or add mean-reversion.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Negative <code>adverse_selection_bps</code> at all windows</td>
+<td style="text-align: left;">Consistently trading against future price moves.</td>
+<td style="text-align: left;">Improve signal timing or add latency to entry.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>pct_time_two_sided</code> &lt; 50%</td>
+<td style="text-align: left;">Market frequently one-sided; poor liquidity.</td>
+<td style="text-align: left;">Add market-maker agents or increase their aggressiveness.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>resilience_mean_ns</code> increasing</td>
+<td style="text-align: left;">Market healing slower after shocks.</td>
+<td style="text-align: left;">Strategy may be degrading microstructure quality.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>market_ott_ratio</code> &gt; 4</td>
+<td style="text-align: left;">Exceeds MiFID II reference threshold.</td>
+<td style="text-align: left;">Review quoting strategy for regulatory compliance.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="extractors">Extractors<a class="headerlink" href="#extractors" title="Permanent link">&para;</a></h2>
+<p>Extractors are plugins that receive the raw <code>end_state</code> dict after a simulation run
+and contribute values to <code>SimulationResult.extensions</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Class</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ResultExtractor</code></td>
+<td style="text-align: left;">Protocol / base type. Any callable matching <code>(end_state: dict) -&gt; Any</code> qualifies.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>BaseResultExtractor</code></td>
+<td style="text-align: left;">Abstract base class. Subclass this for reusable, picklable extractors. Override <code>extract(end_state) -&gt; Any</code> and set <code>self.key</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FunctionExtractor</code></td>
+<td style="text-align: left;">Wraps a plain function: <code>FunctionExtractor(key, fn)</code>. The result is stored under <code>SimulationResult.extensions[key]</code>. Must be picklable for <code>run_batch()</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">FunctionExtractor</span><span class="p">,</span> <span class="n">run_simulation</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">ext</span> <span class="o">=</span> <span class="n">FunctionExtractor</span><span class="p">(</span><span class="s2">&quot;n_agents&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;agents&quot;</span><span class="p">]))</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">run_simulation</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">extractors</span><span class="o">=</span><span class="p">[</span><span class="n">ext</span><span class="p">])</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;n_agents&quot;</span><span class="p">])</span>
+</code></pre></div>
+<hr />
+<h2 id="dataframe-schemas">DataFrame Schemas<a class="headerlink" href="#dataframe-schemas" title="Permanent link">&para;</a></h2>
+<p>All schemas are <a href="https://pandera.readthedocs.io/">Pandera</a> <code>DataFrameModel</code> classes.
+Import them for runtime validation or type checking.</p>
+<h3 id="l1dataframeschema"><code>L1DataFrameSchema</code><a class="headerlink" href="#l1dataframeschema" title="Permanent link">&para;</a></h3>
+<p>Schema for <code>L1Snapshots.as_dataframe()</code>. Strict (no extra columns).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Column</th>
+<th style="text-align: left;">dtype</th>
+<th style="text-align: left;">Nullable</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>time_ns</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Event timestamp (ns, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bid_price_cents</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Best bid price in cents; <code>None</code> if no bid.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bid_qty</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Quantity at best bid; <code>None</code> if no bid.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ask_price_cents</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Best ask price in cents; <code>None</code> if no ask.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ask_qty</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Quantity at best ask; <code>None</code> if no ask.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="l2dataframeschema"><code>L2DataFrameSchema</code><a class="headerlink" href="#l2dataframeschema" title="Permanent link">&para;</a></h3>
+<p>Schema for <code>L2Snapshots.as_dataframe()</code>. Tidy long format. Strict (no extra columns).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Column</th>
+<th style="text-align: left;">dtype</th>
+<th style="text-align: left;">Nullable</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>time_ns</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Event timestamp (ns, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>side</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;"><code>"bid"</code> or <code>"ask"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>level</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Depth level, 0-indexed (0 = best).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>price_cents</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Limit price in cents (&gt; 0).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>qty</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Aggregate resting quantity (&gt; 0).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rawlogsschema"><code>RawLogsSchema</code><a class="headerlink" href="#rawlogsschema" title="Permanent link">&para;</a></h3>
+<p>Base schema for <code>SimulationResult.logs</code>. Non-strict (extra columns pass through).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Column</th>
+<th style="text-align: left;">dtype</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>EventTime</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Event timestamp (ns, Unix epoch).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>EventType</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Event label, e.g. <code>"ORDER_SUBMITTED"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_id</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">ID of the agent that logged the event.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent_type</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">Agent class name.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="orderlogsschema"><code>OrderLogsSchema</code><a class="headerlink" href="#orderlogsschema" title="Permanent link">&para;</a></h3>
+<p>Schema for <code>SimulationResult.order_logs()</code>. Extends <code>RawLogsSchema</code> with the columns
+guaranteed on every order-lifecycle event (submit, accept, execute, cancel,
+partial-cancel, modify, replace). <code>ORDER_REJECTED</code> rows are excluded — see
+<code>RejectedOrderLogsSchema</code> below. Non-strict (extra per-event-type columns such as
+<code>is_hidden</code> or <code>time_in_force</code> are retained).</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Column</th>
+<th style="text-align: left;">dtype</th>
+<th style="text-align: left;">Nullable</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>symbol</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Trading symbol.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>order_id</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Unique order identifier.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>quantity</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Order quantity in shares (&gt; 0).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>side</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;"><code>"BID"</code> or <code>"ASK"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>fill_price</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Fill price in cents; <code>None</code> unless <code>ORDER_EXECUTED</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>limit_price</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Limit price in cents; <code>None</code> for market orders.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rejectedorderlogsschema"><code>RejectedOrderLogsSchema</code><a class="headerlink" href="#rejectedorderlogsschema" title="Permanent link">&para;</a></h3>
+<p>Schema for <code>SimulationResult.rejected_order_logs()</code>. Extends <code>RawLogsSchema</code>. Rejection
+payloads carry only the rejected order's id and the reason — the original symbol,
+quantity, and side are not part of the <code>OrderRejectedMsg</code> contract. Non-strict.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Column</th>
+<th style="text-align: left;">dtype</th>
+<th style="text-align: left;">Nullable</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>order_id</code></td>
+<td style="text-align: left;"><code>Int64</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Unique order identifier.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>reason</code></td>
+<td style="text-align: left;"><code>str</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Rejection reason, e.g. <code>"INVALID_PRICE"</code>, <code>"UNKNOWN_SYMBOL"</code>. Corresponds to a <code>RejectReason</code> enum value.</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../event-vocabulary/#orderrejectedmsg">event-vocabulary.md</a> for the full
+<code>RejectReason</code> table.</p>
+<hr />
+<h2 id="import-paths">Import Paths<a class="headerlink" href="#import-paths" title="Permanent link">&para;</a></h2>
+<p>All public symbols are re-exported from <code>abides_markets.simulation</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="c1"># Runner functions</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">run_simulation</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">run_batch</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="c1"># High-level API</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">compute_rich_metrics</span><span class="p">,</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">RichSimulationMetrics</span><span class="p">,</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">RichAgentMetrics</span><span class="p">,</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">MicrostructureMetrics</span><span class="p">,</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">OrderLifecycle</span><span class="p">,</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">FillRecord</span><span class="p">,</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="c1"># Standalone compute functions</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">compute_fill_slippage</span><span class="p">,</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="n">compute_adverse_selection</span><span class="p">,</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="n">compute_vwap</span><span class="p">,</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>    <span class="n">compute_sharpe_ratio</span><span class="p">,</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>    <span class="n">compute_lob_imbalance</span><span class="p">,</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>    <span class="n">compute_resilience</span><span class="p">,</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>    <span class="n">compute_vpin</span><span class="p">,</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>    <span class="n">compute_market_ott_ratio</span><span class="p">,</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>    <span class="n">compute_inventory_std</span><span class="p">,</span>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>    <span class="n">compute_order_fill_rate</span><span class="p">,</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>    <span class="n">compute_mean_spread</span><span class="p">,</span>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>    <span class="n">compute_effective_spread</span><span class="p">,</span>
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>    <span class="n">compute_volatility</span><span class="p">,</span>
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a>    <span class="n">compute_avg_liquidity</span><span class="p">,</span>
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>    <span class="n">compute_agent_pnl</span><span class="p">,</span>
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>    <span class="n">compute_execution_metrics</span><span class="p">,</span>
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a>    <span class="n">compute_equity_curve</span><span class="p">,</span>
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a>    <span class="n">compute_liquidity_metrics</span><span class="p">,</span>
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a>    <span class="n">compute_l1_close</span><span class="p">,</span>
+<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a>    <span class="n">compute_l1_series</span><span class="p">,</span>
+<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a>    <span class="n">compute_l2_series</span><span class="p">,</span>
+<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a>    <span class="n">compute_trade_attribution</span><span class="p">,</span>
+<a id="__codelineno-5-37" name="__codelineno-5-37" href="#__codelineno-5-37"></a>    <span class="n">compute_metrics</span><span class="p">,</span>
+<a id="__codelineno-5-38" name="__codelineno-5-38" href="#__codelineno-5-38"></a>
+<a id="__codelineno-5-39" name="__codelineno-5-39" href="#__codelineno-5-39"></a>    <span class="c1"># Result models</span>
+<a id="__codelineno-5-40" name="__codelineno-5-40" href="#__codelineno-5-40"></a>    <span class="n">SimulationResult</span><span class="p">,</span>
+<a id="__codelineno-5-41" name="__codelineno-5-41" href="#__codelineno-5-41"></a>    <span class="n">SimulationMetadata</span><span class="p">,</span>
+<a id="__codelineno-5-42" name="__codelineno-5-42" href="#__codelineno-5-42"></a>    <span class="n">MarketSummary</span><span class="p">,</span>
+<a id="__codelineno-5-43" name="__codelineno-5-43" href="#__codelineno-5-43"></a>    <span class="n">AgentData</span><span class="p">,</span>
+<a id="__codelineno-5-44" name="__codelineno-5-44" href="#__codelineno-5-44"></a>    <span class="n">ExecutionMetrics</span><span class="p">,</span>
+<a id="__codelineno-5-45" name="__codelineno-5-45" href="#__codelineno-5-45"></a>    <span class="n">EquityCurve</span><span class="p">,</span>
+<a id="__codelineno-5-46" name="__codelineno-5-46" href="#__codelineno-5-46"></a>    <span class="n">TradeAttribution</span><span class="p">,</span>
+<a id="__codelineno-5-47" name="__codelineno-5-47" href="#__codelineno-5-47"></a>    <span class="n">LiquidityMetrics</span><span class="p">,</span>
+<a id="__codelineno-5-48" name="__codelineno-5-48" href="#__codelineno-5-48"></a>    <span class="n">L1Close</span><span class="p">,</span>
+<a id="__codelineno-5-49" name="__codelineno-5-49" href="#__codelineno-5-49"></a>    <span class="n">L1Snapshots</span><span class="p">,</span>
+<a id="__codelineno-5-50" name="__codelineno-5-50" href="#__codelineno-5-50"></a>    <span class="n">L2Snapshots</span><span class="p">,</span>
+<a id="__codelineno-5-51" name="__codelineno-5-51" href="#__codelineno-5-51"></a>    <span class="n">ResultProfile</span><span class="p">,</span>
+<a id="__codelineno-5-52" name="__codelineno-5-52" href="#__codelineno-5-52"></a>
+<a id="__codelineno-5-53" name="__codelineno-5-53" href="#__codelineno-5-53"></a>    <span class="c1"># Extractors</span>
+<a id="__codelineno-5-54" name="__codelineno-5-54" href="#__codelineno-5-54"></a>    <span class="n">BaseResultExtractor</span><span class="p">,</span>
+<a id="__codelineno-5-55" name="__codelineno-5-55" href="#__codelineno-5-55"></a>    <span class="n">FunctionExtractor</span><span class="p">,</span>
+<a id="__codelineno-5-56" name="__codelineno-5-56" href="#__codelineno-5-56"></a>    <span class="n">ResultExtractor</span><span class="p">,</span>
+<a id="__codelineno-5-57" name="__codelineno-5-57" href="#__codelineno-5-57"></a>
+<a id="__codelineno-5-58" name="__codelineno-5-58" href="#__codelineno-5-58"></a>    <span class="c1"># DataFrame schemas</span>
+<a id="__codelineno-5-59" name="__codelineno-5-59" href="#__codelineno-5-59"></a>    <span class="n">L1DataFrameSchema</span><span class="p">,</span>
+<a id="__codelineno-5-60" name="__codelineno-5-60" href="#__codelineno-5-60"></a>    <span class="n">L2DataFrameSchema</span><span class="p">,</span>
+<a id="__codelineno-5-61" name="__codelineno-5-61" href="#__codelineno-5-61"></a>    <span class="n">RawLogsSchema</span><span class="p">,</span>
+<a id="__codelineno-5-62" name="__codelineno-5-62" href="#__codelineno-5-62"></a>    <span class="n">OrderLogsSchema</span><span class="p">,</span>
+<a id="__codelineno-5-63" name="__codelineno-5-63" href="#__codelineno-5-63"></a>    <span class="n">RejectedOrderLogsSchema</span><span class="p">,</span>
+<a id="__codelineno-5-64" name="__codelineno-5-64" href="#__codelineno-5-64"></a><span class="p">)</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3034 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent-Based Interactive Discrete Event Simulation for financial markets research">
+      
+      
+      
+        <link rel="canonical" href="https://gabrieledicorato.github.io/abides-ng/reference/llm-gotchas/">
+      
+      
+        <link rel="prev" href="../../project/release-process/">
+      
+      
+        <link rel="next" href="../../changelog/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Integration Gotchas - ABIDES-NG</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abides-ng-llm-integration-reference-gotchas" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABIDES-NG" class="md-header__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABIDES-NG
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Integration Gotchas
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../config-system/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../kernel-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../project/reproducibility/" class="md-tabs__link">
+          
+  
+  
+  Operations & Governance
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  For LLM / Agent Builders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../notebooks/demo_ABIDES-Markets/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABIDES-NG" class="md-nav__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABIDES-NG
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/one-pager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../custom-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a Custom Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parallel-simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Experiments in Parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kernel-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernel & Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics-algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations & Governance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations & Governance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/release-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For LLM / Agent Builders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For LLM / Agent Builders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-mental-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Mental Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-agent-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Agent Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-market-data-all-sources-of-none-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Market Data — All Sources of None / Empty
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Market Data — All Sources of None / Empty">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-selfknown_bidssymbol-and-selfknown_askssymbol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 self.known_bids[symbol] and self.known_asks[symbol]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-selflast_tradesymbol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 self.last_trade[symbol]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-selfmkt_open-and-selfmkt_close" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 self.mkt_open and self.mkt_close
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-l1datamsgbid-and-l1datamsgask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 L1DataMsg.bid and L1DataMsg.ask
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-l2datamsgbids-and-l2datamsgasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 L2DataMsg.bids and L2DataMsg.asks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-queryspreadresponsemsglast_trade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6 QuerySpreadResponseMsg.last_trade
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-pre-market-window-special-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Pre-Market Window — Special State
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-order-book-data-structures-explained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Order Book Data Structures Explained
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Order Book Data Structures Explained">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#l1-best-bidask-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L1 — Best bid/ask only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l2-all-price-levels-aggregated-by-price" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L2 — All price levels, aggregated by price
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l3-all-price-levels-per-order-quantities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L3 — All price levels, per-order quantities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tradingagent-cache-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TradingAgent cache fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-the-mark_to_market-trap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. The mark_to_market Trap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-price-units-everything-is-integer-cents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Price Units — Everything is Integer Cents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-order-lifecycle-and-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Order Lifecycle and Tracking
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Order Lifecycle and Tracking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agents-view-of-its-own-orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent's view of its own orders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#order-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Order execution flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancellation-subtlety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation subtlety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#order-rejection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Order rejection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-correct-safe-access-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Correct Safe-Access Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Correct Safe-Access Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#getting-bidask-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting bid/ask safely
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-midpoint-safely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting midpoint safely
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-if-ready-to-trade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking if ready to trade
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#computing-spread" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Computing spread
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-subscription-vs-pull-based-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Subscription vs. Pull-Based Data
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Subscription vs. Pull-Based Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pull-requestresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull (request/response)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscription-push" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscription (push)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-complete-state-validity-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Complete State Validity Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference-what-returns-noneempty-and-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Reference: What Returns None/Empty and When
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-running-simulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Running Simulations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-custom-oracle-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Custom Oracle Classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-logevent-deep-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. logEvent Deep Copy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-crashes-quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Crashes — Quick Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernel-invariants-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel invariants (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernelinitialize-is-the-canonical-reset-point-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel.initialize() is the canonical reset point (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reserved-custom_properties-keys-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reserved custom_properties keys (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#always-seed-the-kernel-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Always seed the kernel (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#heap-entries-are-_heapentry-dataclasses-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heap entries are _HeapEntry dataclasses (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agentdelay-works-inside-receive_message-fixed-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent.delay() works inside receive_message() (fixed 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-agent-type-metrics-live-in-custom_state-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-agent-type metrics live in custom_state (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#latencymodelget_latency-requires-random_state-kwarg-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LatencyModel.get_latency requires random_state kwarg (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#latency-models-default-to-no-rng-draw-changed-2026-04-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latency models default to no RNG draw (changed 2026-04, BREAKING)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-agent-state-is-numpy-int64-changed-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-agent state is numpy int64 (changed 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernel-constructor-is-keyword-only-changed-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel constructor is keyword-only (changed 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernel-lifecycle-is-enforced-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel lifecycle is enforced (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inject-a-gymadapter-auto-detection-is-deprecated-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inject a GymAdapter; auto-detection is deprecated (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pluggable-log-sink-via-logwriter-added-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pluggable log sink via LogWriter (added 2026-04)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_ABIDES-Markets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markets Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_Config_System/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIDES Declarative Configuration System — Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="abides-ng-llm-integration-reference-gotchas">ABIDES-NG — LLM Integration Reference &amp; Gotchas<a class="headerlink" href="#abides-ng-llm-integration-reference-gotchas" title="Permanent link">&para;</a></h1>
+<p><em>For AI coding assistants and developers writing or reviewing
+ABIDES-NG agent code.</em></p>
+<p>Canonical reference for the async agent model, every source of
+<code>None</code> / <code>NaN</code> / empty collections, safe-access patterns, and the
+simulation runner API. If your agent crashes with a <code>KeyError</code> or
+returns <code>None</code> where you expected a price, this is the first page
+to read.</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-mental-model">Mental Model — Not a Loop, Not Synchronous</a></li>
+<li><a href="#2-agent-lifecycle">Agent Lifecycle</a></li>
+<li><a href="#3-market-data-all-sources-of-none-empty">Market Data — All Sources of None / Empty</a></li>
+<li><a href="#4-pre-market-window-special-state">Pre-Market Window — Special State</a></li>
+<li><a href="#5-order-book-data-structures-explained">Order Book Data Structures Explained</a></li>
+<li><a href="#6-the-mark_to_market-trap">The mark_to_market Trap</a></li>
+<li><a href="#7-price-units-everything-is-integer-cents">Price Units — Everything is Integer Cents</a></li>
+<li><a href="#8-order-lifecycle-and-tracking">Order Lifecycle and Tracking</a></li>
+<li><a href="#9-correct-safe-access-patterns">Correct Safe-Access Patterns</a></li>
+<li><a href="#10-subscription-vs-pull-based-data">Subscription vs. Pull-Based Data</a></li>
+<li><a href="#11-complete-state-validity-checklist">Complete State Validity Checklist</a></li>
+<li><a href="#12-running-simulations">Running Simulations</a></li>
+<li><a href="#13-custom-oracle-classes">Custom Oracle Classes</a></li>
+<li><a href="#14-logevent-deep-copy">logEvent Deep Copy</a></li>
+</ol>
+<hr />
+<h2 id="1-mental-model">1. Mental Model<a class="headerlink" href="#1-mental-model" title="Permanent link">&para;</a></h2>
+<p>ABIDES is a <strong>discrete-event simulation</strong> — NOT a loop-based system.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>❌ WRONG mental model:
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    while market_open:
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        bid, ask = get_spread()   # synchronous
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        if bid is not None:
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>            place_order(...)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>✅ CORRECT mental model:
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    def wakeup(self, current_time):
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        # 1. Request data (sends a message - async)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        self.get_current_spread(symbol)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        # 2. Return — execution ends here
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    def receive_message(self, current_time, sender_id, message):
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        # 3. Data arrives HERE, possibly nanoseconds later
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        if isinstance(message, QuerySpreadResponseMsg):
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            # NOW self.known_bids / known_asks are fresh
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            place_order(...)
+</code></pre></div>
+<p><strong>Key consequence</strong>: Every call to <code>get_current_spread()</code>, <code>get_last_trade()</code>, etc.
+sends a <em>message</em> to the Exchange. Nothing is returned immediately. The response
+arrives asynchronously in <code>receive_message()</code>.</p>
+<hr />
+<h2 id="2-agent-lifecycle">2. Agent Lifecycle<a class="headerlink" href="#2-agent-lifecycle" title="Permanent link">&para;</a></h2>
+<p>Custom agents subclass <code>TradingAgent</code> and implement exactly two callbacks:</p>
+<table>
+<thead>
+<tr>
+<th>Callback</th>
+<th>Called when</th>
+<th>Typical actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wakeup(current_time)</code></td>
+<td>At each scheduled time</td>
+<td><code>set_wakeup()</code> for next tick; request data; place orders</td>
+</tr>
+<tr>
+<td><code>receive_message(current_time, sender_id, message)</code></td>
+<td>When a message arrives</td>
+<td>React to fills, spread responses, market data</td>
+</tr>
+</tbody>
+</table>
+<p><code>TradingAgent</code> handles all other lifecycle phases internally (<code>kernel_starting</code>,
+<code>kernel_stopping</code>, mark-to-market at close, etc.). <strong>Do not override these.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyAgent</span><span class="p">(</span><span class="n">TradingAgent</span><span class="p">):</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">wakeup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_time</span><span class="p">):</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        <span class="n">can_trade</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">wakeup</span><span class="p">(</span><span class="n">current_time</span><span class="p">)</span>  <span class="c1"># ALWAYS call super first</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">can_trade</span><span class="p">:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>            <span class="k">return</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">get_current_spread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>      <span class="c1"># send data request</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">set_wakeup</span><span class="p">(</span><span class="n">current_time</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">wake_freq</span><span class="p">)</span>  <span class="c1"># schedule next tick</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">receive_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_time</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">receive_message</span><span class="p">(</span><span class="n">current_time</span><span class="p">,</span> <span class="n">sender_id</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>  <span class="c1"># ALWAYS call super</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">QuerySpreadResponseMsg</span><span class="p">):</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_on_spread</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Subscribe-mode agents</strong>: call <code>super().wakeup()</code> but proceed with
+one-time subscription setup even when it returns <code>False</code> — subscriptions
+must be registered before market hours arrive.</p>
+</blockquote>
+<hr />
+<h2 id="3-market-data-all-sources-of-none-empty">3. Market Data — All Sources of None / Empty<a class="headerlink" href="#3-market-data-all-sources-of-none-empty" title="Permanent link">&para;</a></h2>
+<h3 id="31-selfknown_bidssymbol-and-selfknown_askssymbol">3.1 <code>self.known_bids[symbol]</code> and <code>self.known_asks[symbol]</code><a class="headerlink" href="#31-selfknown_bidssymbol-and-selfknown_askssymbol" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Before any spread query response received</td>
+<td><strong><code>KeyError</code></strong> — key doesn't exist</td>
+</tr>
+<tr>
+<td>After response, but book side is empty</td>
+<td><strong><code>[]</code></strong> (empty list)</td>
+</tr>
+<tr>
+<td>After response, book side has data</td>
+<td><code>[(price, qty), ...]</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># ❌ Crashes before first response</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">bid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="p">[</span><span class="s2">&quot;ABM&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># ❌ Crashes if book side is empty</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">bid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="p">[</span><span class="s2">&quot;ABM&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># IndexError on []</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># ✅ Safe access</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">bids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ABM&quot;</span><span class="p">,</span> <span class="p">[])</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">bid</span> <span class="o">=</span> <span class="n">bids</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">bids</span> <span class="k">else</span> <span class="kc">None</span>
+</code></pre></div>
+<h3 id="32-selflast_tradesymbol">3.2 <code>self.last_trade[symbol]</code><a class="headerlink" href="#32-selflast_tradesymbol" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Before any trade has occurred</td>
+<td><strong><code>KeyError</code></strong> — key doesn't exist</td>
+</tr>
+<tr>
+<td>After any trade in the session</td>
+<td><code>int</code> (price in cents)</td>
+</tr>
+<tr>
+<td>After market close message</td>
+<td>Updated to official close price</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># ❌ Crashes before first trade (common at simulation start)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">price</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_trade</span><span class="p">[</span><span class="s2">&quot;ABM&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># ✅ Safe access</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">price</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_trade</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ABM&quot;</span><span class="p">)</span>  <span class="c1"># Returns None if missing</span>
+</code></pre></div>
+<h3 id="33-selfmkt_open-and-selfmkt_close">3.3 <code>self.mkt_open</code> and <code>self.mkt_close</code><a class="headerlink" href="#33-selfmkt_open-and-selfmkt_close" title="Permanent link">&para;</a></h3>
+<p>Both start as <code>None</code>. They are only populated after the agent receives a
+<code>MarketHoursMsg</code> from the Exchange (which arrives in response to the automatic
+<code>MarketHoursRequestMsg</code> sent within <code>TradingAgent.wakeup()</code>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># ❌ Crashes on first wakeup before market hours are known</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">next_wakeup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_open</span> <span class="o">+</span> <span class="n">interval</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># ✅ TradingAgent.wakeup() returns a boolean — use it</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">wakeup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_time</span><span class="p">):</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">can_trade</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">wakeup</span><span class="p">(</span><span class="n">current_time</span><span class="p">)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">can_trade</span><span class="p">:</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="k">return</span>  <span class="c1"># mkt_open/mkt_close not yet known, or market closed</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="o">...</span>
+</code></pre></div>
+<h3 id="34-l1datamsgbid-and-l1datamsgask">3.4 <code>L1DataMsg.bid</code> and <code>L1DataMsg.ask</code><a class="headerlink" href="#34-l1datamsgbid-and-l1datamsgask" title="Permanent link">&para;</a></h3>
+<p>The type annotation says <code>Tuple[int, int]</code> but in practice these come from
+<code>OrderBook.get_l1_bid_data()</code> / <code>get_l1_ask_data()</code> which return <strong><code>None</code></strong>
+when the book side is empty.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># The actual source in order_book.py:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_l1_bid_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>        <span class="k">return</span> <span class="kc">None</span>   <span class="c1"># ← this happens before any orders are placed</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># ✅ Always guard</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">bid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">bid_price</span><span class="p">,</span> <span class="n">bid_qty</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">bid</span>
+</code></pre></div>
+<h3 id="35-l2datamsgbids-and-l2datamsgasks">3.5 <code>L2DataMsg.bids</code> and <code>L2DataMsg.asks</code><a class="headerlink" href="#35-l2datamsgbids-and-l2datamsgasks" title="Permanent link">&para;</a></h3>
+<p>These are always <code>List[Tuple[int, int]]</code> — never <code>None</code>. But they can be
+<code>[]</code> (empty list) when the book side has no resting orders.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">bids</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">bids</span>  <span class="c1"># List — safe, but may be []</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">if</span> <span class="n">bids</span><span class="p">:</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">best_bid_price</span> <span class="o">=</span> <span class="n">bids</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># ✅ guarded</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">best_bid_qty</span>   <span class="o">=</span> <span class="n">bids</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="36-queryspreadresponsemsglast_trade">3.6 <code>QuerySpreadResponseMsg.last_trade</code><a class="headerlink" href="#36-queryspreadresponsemsglast_trade" title="Permanent link">&para;</a></h3>
+<p>Type annotation: <code>Optional[int]</code>. Value is <code>None</code> when no trade has happened
+in the session yet.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># ❌ Crashes before first trade</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">spread_msg</span><span class="o">.</span><span class="n">last_trade</span> <span class="o">+</span> <span class="mi">100</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># ✅ Safe</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">if</span> <span class="n">spread_msg</span><span class="o">.</span><span class="n">last_trade</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="o">...</span>
+</code></pre></div>
+<hr />
+<h2 id="4-pre-market-window-special-state">4. Pre-Market Window — Special State<a class="headerlink" href="#4-pre-market-window-special-state" title="Permanent link">&para;</a></h2>
+<p>The <strong>pre-market window</strong> is the period between simulation start and <code>mkt_open</code>.
+LLM-generated agents frequently crash during this window because:</p>
+<ol>
+<li><code>wakeup()</code> is called, but <code>mkt_open</code> is <code>None</code></li>
+<li><code>known_bids</code>/<code>known_asks</code> dictionaries are empty</li>
+<li><code>last_trade</code> dictionary is empty</li>
+<li>The order book itself has no orders yet → all queries return <code>None</code> / <code>[]</code></li>
+</ol>
+<p>The <strong>correct pattern</strong> (already implemented in <code>TradingAgent</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">wakeup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_time</span><span class="p">):</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">can_trade</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">wakeup</span><span class="p">(</span><span class="n">current_time</span><span class="p">)</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="c1"># super().wakeup() returns False if:</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="c1">#   - mkt_open is None (market hours not yet known)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="c1">#   - mkt_close is None</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="c1">#   - self.mkt_closed is True</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">can_trade</span><span class="p">:</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>        <span class="k">return</span>   <span class="c1"># ← Do nothing during pre-market</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="c1"># Only here is it safe to trade</span>
+</code></pre></div>
+<hr />
+<h2 id="5-order-book-data-structures-explained">5. Order Book Data Structures Explained<a class="headerlink" href="#5-order-book-data-structures-explained" title="Permanent link">&para;</a></h2>
+<h3 id="l1-best-bidask-only">L1 — Best bid/ask only<a class="headerlink" href="#l1-best-bidask-only" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># OrderBook.get_l1_bid_data() → Optional[Tuple[int, int]]</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># Returns: (price_in_cents, quantity)  OR  None if book side empty</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="p">(</span><span class="mi">100_050</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>   <span class="c1"># best bid: $1000.50 for 200 shares</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="kc">None</span>             <span class="c1"># no bids at all</span>
+</code></pre></div>
+<h3 id="l2-all-price-levels-aggregated-by-price">L2 — All price levels, aggregated by price<a class="headerlink" href="#l2-all-price-levels-aggregated-by-price" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># OrderBook.get_l2_bid_data(depth=N) → List[Tuple[int, int]]</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Each tuple: (price_in_cents, total_quantity_at_that_price)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Ordered from best price inward (closest to spread first)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">[(</span><span class="mi">100_100</span><span class="p">,</span> <span class="mi">500</span><span class="p">),</span> <span class="p">(</span><span class="mi">100_050</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span> <span class="p">(</span><span class="mi">100_000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)]</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># Index 0 = best bid, index -1 = worst bid</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">[]</span>   <span class="c1"># Empty list if no bids at all</span>
+</code></pre></div>
+<h3 id="l3-all-price-levels-per-order-quantities">L3 — All price levels, per-order quantities<a class="headerlink" href="#l3-all-price-levels-per-order-quantities" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># OrderBook.get_l3_bid_data(depth=N) → List[Tuple[int, List[int]]]</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># Each tuple: (price_in_cents, [qty_order1, qty_order2, ...])</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># Within a price level, orders are in FIFO priority order</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="p">[(</span><span class="mi">100_100</span><span class="p">,</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">300</span><span class="p">]),</span> <span class="p">(</span><span class="mi">100_050</span><span class="p">,</span> <span class="p">[</span><span class="mi">500</span><span class="p">])]</span>
+</code></pre></div>
+<h3 id="tradingagent-cache-fields">TradingAgent cache fields<a class="headerlink" href="#tradingagent-cache-fields" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>self.known_bids[symbol]</code></td>
+<td><code>List[Tuple[int,int]]</code></td>
+<td>L2 bid levels, best first. May be <code>[]</code>. <strong>KeyError if symbol never queried.</strong></td>
+</tr>
+<tr>
+<td><code>self.known_asks[symbol]</code></td>
+<td><code>List[Tuple[int,int]]</code></td>
+<td>L2 ask levels, best first. May be <code>[]</code>. <strong>KeyError if symbol never queried.</strong></td>
+</tr>
+<tr>
+<td><code>self.last_trade[symbol]</code></td>
+<td><code>int</code></td>
+<td>Last executed price (cents). <strong>KeyError if no trade yet.</strong></td>
+</tr>
+<tr>
+<td><code>self.exchange_ts[symbol]</code></td>
+<td><code>NanosecondTime</code></td>
+<td>Exchange timestamp of last L2 update. Populated by subscriptions only.</td>
+</tr>
+<tr>
+<td><code>self.mkt_open</code></td>
+<td><code>Optional[int]</code></td>
+<td>Nanoseconds. <code>None</code> until <code>MarketHoursMsg</code> received.</td>
+</tr>
+<tr>
+<td><code>self.mkt_close</code></td>
+<td><code>Optional[int]</code></td>
+<td>Nanoseconds. <code>None</code> until <code>MarketHoursMsg</code> received.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-the-mark_to_market-trap">6. The <code>mark_to_market</code> Trap<a class="headerlink" href="#6-the-mark_to_market-trap" title="Permanent link">&para;</a></h2>
+<p><code>TradingAgent.mark_to_market(holdings)</code> does:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_trade</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span> <span class="o">*</span> <span class="n">shares</span>  <span class="c1"># ← KeyError if no trades!</span>
+</code></pre></div>
+<p><strong>This will crash if called before any trade has occurred in the session.</strong>
+The <code>kernel_stopping()</code> method calls <code>mark_to_market()</code> — so even if your
+agent never trades, this runs at the end of every simulation.</p>
+<p>The Exchange sends <code>MarketClosePriceMsg</code> at market close with all final
+prices, which populates <code>last_trade</code>. So crashes are only a risk if called
+<em>before</em> the market has had any trades.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># ✅ Safe pattern</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_portfolio_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_trade</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>        <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Not enough data yet</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mark_to_market</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">holdings</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="7-price-units-everything-is-integer-cents">7. Price Units — Everything is Integer Cents<a class="headerlink" href="#7-price-units-everything-is-integer-cents" title="Permanent link">&para;</a></h2>
+<p><strong>All prices in ABIDES are integers in cents.</strong> There are no floats for prices.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># $100.00 = 10_000 cents</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># $1.50   =    150 cents</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># $0.01   =      1 cent</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="c1"># ❌ Common LLM mistake: treating prices as dollars</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="k">if</span> <span class="n">bid_price</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>      <span class="c1"># Wrong — this is 100 cents = $1.00</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="o">...</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="c1"># ✅ Correct</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="k">if</span> <span class="n">bid_price</span> <span class="o">&gt;</span> <span class="mi">10_000</span><span class="p">:</span>   <span class="c1"># $100.00</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="o">...</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="c1"># Converting for display only:</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bid: $</span><span class="si">{</span><span class="n">bid_price</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">100</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Consequence for midpoint calculation:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># ✅ Integer midpoint (standard in ABIDES)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">midpoint</span> <span class="o">=</span> <span class="p">(</span><span class="n">bid</span> <span class="o">+</span> <span class="n">ask</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># ✅ Also used in TradingAgent.get_known_bid_ask_midpoint():</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="n">midpoint</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">((</span><span class="n">bid</span> <span class="o">+</span> <span class="n">ask</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span>
+</code></pre></div>
+<hr />
+<h2 id="8-order-lifecycle-and-tracking">8. Order Lifecycle and Tracking<a class="headerlink" href="#8-order-lifecycle-and-tracking" title="Permanent link">&para;</a></h2>
+<h3 id="agents-view-of-its-own-orders">Agent's view of its own orders<a class="headerlink" href="#agents-view-of-its-own-orders" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="bp">self</span><span class="o">.</span><span class="n">orders</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Order</span><span class="p">]</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="c1"># Keys: order_id</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1"># Present: order is open (submitted, not fully filled, not cancelled)</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Absent: order fully filled OR cancelled</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># ⚠️ Order may disappear from self.orders BEFORE you receive the</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1">#    OrderExecutedMsg — timing race in the event queue</span>
+</code></pre></div>
+<h3 id="order-execution-flow">Order execution flow<a class="headerlink" href="#order-execution-flow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>place_limit_order() → LimitOrderMsg → Exchange
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>                                         ↓
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>                               (waits for counterpart)
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>                                         ↓
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>                             OrderAcceptedMsg ← agent.order_accepted()
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>                                         ↓
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>                             OrderExecutedMsg ← agent.order_executed()
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>                             (holdings &amp; CASH updated automatically by TradingAgent)
+</code></pre></div>
+<h3 id="cancellation-subtlety">Cancellation subtlety<a class="headerlink" href="#cancellation-subtlety" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Calling cancel_order() does NOT immediately remove from self.orders.</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="c1"># The order stays in self.orders until OrderCancelledMsg arrives.</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># If the order executes BEFORE the cancel reaches the Exchange,</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># you receive OrderExecutedMsg instead — no cancel confirmation.</span>
+</code></pre></div>
+<h3 id="order-rejection">Order rejection<a class="headerlink" href="#order-rejection" title="Permanent link">&para;</a></h3>
+<p><code>OrderRejectedMsg</code> arrives in <code>receive_message()</code> <strong>asynchronously</strong>, like any
+other exchange response — it is never a synchronous error return.</p>
+<p><code>OrderRejectedMsg</code> is sent for <strong>any</strong> order lifecycle message targeting an
+unregistered symbol — not only limit and market orders.  Cancel, partial-cancel,
+modify, replace, and stop-order requests for an unknown symbol each produce a
+rejection with <code>RejectReason.UNKNOWN_SYMBOL</code> before the <code>OrderBook</code> is
+consulted.</p>
+<p>When the exchange rejects an order, <code>TradingAgent</code> dispatches to
+<code>on_order_rejected(order_id, reason)</code>.  Override that hook to react.</p>
+<p><strong>The default implementation removes the order from <code>self.orders</code> automatically</strong>
+— the order never entered the book, so retaining it would corrupt open-order
+tracking.  Subclasses that need to inspect the order <em>before</em> removal must call
+<code>self.orders.get(order_id)</code> before calling <code>super()</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">on_order_rejected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="n">RejectReason</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="n">order</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">orders</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">order_id</span><span class="p">)</span>    <span class="c1"># inspect BEFORE super() removes it</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">on_order_rejected</span><span class="p">(</span><span class="n">order_id</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="k">if</span> <span class="n">reason</span> <span class="o">==</span> <span class="n">RejectReason</span><span class="o">.</span><span class="n">INVALID_PRICE</span><span class="p">:</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>        <span class="o">...</span>  <span class="c1"># react to specific reason</span>
+</code></pre></div>
+<p>When <code>self.log_orders</code> is <code>True</code>, the default hook emits
+<code>logEvent(EventType.ORDER_REJECTED, (order_id, reason.value))</code>, making
+rejections visible in post-hoc analysis via <code>parse_logs_df</code>.  Filter on
+<code>"ORDER_REJECTED"</code> in the resulting DataFrame.</p>
+<p>Rejection reasons (<code>RejectReason</code> enum in <code>abides_markets.messages.orderbook</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UNKNOWN_SYMBOL</code></td>
+<td>Symbol not registered on this exchange; applies to all order lifecycle messages</td>
+</tr>
+<tr>
+<td><code>INVALID_QUANTITY</code></td>
+<td>Quantity ≤ 0 or non-integer; checked by <code>OrderBook</code></td>
+</tr>
+<tr>
+<td><code>INVALID_PRICE</code></td>
+<td>Limit price &lt; 0 or non-integer (limit orders only)</td>
+</tr>
+<tr>
+<td><code>INSUFFICIENT_LIQUIDITY</code></td>
+<td>Reserved; not currently emitted — see FOK note below</td>
+</tr>
+</tbody>
+</table>
+<p><strong>FOK orders</strong>: a fill-or-kill order that cannot be fully matched sends
+<code>OrderCancelledMsg</code>, <strong>not</strong> <code>OrderRejectedMsg</code>.  Agents must handle
+<code>order_cancelled()</code> for FOK outcomes (FIX <code>OrdStatus=Canceled</code> is the correct
+status for a fully unfilled FOK).</p>
+<p><code>quiet=True</code> (passed to <code>OrderBook.handle_limit_order</code>) suppresses the reject:
+no <code>OrderRejectedMsg</code> is sent and <code>on_order_rejected</code> is never called.  This
+matches the suppression contract for <code>OrderAcceptedMsg</code> and <code>OrderCancelledMsg</code>.</p>
+<hr />
+<h2 id="9-correct-safe-access-patterns">9. Correct Safe-Access Patterns<a class="headerlink" href="#9-correct-safe-access-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="getting-bidask-safely">Getting bid/ask safely<a class="headerlink" href="#getting-bidask-safely" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_safe_best_bid_ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns (bid, ask) in cents, or (None, None) if unavailable.&quot;&quot;&quot;</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>    <span class="n">bids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="p">[])</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">asks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_asks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="p">[])</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>    <span class="n">bid</span> <span class="o">=</span> <span class="n">bids</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">bids</span> <span class="k">else</span> <span class="kc">None</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>    <span class="n">ask</span> <span class="o">=</span> <span class="n">asks</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">asks</span> <span class="k">else</span> <span class="kc">None</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>    <span class="k">return</span> <span class="n">bid</span><span class="p">,</span> <span class="n">ask</span>
+</code></pre></div>
+<h3 id="getting-midpoint-safely">Getting midpoint safely<a class="headerlink" href="#getting-midpoint-safely" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_safe_midpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>    <span class="n">bid</span><span class="p">,</span> <span class="n">ask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_safe_best_bid_ask</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>    <span class="k">if</span> <span class="n">bid</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">ask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>        <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="k">return</span> <span class="p">(</span><span class="n">bid</span> <span class="o">+</span> <span class="n">ask</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+</code></pre></div>
+<h3 id="checking-if-ready-to-trade">Checking if ready to trade<a class="headerlink" href="#checking-if-ready-to-trade" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_can_trade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;True only if all the data we need is present.&quot;&quot;&quot;</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_open</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_close</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_closed</span><span class="p">:</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>    <span class="n">bids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="p">[])</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>    <span class="n">asks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_asks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="p">[])</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">bids</span> <span class="ow">and</span> <span class="n">asks</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="computing-spread">Computing spread<a class="headerlink" href="#computing-spread" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_spread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="n">bid</span><span class="p">,</span> <span class="n">ask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_safe_best_bid_ask</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="k">if</span> <span class="n">bid</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">ask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>        <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    <span class="k">return</span> <span class="n">ask</span> <span class="o">-</span> <span class="n">bid</span>   <span class="c1"># in cents; should always be &gt;= 0 in a valid book</span>
+</code></pre></div>
+<hr />
+<h2 id="10-subscription-vs-pull-based-data">10. Subscription vs. Pull-Based Data<a class="headerlink" href="#10-subscription-vs-pull-based-data" title="Permanent link">&para;</a></h2>
+<p>ABIDES supports two ways to get market data:</p>
+<h3 id="pull-requestresponse">Pull (request/response)<a class="headerlink" href="#pull-requestresponse" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># In wakeup():</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="bp">self</span><span class="o">.</span><span class="n">get_current_spread</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>          <span class="c1"># → QuerySpreadResponseMsg</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="bp">self</span><span class="o">.</span><span class="n">get_last_trade</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>              <span class="c1"># → QueryLastTradeResponseMsg</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="bp">self</span><span class="o">.</span><span class="n">get_transacted_volume</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>       <span class="c1"># → QueryTransactedVolResponseMsg</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="c1"># Each sends a message; response arrives in receive_message() LATER.</span>
+</code></pre></div>
+<h3 id="subscription-push">Subscription (push)<a class="headerlink" href="#subscription-push" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># In wakeup(), first time only:</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.messages.marketdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">L2SubReqMsg</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="bp">self</span><span class="o">.</span><span class="n">request_data_subscription</span><span class="p">(</span><span class="n">L2SubReqMsg</span><span class="p">(</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="n">symbol</span><span class="o">=</span><span class="n">symbol</span><span class="p">,</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>    <span class="n">freq</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e8</span><span class="p">),</span>   <span class="c1"># push every 100ms of sim time</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>    <span class="n">depth</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>        <span class="c1"># top 10 levels</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="p">))</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="c1"># Updates arrive as L2DataMsg in receive_message() periodically.</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="c1"># TradingAgent.handle_market_data() automatically updates:</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="c1">#   self.known_bids[symbol]</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="c1">#   self.known_asks[symbol]</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a><span class="c1">#   self.last_trade[symbol]</span>
+<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a><span class="c1">#   self.exchange_ts[symbol]</span>
+</code></pre></div>
+<p><strong>Recommendation</strong>: Use <strong>subscriptions</strong> if your strategy needs fresh data on
+every tick. Use <strong>pull</strong> if you only need data occasionally.</p>
+<p><strong>Available subscription types:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Message Class</th>
+<th>Data</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>L1SubReqMsg</code></td>
+<td>Best bid/ask (price + qty)</td>
+<td>Periodic</td>
+</tr>
+<tr>
+<td><code>L2SubReqMsg</code></td>
+<td>All price levels (aggregated)</td>
+<td>Periodic</td>
+</tr>
+<tr>
+<td><code>L3SubReqMsg</code></td>
+<td>All price levels (per-order)</td>
+<td>Periodic</td>
+</tr>
+<tr>
+<td><code>TransactedVolSubReqMsg</code></td>
+<td>Buy/sell volume in lookback window</td>
+<td>Periodic</td>
+</tr>
+<tr>
+<td><code>BookImbalanceSubReqMsg</code></td>
+<td>Imbalance event</td>
+<td>Event-driven</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-complete-state-validity-checklist">11. Complete State Validity Checklist<a class="headerlink" href="#11-complete-state-validity-checklist" title="Permanent link">&para;</a></h2>
+<p>Use this checklist before acting on any market state in your agent:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_state_is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>    <span class="c1"># 1. Do we know market hours?</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_open</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_close</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>    <span class="c1"># 2. Is the market still open?</span>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mkt_closed</span><span class="p">:</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a>    <span class="c1"># 3. Have we received at least one book update?</span>
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a>    <span class="k">if</span> <span class="n">symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span> <span class="ow">or</span> <span class="n">symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_asks</span><span class="p">:</span>
+<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a>
+<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a>    <span class="c1"># 4. Does the book have both sides?</span>
+<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_asks</span><span class="p">[</span><span class="n">symbol</span><span class="p">]:</span>
+<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a>
+<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a>    <span class="c1"># 5. Is the spread valid (no crossed book)?</span>
+<a id="__codelineno-26-19" name="__codelineno-26-19" href="#__codelineno-26-19"></a>    <span class="n">bid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_bids</span><span class="p">[</span><span class="n">symbol</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-26-20" name="__codelineno-26-20" href="#__codelineno-26-20"></a>    <span class="n">ask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_asks</span><span class="p">[</span><span class="n">symbol</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-26-21" name="__codelineno-26-21" href="#__codelineno-26-21"></a>    <span class="k">if</span> <span class="n">bid</span> <span class="o">&gt;=</span> <span class="n">ask</span><span class="p">:</span>
+<a id="__codelineno-26-22" name="__codelineno-26-22" href="#__codelineno-26-22"></a>        <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># Crossed book — shouldn&#39;t happen in well-formed sim</span>
+<a id="__codelineno-26-23" name="__codelineno-26-23" href="#__codelineno-26-23"></a>
+<a id="__codelineno-26-24" name="__codelineno-26-24" href="#__codelineno-26-24"></a>    <span class="k">return</span> <span class="kc">True</span>
+</code></pre></div>
+<hr />
+<h2 id="quick-reference-what-returns-noneempty-and-when">Quick Reference: What Returns None/Empty and When<a class="headerlink" href="#quick-reference-what-returns-noneempty-and-when" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Expression</th>
+<th>Type</th>
+<th><code>None</code>/empty when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>self.mkt_open</code></td>
+<td><code>Optional[int]</code></td>
+<td>Before <code>MarketHoursMsg</code> received</td>
+</tr>
+<tr>
+<td><code>self.mkt_close</code></td>
+<td><code>Optional[int]</code></td>
+<td>Before <code>MarketHoursMsg</code> received</td>
+</tr>
+<tr>
+<td><code>self.known_bids.get(symbol)</code></td>
+<td><code>Optional[List]</code></td>
+<td>Before first spread response (<code>None</code>); or empty book (<code>[]</code>)</td>
+</tr>
+<tr>
+<td><code>self.known_asks.get(symbol)</code></td>
+<td><code>Optional[List]</code></td>
+<td>Before first spread response (<code>None</code>); or empty book (<code>[]</code>)</td>
+</tr>
+<tr>
+<td><code>self.last_trade.get(symbol)</code></td>
+<td><code>Optional[int]</code></td>
+<td>Before any trade in the session</td>
+</tr>
+<tr>
+<td><code>L1DataMsg.bid</code></td>
+<td><code>Optional[Tuple]</code></td>
+<td>When bid side of book is empty</td>
+</tr>
+<tr>
+<td><code>L1DataMsg.ask</code></td>
+<td><code>Optional[Tuple]</code></td>
+<td>When ask side of book is empty</td>
+</tr>
+<tr>
+<td><code>L2DataMsg.bids</code></td>
+<td><code>List</code></td>
+<td>Never <code>None</code>, but can be <code>[]</code></td>
+</tr>
+<tr>
+<td><code>L2DataMsg.asks</code></td>
+<td><code>List</code></td>
+<td>Never <code>None</code>, but can be <code>[]</code></td>
+</tr>
+<tr>
+<td><code>QuerySpreadResponseMsg.last_trade</code></td>
+<td><code>Optional[int]</code></td>
+<td>Before any trade</td>
+</tr>
+<tr>
+<td><code>QueryLastTradeResponseMsg.last_trade</code></td>
+<td><code>Optional[int]</code></td>
+<td>Before any trade</td>
+</tr>
+<tr>
+<td><code>OrderBook.get_l1_bid_data()</code></td>
+<td><code>Optional[Tuple]</code></td>
+<td>Empty book side</td>
+</tr>
+<tr>
+<td><code>OrderBook.get_l1_ask_data()</code></td>
+<td><code>Optional[Tuple]</code></td>
+<td>Empty book side</td>
+</tr>
+<tr>
+<td><code>OrderBook.get_l2_bid_data()</code></td>
+<td><code>List</code></td>
+<td>Never <code>None</code>, but can be <code>[]</code></td>
+</tr>
+<tr>
+<td><code>OrderBook.get_l2_ask_data()</code></td>
+<td><code>List</code></td>
+<td>Never <code>None</code>, but can be <code>[]</code></td>
+</tr>
+<tr>
+<td><code>OrderBook.last_trade</code></td>
+<td><code>Optional[int]</code></td>
+<td>Before any trade</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-running-simulations">12. Running Simulations<a class="headerlink" href="#12-running-simulations" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.config_system</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimulationBuilder</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_simulation</span><span class="p">,</span> <span class="n">ResultProfile</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.config_system.agent_configs</span><span class="w"> </span><span class="kn">import</span> <span class="n">NoiseAgentConfig</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="n">config</span> <span class="o">=</span> <span class="p">(</span><span class="n">SimulationBuilder</span><span class="p">()</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>    <span class="o">.</span><span class="n">apply_template</span><span class="p">(</span><span class="s2">&quot;rmsc04&quot;</span><span class="p">)</span>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a>    <span class="o">.</span><span class="n">enable_agent</span><span class="p">(</span><span class="n">NoiseAgentConfig</span><span class="p">(),</span> <span class="n">count</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a>    <span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a>    <span class="o">.</span><span class="n">build</span><span class="p">())</span>
+<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a>
+<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a><span class="n">result</span> <span class="o">=</span> <span class="n">run_simulation</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="n">ResultProfile</span><span class="o">.</span><span class="n">QUANT</span><span class="p">)</span>
+</code></pre></div>
+<p><strong><code>ResultProfile</code> tiers:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Includes</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SUMMARY</code> (default)</td>
+<td>PnL, liquidity, L1 close</td>
+<td>REST responses, quick checks</td>
+</tr>
+<tr>
+<td><code>QUANT</code></td>
+<td>+ L1/L2 series, trade attribution, equity curves</td>
+<td>Backtesting, analytics</td>
+</tr>
+<tr>
+<td><code>FULL</code></td>
+<td>+ raw agent log DataFrame</td>
+<td>Debugging agent behaviour</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key <code>SimulationResult</code> fields:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>result.metadata</code></td>
+<td><code>SimulationMetadata</code></td>
+<td>Seed, tickers, timing</td>
+</tr>
+<tr>
+<td><code>result.agents</code></td>
+<td><code>list[AgentData]</code></td>
+<td>Per-agent PnL, holdings</td>
+</tr>
+<tr>
+<td><code>result.markets</code></td>
+<td><code>dict[str, MarketSummary]</code></td>
+<td>L1 close, liquidity, optional L1/L2 series</td>
+</tr>
+<tr>
+<td><code>result.logs</code></td>
+<td><code>DataFrame \| None</code></td>
+<td>Raw agent events (<code>FULL</code> only)</td>
+</tr>
+<tr>
+<td><code>result.extensions</code></td>
+<td><code>dict[str, Any]</code></td>
+<td>Custom extractor outputs</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Parallel runs:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_markets.simulation</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_batch</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">results</span> <span class="o">=</span> <span class="n">run_batch</span><span class="p">([</span><span class="n">cfg1</span><span class="p">,</span> <span class="n">cfg2</span><span class="p">,</span> <span class="n">cfg3</span><span class="p">],</span> <span class="n">n_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">profile</span><span class="o">=</span><span class="n">ResultProfile</span><span class="o">.</span><span class="n">QUANT</span><span class="p">)</span>
+</code></pre></div>
+<blockquote>
+<p>Full API: <code>config-system.md</code>, <code>metrics-api.md</code>, <code>parallel-simulation.md</code></p>
+</blockquote>
+<hr />
+<h2 id="13-custom-oracle-classes">13. Custom Oracle Classes<a class="headerlink" href="#13-custom-oracle-classes" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>Important:</strong> <code>Oracle</code> is an <code>abc.ABC</code>. Any custom oracle must implement both
+<code>get_daily_open_price(...)</code> and <code>observe_price(...)</code>.</p>
+</blockquote>
+<p>The declarative config system supports <code>SparseMeanRevertingOracleConfig</code> and
+<code>MeanRevertingOracleConfig</code> (see <a href="../config-system/">config-system.md</a>). Pre-built oracle
+instance injection through <code>SimulationBuilder</code> is not supported.</p>
+<p>See <code>abides-markets/abides_markets/oracles/external_data_oracle.py</code> for a reference
+implementation of the <code>Oracle</code> ABC, and <a href="../custom-agent-guide/">custom-agent-guide.md §7</a>
+for oracle-less simulation setup.</p>
+<hr />
+<h2 id="14-logevent-deep-copy">14. logEvent Deep Copy<a class="headerlink" href="#14-logevent-deep-copy" title="Permanent link">&para;</a></h2>
+<p><code>logEvent(event_type, event, deepcopy_event=False)</code> — default is <strong>no deep copy</strong>.
+Logging a mutable object and then mutating it means the log entry reflects
+the <em>final</em> state, not the state at log time.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># BAD — dict is mutated after logging</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="bp">self</span><span class="o">.</span><span class="n">logEvent</span><span class="p">(</span><span class="s2">&quot;SNAPSHOT&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">holdings</span><span class="p">)</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="c1"># GOOD — snapshot is frozen at log time</span>
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="bp">self</span><span class="o">.</span><span class="n">logEvent</span><span class="p">(</span><span class="s2">&quot;SNAPSHOT&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">holdings</span><span class="p">,</span> <span class="n">deepcopy_event</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>
+<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a><span class="c1"># OK — immutable primitives don&#39;t need deepcopy</span>
+<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="bp">self</span><span class="o">.</span><span class="n">logEvent</span><span class="p">(</span><span class="s2">&quot;TRADE&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;price&quot;</span><span class="p">:</span> <span class="n">price</span><span class="p">,</span> <span class="s2">&quot;qty&quot;</span><span class="p">:</span> <span class="n">qty</span><span class="p">})</span>
+</code></pre></div>
+<hr />
+<h2 id="common-crashes-quick-reference">Common Crashes — Quick Reference<a class="headerlink" href="#common-crashes-quick-reference" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Crash / symptom</th>
+<th>Root cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KeyError: 'ABM'</code> on <code>self.known_bids</code></td>
+<td>No spread response received yet</td>
+<td><code>.get(symbol, [])</code></td>
+</tr>
+<tr>
+<td><code>IndexError</code> on <code>self.known_bids[symbol][0]</code></td>
+<td>Book side is <code>[]</code></td>
+<td><code>if bids:</code> guard</td>
+</tr>
+<tr>
+<td><code>KeyError: 'ABM'</code> on <code>self.last_trade</code></td>
+<td>No trade executed yet</td>
+<td><code>.get(symbol)</code></td>
+</tr>
+<tr>
+<td><code>TypeError: unsupported operand None + int</code></td>
+<td><code>mkt_open</code> is <code>None</code></td>
+<td>Check <code>super().wakeup()</code> return</td>
+</tr>
+<tr>
+<td>Prices wrong by factor of 100</td>
+<td>Treating cents as dollars</td>
+<td>All prices are integer cents</td>
+</tr>
+<tr>
+<td><code>RuntimeError</code> at <code>kernel_stopping</code></td>
+<td><code>mark_to_market</code> called before first trade</td>
+<td>Guard with <code>self.last_trade.get(symbol)</code></td>
+</tr>
+<tr>
+<td><code>ValueError: Kernel agents list violates agents[i].id == i</code></td>
+<td>Agent injected with non-matching id</td>
+<td>Use <code>config_add_agents()</code> (auto-reassigns) or set <code>agent.id = index</code> before passing to <code>Kernel(...)</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="kernel-invariants-added-2026-04">Kernel invariants (added 2026-04)<a class="headerlink" href="#kernel-invariants-added-2026-04" title="Permanent link">&para;</a></h2>
+<p>The kernel maintains a strict invariant: <strong>for every agent in
+<code>Kernel.__init__(agents=...)</code>, <code>agents[i].id == i</code></strong>. The kernel
+indexes its parallel per-agent state arrays by agent id, and a
+mismatch would silently corrupt routing.</p>
+<p>If you build the agents list manually, assign ids by enumeration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="n">agents</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">agents</span><span class="p">):</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>    <span class="n">a</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">i</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="n">kernel</span> <span class="o">=</span> <span class="n">Kernel</span><span class="p">(</span><span class="n">agents</span><span class="o">=</span><span class="n">agents</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+<p>The <code>config_add_agents()</code> helper in <code>abides_markets.utils</code> does this
+reassignment automatically when appending runtime agents to a built
+config.</p>
+<h2 id="kernelinitialize-is-the-canonical-reset-point-added-2026-04"><code>Kernel.initialize()</code> is the canonical reset point (added 2026-04)<a class="headerlink" href="#kernelinitialize-is-the-canonical-reset-point-added-2026-04" title="Permanent link">&para;</a></h2>
+<p><code>Kernel.initialize()</code> clears per-run state before notifying agents, so
+it is safe to call repeatedly (gym training loops, parallel workers in
+the same interpreter, custom multi-episode harnesses). The following
+state is reset to a clean slate every call:</p>
+<ul>
+<li><code>messages</code> (event heap)</li>
+<li><code>custom_state</code> (the dict returned by <code>terminate()</code>)</li>
+<li><code>summary_log</code></li>
+<li><code>_run_stats</code> (per-run scheduling stats: wall-clock anchor + message counter)</li>
+<li><code>current_agent_additional_delay</code></li>
+<li><code>agent_current_times</code> (reset to <code>start_time</code>)</li>
+</ul>
+<p><code>agent_computation_delays</code> is <strong>not</strong> cleared — it carries per-agent
+overrides from the constructor that must persist across resets. If an
+agent mutates its own delay at runtime via <code>set_agent_compute_delay()</code>,
+that mutation also survives across <code>initialize()</code>.</p>
+<p><code>Kernel.reset()</code> calls <code>terminate()</code> then <code>initialize()</code>; the actual
+clearing lives in <code>initialize()</code> so any direct call to it gets the
+same clean slate.</p>
+<h2 id="reserved-custom_properties-keys-added-2026-04">Reserved <code>custom_properties</code> keys (added 2026-04)<a class="headerlink" href="#reserved-custom_properties-keys-added-2026-04" title="Permanent link">&para;</a></h2>
+<p><code>Kernel(custom_properties={...})</code> rejects keys that would shadow
+kernel-managed attributes (<code>agents</code>, <code>messages</code>, <code>random_state</code>,
+<code>current_time</code>, latency fields, etc.). Use this dict only for
+user-defined extras like <code>oracle</code>. The full blocklist is in
+<code>abides_core.kernel._KERNEL_RESERVED_ATTRS</code>.</p>
+<h2 id="always-seed-the-kernel-added-2026-04">Always seed the kernel (added 2026-04)<a class="headerlink" href="#always-seed-the-kernel-added-2026-04" title="Permanent link">&para;</a></h2>
+<p>Constructing a <code>Kernel</code> without an explicit <code>seed=</code> or <code>random_state=</code>
+emits <code>DeprecationWarning</code> and falls back to OS entropy. Notebooks and
+ad-hoc scripts should pass <code>seed=&lt;int&gt;</code> or
+<code>random_state=np.random.RandomState(&lt;int&gt;)</code> for reproducibility.</p>
+<h2 id="heap-entries-are-_heapentry-dataclasses-added-2026-04">Heap entries are <code>_HeapEntry</code> dataclasses (added 2026-04)<a class="headerlink" href="#heap-entries-are-_heapentry-dataclasses-added-2026-04" title="Permanent link">&para;</a></h2>
+<p>The kernel's event queue stores <code>_HeapEntry(deliver_at, seq,
+sender_id, recipient_id, message)</code> instances, ordered by <code>(deliver_at,
+seq)</code>. <code>seq</code> is a per-kernel monotonic counter reset by
+<code>Kernel.initialize()</code>. Do not push raw tuples onto <code>kernel.messages</code>
+— use <code>Kernel._enqueue(...)</code> (or the public <code>send_message</code> /
+<code>set_wakeup</code> APIs).</p>
+<p><code>Message.__lt__</code> no longer exists; comparing two <code>Message</code> instances
+will raise <code>TypeError</code>. <code>Message.message_id</code> survives only as a
+deprecated property returning <code>id(self)</code> and emits
+<code>DeprecationWarning</code> when accessed.</p>
+<p><code>Kernel.set_wakeup</code> reuses a module-level <code>_WAKEUP_SINGLETON</code>. Do not
+mutate <code>WakeupMsg</code> instances — they may be shared.</p>
+<h2 id="agentdelay-works-inside-receive_message-fixed-2026-04"><code>Agent.delay()</code> works inside <code>receive_message()</code> (fixed 2026-04)<a class="headerlink" href="#agentdelay-works-inside-receive_message-fixed-2026-04" title="Permanent link">&para;</a></h2>
+<p>Prior to PR 3 of the kernel improvements, calls to <code>self.delay(N)</code>
+made inside <code>receive_message()</code> were silently dropped because the
+kernel advanced the agent's "busy until" time <em>before</em> dispatch. The
+runner now advances <code>agent_current_times[recipient_id]</code> <em>after</em>
+dispatch, so <code>delay()</code> calls inside both <code>wakeup()</code> and
+<code>receive_message()</code> correctly shift the agent's next slot.</p>
+<h2 id="per-agent-type-metrics-live-in-custom_state-added-2026-04">Per-agent-type metrics live in <code>custom_state</code> (added 2026-04)<a class="headerlink" href="#per-agent-type-metrics-live-in-custom_state-added-2026-04" title="Permanent link">&para;</a></h2>
+<p>The kernel no longer carries finance-specific
+<code>mean_result_by_agent_type</code> / <code>agent_count_by_type</code> defaultdicts.
+Use <code>Agent.report_metric(key, value)</code> to aggregate any numeric metric
+by agent type. Storage layout:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="n">kernel</span><span class="o">.</span><span class="n">custom_state</span><span class="p">[</span><span class="s2">&quot;agent_type_metrics&quot;</span><span class="p">][</span><span class="n">agent_type</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>    <span class="s2">&quot;sum&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>    <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>Kernel.terminate()</code> prints <code>mean = sum/count</code> for every reported
+<code>(type, key)</code> pair with <code>count &gt; 0</code>. <code>TradingAgent.kernel_stopping()</code>
+already reports its mark-to-market gain as <code>"ending_value"</code>.</p>
+<p>External code that read the old kernel attributes must switch to
+reading <code>custom_state["agent_type_metrics"]</code>. External code that
+wrote them must switch to <code>Agent.report_metric()</code>.</p>
+<h2 id="latencymodelget_latency-requires-random_state-kwarg-added-2026-04"><code>LatencyModel.get_latency</code> requires <code>random_state</code> kwarg (added 2026-04)<a class="headerlink" href="#latencymodelget_latency-requires-random_state-kwarg-added-2026-04" title="Permanent link">&para;</a></h2>
+<p><code>Kernel.send_message</code> always routes through <code>agent_latency_model</code>
+now, even when the caller did not pass one (the kernel wraps the
+legacy <code>agent_latency</code> / <code>default_latency</code> / <code>latency_noise</code> args
+into a <code>MatrixLatencyModel</code> or <code>UniformLatencyModel</code>).</p>
+<p>The kernel passes <code>random_state=self.random_state</code> to every
+<code>get_latency</code> call. Custom <code>LatencyModel</code> subclasses <strong>must</strong> accept
+<code>random_state</code> as a keyword-only parameter:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_latency</span><span class="p">(</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>    <span class="n">sender_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>    <span class="n">recipient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a>    <span class="n">random_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a>    <span class="o">...</span>
+</code></pre></div>
+<p>The built-in cubic <code>LatencyModel</code> accepts the kwarg but ignores it,
+keeping bit-for-bit reproducibility for cubic users.</p>
+<p><code>Kernel.agent_latency</code> and <code>Kernel.latency_noise</code> no longer exist —
+read the underlying data from the model object directly.</p>
+<h2 id="latency-models-default-to-no-rng-draw-changed-2026-04-breaking">Latency models default to no RNG draw (changed 2026-04, BREAKING)<a class="headerlink" href="#latency-models-default-to-no-rng-draw-changed-2026-04-breaking" title="Permanent link">&para;</a></h2>
+<p><code>UniformLatencyModel</code> and <code>MatrixLatencyModel</code> default to
+<code>noise=None</code>. When <code>noise</code> is <code>None</code>, <code>get_latency</code> returns its
+configured latency directly and does <strong>not</strong> touch the kernel RNG.</p>
+<p>This is a deliberate reproducibility break versus pre-PR-5b runs,
+which always consumed one <code>np.random.choice([1.0])</code> draw per
+<code>send_message</code> even when no noise was configured. To restore the
+legacy bit-for-bit behavior, pass <code>noise=[1.0]</code> explicitly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">UniformLatencyModel</span><span class="p">(</span><span class="n">latency</span><span class="o">=</span><span class="mi">1_000_000_000</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="p">[</span><span class="mf">1.0</span><span class="p">])</span>
+</code></pre></div>
+<p>The <code>Kernel</code> constructor's legacy <code>latency_noise</code> kwarg still
+forwards into the wrapped model unchanged, so callers that already
+pass <code>latency_noise=[1.0]</code> are unaffected.</p>
+<h2 id="per-agent-state-is-numpy-int64-changed-2026-04">Per-agent state is numpy <code>int64</code> (changed 2026-04)<a class="headerlink" href="#per-agent-state-is-numpy-int64-changed-2026-04" title="Permanent link">&para;</a></h2>
+<p><code>Kernel.agent_current_times</code> and <code>Kernel.agent_computation_delays</code>
+are now <code>numpy.ndarray[int64]</code>, exposed internally as
+<code>Kernel._agent_current_times</code> and <code>Kernel._agent_computation_delays</code>.
+The legacy public names remain as <strong>read-only deprecation
+properties</strong> that emit a one-shot <code>DeprecationWarning</code> and return
+a non-writable <code>ndarray</code> view.</p>
+<p>Implications:</p>
+<ul>
+<li>External <em>readers</em> keep working (with one warning per attribute
+  per process) but should migrate to the underscore names if they
+  are inside <code>abides_core</code>.</li>
+<li>External <em>writers</em> will fail loudly: the returned view rejects
+  item assignment. Use <code>kernel.set_agent_compute_delay(agent_id, ns)</code>
+  for runtime delay updates, or pass <code>agent_computation_delays</code> (an
+  <code>np.ndarray</code> with <code>dtype=int64</code>, shape <code>(n_agents,)</code>) to the
+  <code>Kernel</code> constructor for static overrides.</li>
+<li><code>numpy.int64</code> arithmetic does not auto-promote to Python <code>int</code>
+  inside f-strings and JSON serialisers. Cast at the boundary if
+  you read these arrays directly:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="n">finish_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">kernel</span><span class="o">.</span><span class="n">_agent_current_times</span><span class="p">[</span><span class="n">agent_id</span><span class="p">])</span>
+</code></pre></div>
+<p>The kernel itself already casts
+  <code>custom_state["kernel_slowest_agent_finish_time"]</code> to a Python
+  <code>int</code> so notebooks and log parsers stay clean.</p>
+<p><code>Kernel.find_agents_by_type</code> is now O(1): the kernel pre-indexes
+every agent under each class in its MRO at construction time, so
+passing a base class still returns every subclass instance
+(<code>isinstance</code> semantics are preserved).</p>
+<h2 id="kernel-constructor-is-keyword-only-changed-2026-04">Kernel constructor is keyword-only (changed 2026-04)<a class="headerlink" href="#kernel-constructor-is-keyword-only-changed-2026-04" title="Permanent link">&para;</a></h2>
+<p>Every parameter on <code>Kernel.__init__</code> after <code>agents</code> is keyword-only.
+Calling <code>Kernel(my_agents, str_to_ns("09:30:00"), …)</code> raises
+<code>TypeError</code>. Use <code>Kernel(agents=my_agents, start_time=…, …)</code> instead.</p>
+<h2 id="kernel-lifecycle-is-enforced-added-2026-04">Kernel lifecycle is enforced (added 2026-04)<a class="headerlink" href="#kernel-lifecycle-is-enforced-added-2026-04" title="Permanent link">&para;</a></h2>
+<p><code>Kernel</code> tracks its own state through four positions
+(<code>CONSTRUCTED → INITIALIZED → RUNNING → TERMINATED</code>) and validates
+transitions at the public method boundary:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Allowed inbound state</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>initialize()</code></td>
+<td><code>CONSTRUCTED</code>, <code>TERMINATED</code> (post-<code>reset</code> re-init)</td>
+</tr>
+<tr>
+<td><code>runner()</code></td>
+<td><code>INITIALIZED</code>, <code>RUNNING</code> (gym yields keep state at <code>RUNNING</code>)</td>
+</tr>
+<tr>
+<td><code>terminate()</code></td>
+<td><code>INITIALIZED</code>, <code>RUNNING</code></td>
+</tr>
+<tr>
+<td><code>reset()</code></td>
+<td>any state — terminates first if needed, then initialises</td>
+</tr>
+</tbody>
+</table>
+<p>Out-of-order calls raise <code>RuntimeError</code> with the offending state and
+the list of allowed states. The legacy public attribute <code>has_run</code>
+remains as a bool for back-compat.</p>
+<h2 id="inject-a-gymadapter-auto-detection-is-deprecated-added-2026-04">Inject a <code>GymAdapter</code>; auto-detection is deprecated (added 2026-04)<a class="headerlink" href="#inject-a-gymadapter-auto-detection-is-deprecated-added-2026-04" title="Permanent link">&para;</a></h2>
+<p>If you build a <code>Kernel</code> with an <code>abides-gym</code> experimental agent in
+the <code>agents</code> list but do not pass <code>gym_adapter=…</code>, the kernel still
+detects it but emits a <code>DeprecationWarning</code>. Migrate by passing
+the gym agent explicitly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="n">kernel</span> <span class="o">=</span> <span class="n">Kernel</span><span class="p">(</span><span class="n">agents</span><span class="o">=</span><span class="n">agents</span><span class="p">,</span> <span class="n">gym_adapter</span><span class="o">=</span><span class="n">my_gym_agent</span><span class="p">,</span> <span class="err">…</span><span class="p">)</span>
+</code></pre></div>
+<p>The kernel only requires the three-method <code>GymAdapter</code> Protocol
+(<code>update_raw_state</code>, <code>get_raw_state</code>, <code>apply_actions</code>); any object
+that implements them works.</p>
+<h2 id="pluggable-log-sink-via-logwriter-added-2026-04">Pluggable log sink via <code>LogWriter</code> (added 2026-04)<a class="headerlink" href="#pluggable-log-sink-via-logwriter-added-2026-04" title="Permanent link">&para;</a></h2>
+<p>The kernel no longer pickles dataframes itself; it delegates to a
+<code>LogWriter</code> injected via the new <code>log_writer=</code> kwarg. Two
+implementations ship in <code>abides_core.log_writer</code>:</p>
+<ul>
+<li><code>NullLogWriter</code> — writes nothing.</li>
+<li><code>BZ2PickleLogWriter(root, run_id)</code> — the legacy on-disk format
+  (<code>&lt;root&gt;/&lt;run_id&gt;/&lt;name&gt;.bz2</code>); the run directory is created
+  lazily on first write.</li>
+</ul>
+<p>If you do not inject a writer, the kernel builds the right one for
+you based on <code>skip_log</code> and (the new) <code>log_root</code> / <code>log_dir</code> kwargs,
+so existing call sites keep working.</p>
+<hr />
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>custom-agent-guide.md</code> — adapter pattern, scaffold, checklist</li>
+<li><code>config-system.md</code> — builder API, templates, oracle config, serialization</li>
+<li><code>data-extraction.md</code> — parsing results, L1/L2 book history</li>
+<li><code>parallel-simulation.md</code> — multiprocessing, RNG hierarchy, log layout</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

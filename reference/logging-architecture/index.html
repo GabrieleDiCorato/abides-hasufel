@@ -1,0 +1,2556 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent-Based Interactive Discrete Event Simulation for financial markets research">
+      
+      
+      
+        <link rel="canonical" href="https://gabrieledicorato.github.io/abides-ng/reference/logging-architecture/">
+      
+      
+        <link rel="prev" href="../kernel-architecture/">
+      
+      
+        <link rel="next" href="../event-vocabulary/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Event Bus & Logging - ABIDES-NG</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abides-logging-architecture-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABIDES-NG" class="md-header__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABIDES-NG
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Event Bus & Logging
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../config-system/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../kernel-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../project/reproducibility/" class="md-tabs__link">
+          
+  
+  
+  Operations & Governance
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../llm-gotchas/" class="md-tabs__link">
+          
+  
+  
+  For LLM / Agent Builders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../notebooks/demo_ABIDES-Markets/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABIDES-NG" class="md-nav__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABIDES-NG
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/one-pager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../custom-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a Custom Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parallel-simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Experiments in Parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kernel-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernel & Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview-three-subsystems-one-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview — three subsystems, one bus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-python-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Python logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Python logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Motivation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Concept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-eventbus-and-sinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. EventBus and sinks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. EventBus and sinks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Motivation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-the-three-wire-kinds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 The three wire kinds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-eventsink-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 EventSink Protocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-payload-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Payload schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-bus-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Bus lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36-pre-init-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6 Pre-init bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#37-failure-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.7 Failure isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-shipped-sinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Shipped sinks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Shipped sinks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-inmemorysink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 InMemorySink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-bz2picklesink-deprecated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 BZ2PickleSink (deprecated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-metricsobserversink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 MetricsObserverSink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-parquetsink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 ParquetSink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-orderbooksnapshotmemorysink-and-orderbookhistorymemorysink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 OrderBookSnapshotMemorySink and OrderBookHistoryMemorySink
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-custom-sinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Custom sinks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-orderbook-capture-on-the-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. OrderBook capture on the bus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. OrderBook capture on the bus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-the-book_capture-config-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 The book_capture config field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-sinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Sinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-book-event-vocabulary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Book event vocabulary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-reproducibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Reproducibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-agentlogevent-the-producer-side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Agent.logEvent — the producer side
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-reading-the-event-stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Reading the event stream
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Reading the event stream">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-in-process-parse_logs_df" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 In-process: parse_logs_df
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-on-disk-read_parquet_logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 On disk: read_parquet_logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-deprecated-agentlog-property" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Deprecated: Agent.log property
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-summary_log-deprecated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. summary_log — deprecated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-filesystem-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Filesystem layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-configuration-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Configuration flags
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics-algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations & Governance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations & Governance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project/release-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For LLM / Agent Builders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For LLM / Agent Builders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm-gotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_ABIDES-Markets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markets Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_Config_System/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIDES Declarative Configuration System — Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="abides-logging-architecture-reference">ABIDES Logging — Architecture Reference<a class="headerlink" href="#abides-logging-architecture-reference" title="Permanent link">&para;</a></h1>
+<p><strong>Status:</strong> Architecture reference.
+<strong>Scope:</strong> The three logging subsystems present in <code>abides-core</code>,
+<code>abides-markets</code> and <code>abides-gym</code>: the standard Python <code>logging</code>
+module, the per-agent event stream that flows through <code>EventBus</code> to
+registered <code>EventSink</code> implementations, and the deprecated
+<code>summary_log</code> path. Includes the <code>OrderBook</code> capture flow that rides
+on the same bus.
+<strong>Audience:</strong> Developers writing or consuming logs from a simulation.</p>
+<hr />
+<h2 id="1-overview-three-subsystems-one-bus">1. Overview — three subsystems, one bus<a class="headerlink" href="#1-overview-three-subsystems-one-bus" title="Permanent link">&para;</a></h2>
+<p>ABIDES has three logging subsystems that share the name "logging" but
+do different things and barely interact.</p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>What it logs</th>
+<th>Where it goes</th>
+<th>Who reads it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Python <code>logging</code></strong></td>
+<td>Lifecycle, periodic stats, debug traces</td>
+<td>stdout (via <code>basicConfig</code>)</td>
+<td>Operator watching the console</td>
+</tr>
+<tr>
+<td><strong><code>EventBus</code> event stream</strong> (<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py"><code>Agent.logEvent</code></a>)</td>
+<td>Every business event an agent emits, plus metrics and order-book snapshots</td>
+<td><code>EventBus</code> → registered <code>EventSink</code> implementations</td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/event_sinks.py"><code>InMemorySink.agent_log()</code></a>, <a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py"><code>parse_logs_df()</code></a>, <code>MetricsObserverSink</code>, <code>ParquetSink</code>, notebooks</td>
+</tr>
+<tr>
+<td><strong><code>summary_log</code></strong> <em>(deprecated)</em></td>
+<td>A handful of "final state" events</td>
+<td><code>kernel.summary_log</code> list → <code>summary_log.bz2</code></td>
+<td>No in-tree consumer; pending removal</td>
+</tr>
+</tbody>
+</table>
+<p>The event-stream subsystem is the load-bearing one. Everything
+downstream — metrics, plots, <code>SimulationResult.logs</code>, replay tooling —
+reads from it.</p>
+<blockquote>
+<p><strong>See also:</strong> <a href="../event-vocabulary/">event-vocabulary.md</a> for the
+source-anchored inventory of every shipped <code>event_type</code> and its
+payload schema.</p>
+</blockquote>
+<hr />
+<h2 id="2-python-logging">2. Python <code>logging</code><a class="headerlink" href="#2-python-logging" title="Permanent link">&para;</a></h2>
+<h3 id="21-motivation">2.1 Motivation<a class="headerlink" href="#21-motivation" title="Permanent link">&para;</a></h3>
+<p>Operator output. Tells you the simulation is alive and roughly how
+fast it is progressing. It is not a record of the simulation.</p>
+<h3 id="22-concept">2.2 Concept<a class="headerlink" href="#22-concept" title="Permanent link">&para;</a></h3>
+<p>Every module follows the standard <code>logger = logging.getLogger(__name__)</code>
+pattern. The kernel emits three classes of message:</p>
+<ul>
+<li><strong>Lifecycle (DEBUG)</strong> — kernel init, agent attach/detach, queue
+  begin/empty. Silent at INFO.</li>
+<li><strong>Periodic checkpoint (INFO)</strong> — every 100 000 messages, one line:
+  <code>--- Simulation time: ..., messages processed: ..., wallclock elapsed: ...s ---</code>.
+  The only INFO output during the hot loop.</li>
+<li><strong>Trace (DEBUG)</strong> — per-pop, per-dispatch, per-requeue lines inside
+  <code>runner()</code> and <code>_enqueue()</code>. Gated by
+  <code>logger.isEnabledFor(logging.DEBUG)</code> so the cost is one branch when
+  DEBUG is off; very expensive when on.</li>
+<li><strong>Termination summary (INFO)</strong> — event-queue elapsed, messages per
+  second, per-agent-type mean ending value.</li>
+</ul>
+<h3 id="23-configuration">2.3 Configuration<a class="headerlink" href="#23-configuration" title="Permanent link">&para;</a></h3>
+<p><code>SimulationConfig.simulation.log_level</code> (default <code>"INFO"</code>) is plumbed
+through to <code>logging.basicConfig(level=...)</code>. The format string is
+fixed: <code>"[%(process)d] %(levelname)s %(name)s %(message)s"</code>.</p>
+<p>There is no <code>FileHandler</code>, <code>RotatingFileHandler</code>, or any other handler
+attached by ABIDES — output goes to stdout/stderr only. To capture
+stdout to a file, attach a <code>FileHandler</code> yourself before
+<code>run_simulation()</code>; the pattern is shown in
+<a href="../parallel-simulation/">parallel-simulation.md</a>.</p>
+<p>To enable trace lines, raise the kernel logger:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;abides_core.engine.kernel&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+</code></pre></div>
+<p>There is no kernel attribute toggle.</p>
+<hr />
+<h2 id="3-eventbus-and-sinks">3. EventBus and sinks<a class="headerlink" href="#3-eventbus-and-sinks" title="Permanent link">&para;</a></h2>
+<h3 id="31-motivation">3.1 Motivation<a class="headerlink" href="#31-motivation" title="Permanent link">&para;</a></h3>
+<p>The simulation's record. Every agent business event, every metric,
+and every order-book snapshot flows through a single
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/telemetry/event_bus.py"><code>EventBus</code></a> instance owned by the <code>Kernel</code>. Storage policy
+(memory, disk, Parquet, metrics observer) is decoupled from the
+producer: callers register one or more <a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/event_sinks.py"><code>EventSink</code></a>
+implementations and the bus fans events out to them.</p>
+<h3 id="32-the-three-wire-kinds">3.2 The three wire kinds<a class="headerlink" href="#32-the-three-wire-kinds" title="Permanent link">&para;</a></h3>
+<p>The bus carries three kinds of records, each as an index-ordered tuple
+with a sink-side hook:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Producer call</th>
+<th>Sink hook</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Event</td>
+<td><code>bus.publish_event(...)</code> (via <code>Agent.logEvent</code>)</td>
+<td><code>on_event</code></td>
+<td>Business events: orders, fills, holdings, etc.</td>
+</tr>
+<tr>
+<td>Metric</td>
+<td><code>bus.publish_metric(...)</code> (via <code>Agent.report_metric</code>)</td>
+<td><code>on_metric</code></td>
+<td>Per-agent scalar metrics consumed by <code>KernelObserver</code>s.</td>
+</tr>
+<tr>
+<td>Book snapshot</td>
+<td><code>bus.publish_book_snapshot(...)</code> (via <code>OrderBook</code>)</td>
+<td><code>on_book_snapshot</code></td>
+<td>L1 / L2 order-book snapshots.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Event wire tuple</strong> (six fields, index-ordered — see
+<code>WIRE_FIELDS_EVENT</code> in
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/telemetry/event_records.py"><code>event_records.py</code></a>):</p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Field</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>agent_id</code></td>
+<td><code>int</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>agent_type</code></td>
+<td><code>str</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>sim_time_ns</code></td>
+<td><code>int</code> (nanoseconds)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>event_type</code></td>
+<td><code>str</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>payload</code></td>
+<td><code>Any</code> (shape depends on schema; see §3.4)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>seq</code></td>
+<td><code>int</code> (monotonically increasing)</td>
+</tr>
+</tbody>
+</table>
+<p>Metric and book-snapshot tuples have the same shape with different
+field meanings (<code>WIRE_FIELDS_METRIC</code>, <code>WIRE_FIELDS_BOOK_SNAPSHOT</code>).
+Typed views — <code>EventRecord.from_tuple(t)</code>, <code>MetricRecord.from_tuple(t)</code>,
+<code>BookSnapshotRecord.from_tuple(t)</code> — are provided for readability.</p>
+<h3 id="33-eventsink-protocol">3.3 <code>EventSink</code> Protocol<a class="headerlink" href="#33-eventsink-protocol" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@runtime_checkable</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">EventSink</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">accept_events</span><span class="p">:</span> <span class="nb">bool</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">accept_metrics</span><span class="p">:</span> <span class="nb">bool</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">accept_book_snapshots</span><span class="p">:</span> <span class="nb">bool</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_simulation_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>           <span class="c1"># 6-field wire tuple</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_metric</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>          <span class="c1"># 6-field wire tuple</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_book_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>   <span class="c1"># 6-field wire tuple</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_simulation_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div>
+<p><code>EventBus.register(sink)</code> validates the Protocol at registration time
+and raises <code>TypeError</code> with a missing-method list if the object does
+not conform. The three <code>accept_*</code> class attributes are checked
+explicitly and gate which <code>on_*</code> hooks the bus calls.</p>
+<h3 id="34-payload-schemas">3.4 Payload schemas<a class="headerlink" href="#34-payload-schemas" title="Permanent link">&para;</a></h3>
+<p>Every <code>event_type</code> shipped by in-tree agents is registered in
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/telemetry/event_payloads.py"><code>EVENT_TYPE_SCHEMA</code></a>,
+mapping the string key to a frozen <code>PayloadSchema(name, version, fields)</code>.
+The <code>fields</code> tuple determines the on-wire payload shape:</p>
+<table>
+<thead>
+<tr>
+<th>Arity (<code>len(fields)</code>)</th>
+<th>On-wire payload</th>
+<th>Example schema</th>
+<th>Example call</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>EMPTY_PAYLOAD</code> (the empty tuple <code>()</code>)</td>
+<td><code>EMPTY</code></td>
+<td><code>self.logEvent("MKT_CLOSED", EMPTY_PAYLOAD)</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>bare scalar (no tuple wrapping)</td>
+<td><code>CASH = (cents,)</code></td>
+<td><code>self.logEvent("STARTING_CASH", 10_000_000)</code></td>
+</tr>
+<tr>
+<td>≥ 2</td>
+<td>positional tuple of length <code>arity</code></td>
+<td><code>ORDER_EVENT = (...)</code></td>
+<td><code>self.logEvent("ORDER_ACCEPTED", order.to_payload_tuple())</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>Order</code>, <code>LimitOrder</code> and <code>StopOrder</code> expose <code>to_payload_tuple()</code>
+returning an <code>ORDER_EVENT</code>-shaped tuple. <code>Side</code> and <code>TimeInForce</code> are
+<code>IntEnum</code>, so they cross the wire as integers;
+<code>Side.legacy_str()</code> / <code>TimeInForce.legacy_str()</code> are available for
+human-readable reporting.</p>
+<p>Dynamic-name events that cannot appear in the static registry are
+still bounded:</p>
+<ul>
+<li><code>ExchangeAgent</code> echoes incoming <code>OrderMsg</code> subclasses under
+  <code>message.type()</code> (e.g. <code>"LimitOrderMsg"</code>); every such class is
+  registered in <code>EVENT_TYPE_SCHEMA</code> against <code>ORDER_EVENT</code>.</li>
+<li>Non-order ExchangeAgent receipts (query and subscription requests)
+  log an <code>EMPTY</code> payload under the message class name; an allowlist
+  bounds which classes are accepted, and anything else is
+  warn-and-dropped via the stdlib logger.</li>
+<li><code>OrderBook</code> post-only rejections emit dynamic
+  <code>&lt;order.tag&gt;_POST_ONLY</code> events with a small dict payload; these
+  fall through to the <code>GENERIC</code> bucket.</li>
+</ul>
+<p>The schema is enforced at build time by
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/tests/test_event_payload_schema.py"><code>test_event_payload_schema.py</code></a>,
+which walks every <code>.py</code> file in the three packages and inspects calls
+to <code>logEvent</code>, <code>publish_event</code>, <code>publish_metric</code> and
+<code>publish_book_snapshot</code>. The test fails if a string-literal
+<code>event_type</code> is missing from <code>EVENT_TYPE_SCHEMA</code> or if the payload
+argument is an f-string or a literal <code>str(x)</code> call.</p>
+<h3 id="35-bus-lifecycle">3.5 Bus lifecycle<a class="headerlink" href="#35-bus-lifecycle" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Kernel.__init__()        → EventBus() created; sinks registered.
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Kernel.initialize()      → bus.start(meta)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                            • calls on_simulation_start on all sinks
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                            • drains pre-start queue (e.g. AGENT_TYPE events)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>                            • rebinds publish_* to real or no-op methods
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>Kernel.runner() per-tick → bus.drain()   (after each message dispatch)
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>Kernel.terminate()       → bus.shutdown(meta)
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>                            • drain() + on_simulation_end on all sinks
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>                            • rebinds publish_* to pre-start stubs
+</code></pre></div>
+<p>Events are <strong>not</strong> dispatched synchronously on <code>logEvent()</code>. They are
+buffered and drained once per message dispatch in <code>runner()</code> and once
+at <code>terminate()</code>. Code reading <code>InMemorySink</code> data outside the normal
+lifecycle (e.g. tests that call only <code>initialize()</code>) must call
+<code>kernel.event_bus.drain()</code> first.</p>
+<h3 id="36-pre-init-bootstrap">3.6 Pre-init bootstrap<a class="headerlink" href="#36-pre-init-bootstrap" title="Permanent link">&para;</a></h3>
+<p><code>Agent.__init__()</code> does not publish on the bus — it only allocates an
+empty <code>_pre_init_log</code> buffer for subclasses that call <code>logEvent()</code>
+from their own <code>__init__</code>. Each call to <code>Agent.kernel_initializing()</code>
+publishes a fresh <code>AGENT_TYPE</code> event and flushes the pre-init buffer
+to the bus it has just attached to. This guarantees <code>AGENT_TYPE</code> is
+re-emitted on every kernel attach (the gym-reset pattern of building
+a new <code>Kernel</code> with the same agent). All bootstrap events carry
+<code>sim_time_ns=0</code>.</p>
+<p>Because <code>bus.start()</code> has not been called yet, these events enter the
+pre-start queue and are drained automatically when <code>bus.start()</code>
+runs. The pre-start queue exists for all three wire kinds, so book
+snapshots published before <code>start()</code> (e.g. by an oracle warm-up step)
+are also delivered.</p>
+<h3 id="37-failure-isolation">3.7 Failure isolation<a class="headerlink" href="#37-failure-isolation" title="Permanent link">&para;</a></h3>
+<p>A single <code>try/except</code> wraps the tuple loop for each sink in
+<code>_drain_buffers()</code>. On exception:</p>
+<ul>
+<li>The sink is added to <code>_failed_sinks</code> and the failure tuple is
+  appended to <code>_sink_failures</code> once; subsequent batches for the same
+  sink are skipped entirely.</li>
+<li>The remaining tuples of the current batch are dropped for that sink
+  only; other sinks see the full batch.</li>
+<li>The exception is logged at <code>ERROR</code> with <code>exc_info</code>.</li>
+<li><code>bus.shutdown()</code> raises <code>RuntimeError</code> summarising all failed sinks;
+  <code>Kernel.terminate()</code> catches and logs this rather than re-raising
+  (conservative current behaviour).</li>
+<li>Failures are surfaced programmatically on
+  <code>KernelRunResult.sink_failures</code> as a tuple of <code>SinkFailure</code> records
+  (<code>sink_index</code>, <code>sink_type</code>, <code>exception_repr</code>). Callers that want to
+  fail the run on any sink failure check this field after
+  <code>kernel.run()</code>.</li>
+</ul>
+<p>Per-batch (rather than per-tuple) wrapping avoids the overhead of
+millions of <code>try/except</code> frames in the hot dispatch path and prevents
+a known-broken sink from being re-invoked for every remaining tuple.</p>
+<hr />
+<h2 id="4-shipped-sinks">4. Shipped sinks<a class="headerlink" href="#4-shipped-sinks" title="Permanent link">&para;</a></h2>
+<h3 id="41-inmemorysink">4.1 <code>InMemorySink</code><a class="headerlink" href="#41-inmemorysink" title="Permanent link">&para;</a></h3>
+<p>Registered by default when <code>event_sinks=</code> is not passed to <code>Kernel</code>.
+Stores events in a schema-driven columnar layout
+(<code>_cols: dict[event_type, dict[column, list]]</code>) and metrics and book
+snapshots as raw wire-tuple lists. Each event-type bucket carries the
+four common wire columns (<code>agent_id</code>, <code>agent_type</code>, <code>sim_time_ns</code>,
+<code>seq</code>) plus one column per <code>PayloadSchema</code> field; events whose
+<code>event_type</code> is missing from <code>EVENT_TYPE_SCHEMA</code> fall through to a
+single <code>payload</code> column under the <code>GENERIC</code> schema with a one-time
+warning.</p>
+<p>Payload shape is validated against the chosen schema before any column
+is touched, so appends are transactional: a mismatched row is diverted
+to a per-type <code>"&lt;event_type&gt;::generic"</code> fallback bucket rather than
+leaving a typed bucket torn.</p>
+<p>Key API:</p>
+<ul>
+<li><code>agent_log(agent_id)</code> → <code>list[tuple[int, str, Any]]</code> of
+  <code>(sim_time_ns, event_type, payload)</code> triples, sorted by <code>seq</code>.</li>
+<li><code>events</code>, <code>metrics</code>, <code>book_snapshots</code> — wire-tuple lists. <code>events</code>
+  is rebuilt on demand from the columns; cache the result if you scan
+  it more than once.</li>
+<li><code>columns</code> → the raw <code>dict[event_type, dict[column, list]]</code> mapping
+  for zero-copy analytics paths (e.g. Arrow exporters).</li>
+<li><code>bucket_schema(event_type)</code> → the <code>PayloadSchema</code> chosen for a
+  given bucket, or <code>None</code>.</li>
+<li><code>to_dataframe()</code> → wide-flat <code>pd.DataFrame</code> of all events with
+  <code>WIRE_FIELDS_EVENT</code> columns.</li>
+</ul>
+<p>The convenience accessor <code>kernel.event_bus.in_memory_sink</code> returns the
+first registered <code>InMemorySink</code> (cached at registration) or <code>None</code>.</p>
+<h3 id="42-bz2picklesink-deprecated">4.2 <code>BZ2PickleSink</code> <em>(deprecated)</em><a class="headerlink" href="#42-bz2picklesink-deprecated" title="Permanent link">&para;</a></h3>
+<p>Legacy per-agent disk path. Accepts events only. On
+<code>on_simulation_end()</code>, writes one <code>&lt;agent_name&gt;.bz2</code> file per agent
+in the legacy format: a DataFrame indexed by <code>EventTime</code> with columns
+<code>EventType</code> and <code>Event</code>. Respects <code>agent.log_to_file=False</code> — agents
+with the flag cleared produce no disk file. Constructed with
+<code>(log_writer, agents)</code>.</p>
+<p>Emits a one-shot <code>DeprecationWarning</code> per process; replacement is
+<code>ParquetSink</code> (or any custom EventBus sink).</p>
+<h3 id="43-metricsobserversink">4.3 <code>MetricsObserverSink</code><a class="headerlink" href="#43-metricsobserversink" title="Permanent link">&para;</a></h3>
+<p>Accepts metrics only. On each <code>on_metric()</code> call, forwards
+<code>(agent_id, agent_type, key, value)</code> to each <code>KernelObserver</code> in the
+observer list. Registered automatically when the <code>Kernel</code> is
+constructed with one or more <code>observers=</code>.</p>
+<h3 id="44-parquetsink">4.4 <code>ParquetSink</code><a class="headerlink" href="#44-parquetsink" title="Permanent link">&para;</a></h3>
+<p>Optional columnar persistence sink. Lives in
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/parquet_sink.py"><code>abides_core.sinks.parquet_sink</code></a>
+and requires the <code>[parquet]</code> extra:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;abides-ng[parquet]&#39;</span>
+</code></pre></div>
+<p>Accepts all three wire kinds by default; toggle individual kinds via
+<code>accept_events=</code>, <code>accept_metrics=</code>, <code>accept_book_snapshots=</code> on the
+constructor.</p>
+<p>Buffers each emission per <code>(kind, key)</code> bucket and flushes to
+<code>&lt;root&gt;/&lt;run_id&gt;/{events,metrics,book_snapshots}/&lt;key&gt;.parquet</code>:</p>
+<ul>
+<li><strong>events</strong> — bucketed by <code>event_type</code> (one file per schema)</li>
+<li><strong>metrics</strong> — bucketed by metric <code>key</code></li>
+<li><strong>book_snapshots</strong> — bucketed by <code>symbol</code></li>
+</ul>
+<p>Files are written atomically: each bucket is staged under
+<code>&lt;run_id&gt;/.partial/&lt;kind&gt;/</code> and finalised with <code>os.replace</code>. The
+<code>.partial/</code> directory is wiped on <code>on_simulation_start()</code>, so a
+crashed prior run leaves no stale data behind.</p>
+<p>Set <code>checkpoint_every_rows=&lt;int&gt;</code> to rotate large buckets into
+numbered shards (<code>&lt;key&gt;.&lt;seq_lo&gt;-&lt;seq_hi&gt;.parquet</code>) instead of one
+monolithic file.</p>
+<p><strong>Schema (<code>BUS_FORMAT_VERSION = "2"</code>).</strong> Each known <code>event_type</code> gets
+its own typed Arrow schema built from the corresponding
+<code>PayloadSchema.fields</code>, so each column has a meaningful name and a
+precise Arrow dtype (see <code>_FIELD_TYPE</code> in <code>parquet_sink.py</code> for the
+mapping). The three common columns <code>(agent_id, agent_type,
+sim_time_ns)</code> appear first, then one column per field, then <code>seq</code>.
+Unknown event types (those absent from <code>EVENT_TYPE_SCHEMA</code>) are
+pooled into <code>__generic__.parquet</code> with a pickled <code>payload</code> column
+plus an extra <code>event_type</code> column.</p>
+<p>The reader rejects files whose <code>abides.bus_format_version</code> metadata
+does not match the current constant.</p>
+<p><strong>Pickled-field exceptions.</strong> Two field types remain pickled:</p>
+<ul>
+<li><code>DEPTH.levels</code> — typed Arrow list&lt;struct&gt; conversion deferred.</li>
+<li>Book-snapshot <code>bids</code> / <code>asks</code> — same reason.</li>
+</ul>
+<p><code>unpickle_payloads(df, column)</code> materialises a pickled binary column;
+it is a no-op when <code>column</code> is absent.</p>
+<p><strong>Reader.</strong> <code>read_parquet_logs(run_dir)</code> walks the on-disk layout,
+groups shards back into their logical bucket, validates file metadata,
+and returns <code>dict[str, dict[str, pd.DataFrame]]</code> keyed by
+<code>{events, metrics, book_snapshots} → bucket_key → DataFrame</code>, sorted
+by <code>(sim_time_ns, seq)</code>.</p>
+<h3 id="45-orderbooksnapshotmemorysink-and-orderbookhistorymemorysink">4.5 <code>OrderBookSnapshotMemorySink</code> and <code>OrderBookHistoryMemorySink</code><a class="headerlink" href="#45-orderbooksnapshotmemorysink-and-orderbookhistorymemorysink" title="Permanent link">&para;</a></h3>
+<p>Per-symbol sinks that absorb the <code>OrderBook</code> capture flow. See §6.</p>
+<hr />
+<h2 id="5-custom-sinks">5. Custom sinks<a class="headerlink" href="#5-custom-sinks" title="Permanent link">&para;</a></h2>
+<p>Pass <code>event_sinks: list[EventSink]</code> to <code>Kernel(...)</code> to replace <strong>all</strong>
+default sinks. Pass <code>event_sinks=[]</code> to disable all sinks (no-op
+mode). Each sink is registered via <code>bus.register(sink)</code> and must
+implement the <code>EventSink</code> Protocol.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_core.engine.kernel</span><span class="w"> </span><span class="kn">import</span> <span class="n">Kernel</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">abides_core.sinks.event_sinks</span><span class="w"> </span><span class="kn">import</span> <span class="n">EventSink</span><span class="p">,</span> <span class="n">InMemorySink</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">class</span><span class="w"> </span><span class="nc">CountingSink</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">accept_events</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">accept_metrics</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">accept_book_snapshots</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_simulation_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_metric</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_book_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_simulation_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="n">kernel</span> <span class="o">=</span> <span class="n">Kernel</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">event_sinks</span><span class="o">=</span><span class="p">[</span><span class="n">InMemorySink</span><span class="p">(),</span> <span class="n">CountingSink</span><span class="p">()])</span>
+</code></pre></div>
+<hr />
+<h2 id="6-orderbook-capture-on-the-bus">6. <code>OrderBook</code> capture on the bus<a class="headerlink" href="#6-orderbook-capture-on-the-bus" title="Permanent link">&para;</a></h2>
+<p><code>OrderBook</code> no longer owns capture state. Snapshot and event writes
+flow through the same <code>EventBus</code> used for agent events and metrics,
+and are absorbed by per-symbol sinks installed at compile time.</p>
+<h3 id="61-the-book_capture-config-field">6.1 The <code>book_capture</code> config field<a class="headerlink" href="#61-the-book_capture-config-field" title="Permanent link">&para;</a></h3>
+<p><code>ExchangeAgent</code> takes
+<code>book_capture: Literal["off", "l1", "l2"] | None</code>. When <code>None</code>, it
+falls back to the legacy <code>book_logging</code> boolean (<code>True → "l2"</code>,
+<code>False → "off"</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Snapshot publish behaviour</th>
+<th>Snapshot sink registered?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"off"</code></td>
+<td><code>_publish_snapshot</code> returns immediately. No bus traffic.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>"l1"</code></td>
+<td>Top-of-book only, with publisher-side dedup: skip publish when <code>(bid_top, ask_top)</code> is unchanged.</td>
+<td>Yes (depth 1)</td>
+</tr>
+<tr>
+<td><code>"l2"</code></td>
+<td>Full <code>stream_history</code> depth. Byte-equivalent to the legacy <code>book_logging=True</code> path.</td>
+<td>Yes (depth <code>stream_history</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The history sink is <strong>always</strong> registered, regardless of
+<code>book_capture</code>, because <code>ExchangeAgent._handle_query_order_stream</code>
+answers <code>QueryOrderStreamMsg</code> from it.</p>
+<h3 id="62-sinks">6.2 Sinks<a class="headerlink" href="#62-sinks" title="Permanent link">&para;</a></h3>
+<p>In <a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/sinks/event_sinks.py"><code>abides_core.sinks.event_sinks</code></a>:</p>
+<ul>
+<li>
+<p><strong><code>OrderBookSnapshotMemorySink(symbol, depth)</code></strong> —
+  <code>accept_book_snapshots = True</code>. Filters incoming snapshots by
+  <code>symbol</code>. Stores parallel column arrays (<code>times</code>, <code>bids</code>, <code>asks</code>).
+  <code>as_book_log2()</code> returns the legacy <code>{"QuoteTime", "bids", "asks"}</code>
+  list-of-dicts shape.</p>
+</li>
+<li>
+<p><strong><code>OrderBookHistoryMemorySink(symbol)</code></strong> — <code>accept_events = True</code>.
+  Filters by <code>event_type in BOOK_EVENT_TYPES</code> and by payload
+  <code>.symbol == symbol</code>. Stores payload <code>NamedTuple</code>s.
+  <code>as_history_dicts()</code> returns the legacy
+  <code>{"time", "type", **payload_fields}</code> shape (with <code>symbol</code>
+  stripped).</p>
+</li>
+</ul>
+<p>One pair is registered per symbol.</p>
+<h3 id="63-book-event-vocabulary">6.3 Book event vocabulary<a class="headerlink" href="#63-book-event-vocabulary" title="Permanent link">&para;</a></h3>
+<p>Six bare-string event types are published by <code>OrderBook</code>, defined in
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/book_events.py"><code>abides_markets.book_events</code></a>:</p>
+<table>
+<thead>
+<tr>
+<th><code>event_type</code></th>
+<th><code>NamedTuple</code> payload</th>
+<th>Fired at</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LIMIT</code></td>
+<td><code>LimitPayload(symbol, order_id, agent_id, side, quantity, price)</code></td>
+<td>Every accepted limit order.</td>
+</tr>
+<tr>
+<td><code>EXEC</code></td>
+<td><code>ExecPayload(symbol, order_id, agent_id, oppos_order_id, oppos_agent_id, side, quantity, price)</code></td>
+<td>Each fill (one per side per match).</td>
+</tr>
+<tr>
+<td><code>CANCEL</code></td>
+<td><code>CancelPayload(symbol, order_id, tag, metadata)</code></td>
+<td>Full cancel.</td>
+</tr>
+<tr>
+<td><code>CANCEL_PARTIAL</code></td>
+<td><code>CancelPartialPayload(symbol, order_id, quantity, tag, metadata)</code></td>
+<td>Partial cancel.</td>
+</tr>
+<tr>
+<td><code>MODIFY</code></td>
+<td><code>ModifyPayload(symbol, order_id, new_side, new_quantity)</code></td>
+<td>In-place quantity / side modify.</td>
+</tr>
+<tr>
+<td><code>REPLACE</code></td>
+<td><code>ReplacePayload(symbol, old_order_id, new_order_id, quantity, price)</code></td>
+<td>Cancel-and-replace.</td>
+</tr>
+</tbody>
+</table>
+<p><code>symbol</code> is the first field of every payload so a single history
+sink can demultiplex events from a multi-symbol exchange. Bare strings
+match the historical <code>history["type"]</code> literals — zero migration for
+consumers that switch from reading <code>OrderBook.history</code> to walking the
+sink.</p>
+<p><code>BOOK_EVENT_PAYLOAD_CLASSES</code> maps event types to their <code>NamedTuple</code>
+classes.</p>
+<h3 id="64-reproducibility">6.4 Reproducibility<a class="headerlink" href="#64-reproducibility" title="Permanent link">&para;</a></h3>
+<p>With <code>book_capture="l2"</code> and a fixed seed, all
+<code>SimulationResult.markets[symbol]</code> fields are byte-equivalent to a
+pre-EventBus baseline pickled at
+<code>abides-markets/tests/data/book_capture_baseline_l2.pkl</code> (asserted by
+<code>test_book_capture_reproducibility::test_l2_byte_equivalent</code>). With
+<code>book_capture="l1"</code>, the L1 series equals the L2 series after
+consecutive-duplicate removal (with the empty initial snapshot
+dropped), and the L2 series is empty.</p>
+<hr />
+<h2 id="7-agentlogevent-the-producer-side">7. <code>Agent.logEvent</code> — the producer side<a class="headerlink" href="#7-agentlogevent-the-producer-side" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">logEvent</span><span class="p">(</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">event_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">event</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">append_summary_log</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>   <span class="c1"># deprecated</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">deepcopy_event</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</code></pre></div>
+<p>Publishes one event tuple on <code>self.kernel.event_bus</code>. Cheap: every
+in-tree call site uses a registered <code>event_type</code> from
+<code>EVENT_TYPE_SCHEMA</code>, so the payload is either an empty tuple, a bare
+scalar, or a pre-built positional tuple (no allocation in the hot
+path).</p>
+<p>Two flags:</p>
+<ul>
+<li><code>deepcopy_event=True</code> — copy the payload before publishing, so later
+  mutation of the original (e.g. a holdings dict) does not poison the
+  historical entry. Default <code>False</code> for performance.</li>
+<li><code>append_summary_log=True</code> — <strong>deprecated</strong>. Also pushes to
+  <code>Kernel.summary_log</code>. Emits a one-shot <code>DeprecationWarning</code>.</li>
+</ul>
+<p>Two control flags on <code>Agent</code> itself:</p>
+<ul>
+<li><code>log_events: bool = True</code> — if <code>False</code>, <code>logEvent()</code> returns
+  immediately. Nothing reaches the bus.</li>
+<li><code>log_to_file: bool = True</code> — interpreted by <code>BZ2PickleSink</code> only:
+  agents with the flag cleared produce no <code>.bz2</code> file. <code>InMemorySink</code>
+  ignores it.</li>
+</ul>
+<p>Both are per-agent-instance flags. The declarative config exposes a
+<code>log_orders</code> override per agent.</p>
+<hr />
+<h2 id="8-reading-the-event-stream">8. Reading the event stream<a class="headerlink" href="#8-reading-the-event-stream" title="Permanent link">&para;</a></h2>
+<h3 id="81-in-process-parse_logs_df">8.1 In-process: <code>parse_logs_df</code><a class="headerlink" href="#81-in-process-parse_logs_df" title="Permanent link">&para;</a></h3>
+<p><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/utils.py"><code>abides_core.utils.parse_logs_df</code></a>
+is the canonical reader. It walks <code>end_state["agents"]</code>, reads each
+agent's events from <code>InMemorySink.agent_log(agent_id)</code>, flattens the
+payload (positional-tuple → dict via the registered schema; dict
+passthrough; scalar → <code>{field_name: value}</code>), adds <code>agent_id</code> and
+<code>agent_type</code> columns, and concatenates into a single <code>pd.DataFrame</code>.</p>
+<p>Called from:</p>
+<ul>
+<li><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/runner.py"><code>abides_markets.simulation.runner</code></a>,
+  which populates <code>SimulationResult.logs</code> when the requested
+  <code>ResultProfile</code> includes agent logs.</li>
+<li>Notebook examples and the <a href="../data-extraction/">data-extraction guide</a>.</li>
+</ul>
+<p>The metrics system in
+<a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/simulation/metrics.py"><code>abides_markets.simulation.metrics</code></a>
+consumes the parsed DataFrame, not the raw event tuples.</p>
+<h3 id="82-on-disk-read_parquet_logs">8.2 On disk: <code>read_parquet_logs</code><a class="headerlink" href="#82-on-disk-read_parquet_logs" title="Permanent link">&para;</a></h3>
+<p><code>abides_core.sinks.parquet_sink.read_parquet_logs(run_dir)</code> is the
+canonical reader for <code>ParquetSink</code> output. See §4.4.</p>
+<h3 id="83-deprecated-agentlog-property">8.3 Deprecated: <code>Agent.log</code> property<a class="headerlink" href="#83-deprecated-agentlog-property" title="Permanent link">&para;</a></h3>
+<p><code>agent.log</code> is a deprecation shim that materialises
+<code>kernel.event_bus.in_memory_sink.agent_log(agent_id)</code> on every access
+and emits a <code>DeprecationWarning</code>. Migrate to the explicit sink call
+or to <code>SimulationResult.logs</code>.</p>
+<hr />
+<h2 id="9-summary_log-deprecated">9. <code>summary_log</code> — deprecated<a class="headerlink" href="#9-summary_log-deprecated" title="Permanent link">&para;</a></h2>
+<p><code>Kernel.append_summary_log</code> and
+<code>Agent.logEvent(append_summary_log=True)</code> are deprecated and pending
+removal. The path was a centralised "final state" log inherited from
+upstream JPMorgan ABIDES whose intended consumer ("separate
+statistical summary programs" — see the upstream <code>Kernel.__init__</code>
+comment) was never open-sourced; in-process consumers in this fork
+standardised on the per-agent path via <code>parse_logs_df</code>.</p>
+<p>Replacement is <code>MetricsObserverSink</code> (or any custom <code>EventSink</code>) on
+<code>Kernel.event_bus</code>. Removal timeline tracked in the
+<a href="../../changelog/#deprecated">Deprecated section of CHANGELOG.md</a>.</p>
+<p>Each surface emits a one-shot <code>DeprecationWarning</code> per process:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Replacement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BZ2PickleLogWriter</code></td>
+<td><code>ParquetSink</code></td>
+</tr>
+<tr>
+<td><code>BZ2PickleSink</code></td>
+<td><code>ParquetSink</code></td>
+</tr>
+<tr>
+<td><code>Agent.logEvent(append_summary_log=True)</code></td>
+<td><code>MetricsObserverSink</code></td>
+</tr>
+<tr>
+<td><code>Kernel.append_summary_log</code></td>
+<td><code>MetricsObserverSink</code></td>
+</tr>
+<tr>
+<td><code>Agent.log</code> property</td>
+<td><code>kernel.event_bus.in_memory_sink.agent_log(agent_id)</code></td>
+</tr>
+<tr>
+<td><code>OrderBook.book_log2</code>, <code>OrderBook.history</code></td>
+<td>per-symbol bus sinks (§6.2)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-filesystem-layout">10. Filesystem layout<a class="headerlink" href="#10-filesystem-layout" title="Permanent link">&para;</a></h2>
+<p>A run with disk persistence produces a directory <code>&lt;log_root&gt;/&lt;run_id&gt;/</code>
+containing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>&lt;log_root&gt;/&lt;run_id&gt;/
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>├── summary_log.bz2                    # deprecated; pending removal
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>├── ExchangeAgent0.bz2                 # legacy per-agent BZ2PickleSink output
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>├── NoiseAgent1.bz2                    # one file per agent with log_to_file=True
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>├── ValueAgent2.bz2
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>├── fundamental_&lt;symbol&gt;.bz2           # ad-hoc artefacts via custom filename
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>└── events/                            # ParquetSink output (if registered)
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    ├── ORDER_ACCEPTED.parquet
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    ├── ...
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    └── __generic__.parquet
+</code></pre></div>
+<p><code>log_root</code> defaults to <code>"./log"</code> (created lazily on the first write)
+and is passed to <code>Kernel(log_root=...)</code> by the compile path from
+<code>SimulationMeta.log_root</code>. <code>log_dir</code> defaults to <code>uuid.uuid4().hex</code>,
+which avoids wall-clock collisions under multiprocessing.</p>
+<p>There is no <code>simulation.log</code> for stdout — Python logging output goes
+to stdout/stderr only.</p>
+<hr />
+<h2 id="11-configuration-flags">11. Configuration flags<a class="headerlink" href="#11-configuration-flags" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Defined in</th>
+<th>Default</th>
+<th>Controls</th>
+<th>Subsystem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Kernel.skip_log</code></td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/engine/kernel.py"><code>engine/kernel.py</code></a></td>
+<td><code>True</code></td>
+<td>Suppress disk writes for the legacy per-agent path and <code>summary_log</code></td>
+<td>EventBus disk sinks</td>
+</tr>
+<tr>
+<td><code>Kernel.log_dir</code></td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/engine/kernel.py"><code>engine/kernel.py</code></a></td>
+<td><code>uuid.uuid4().hex</code></td>
+<td>Subdirectory under <code>log_root</code></td>
+<td>EventBus disk sinks</td>
+</tr>
+<tr>
+<td><code>Kernel.log_root</code></td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/engine/kernel.py"><code>engine/kernel.py</code></a></td>
+<td><code>"./log"</code> (via <code>BZ2PickleLogWriter</code>)</td>
+<td>Filesystem root for the legacy per-agent path</td>
+<td>EventBus disk sinks</td>
+</tr>
+<tr>
+<td><code>Agent.log_events</code></td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py"><code>agent.py</code></a></td>
+<td><code>True</code></td>
+<td>Whether <code>logEvent()</code> publishes at all</td>
+<td>EventBus event stream</td>
+</tr>
+<tr>
+<td><code>Agent.log_to_file</code></td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-core/abides_core/agent.py"><code>agent.py</code></a></td>
+<td><code>True</code></td>
+<td>Whether <code>BZ2PickleSink</code> writes the agent's <code>.bz2</code> file</td>
+<td>Legacy per-agent path</td>
+</tr>
+<tr>
+<td><code>SimulationConfig.simulation.log_level</code></td>
+<td><a href="https://github.com/GabrieleDiCorato/abides-ng/blob/main/abides-markets/abides_markets/config_system/models.py"><code>config_system/models.py</code></a></td>
+<td><code>"INFO"</code></td>
+<td><code>basicConfig(level=...)</code> for stdout</td>
+<td>Python logging</td>
+</tr>
+<tr>
+<td><code>SimulationMeta.log_orders</code> (per agent)</td>
+<td>config system</td>
+<td>varies</td>
+<td><code>log_events</code> / <code>log_to_file</code> override per agent type</td>
+<td>EventBus event stream</td>
+</tr>
+<tr>
+<td><code>ExchangeAgent.book_capture</code></td>
+<td>config system</td>
+<td><code>None</code> (falls back to <code>book_logging</code>)</td>
+<td><code>OrderBook</code> snapshot flow (§6.1)</td>
+<td>EventBus book snapshots</td>
+</tr>
+</tbody>
+</table>
+<p>The declarative config exposes <code>log_level</code> (Python logging) and
+<code>log_orders</code> overrides (event stream). <code>skip_log</code>, <code>log_dir</code>, and
+<code>log_root</code> are reachable only via direct <code>Kernel(...)</code> construction
+or via <code>SimulationMeta</code> plumbing.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

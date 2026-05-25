@@ -1,0 +1,3248 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent-Based Interactive Discrete Event Simulation for financial markets research">
+      
+      
+      
+        <link rel="canonical" href="https://gabrieledicorato.github.io/abides-ng/changelog/">
+      
+      
+        <link rel="prev" href="../reference/llm-gotchas/">
+      
+      
+        <link rel="next" href="../notebooks/demo_ABIDES-Markets/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Changelog - ABIDES-NG</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ABIDES-NG" class="md-header__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABIDES-NG
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/config-system/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/kernel-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../project/reproducibility/" class="md-tabs__link">
+          
+  
+  
+  Operations & Governance
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/llm-gotchas/" class="md-tabs__link">
+          
+  
+  
+  For LLM / Agent Builders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../notebooks/demo_ABIDES-Markets/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ABIDES-NG" class="md-nav__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABIDES-NG
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project/one-pager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/custom-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a Custom Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/data-extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/metrics-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/parallel-simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Experiments in Parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/kernel-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernel & Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/logging-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/event-vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/metrics-algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations & Governance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations & Governance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project/release-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For LLM / Agent Builders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For LLM / Agent Builders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/llm-gotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#010-unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.0] - Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.0] - Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed (Breaking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-breaking_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed (Breaking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed-breaking_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed (Breaking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deprecated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-rename-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-rename history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#260-2026-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.6.0] — 2026-05
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.6.0] — 2026-05">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#258-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.8] — 2026-04
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.8] — 2026-04">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#257-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.7] — 2026-04
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.7] — 2026-04">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#256-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.6] — 2026-04
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.6] — 2026-04">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#254-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.4] — 2026-04
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.4] — 2026-04">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#253-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.3] — 2026-04
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.3] — 2026-04">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#252-2026-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.2] — 2026-04
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.2] — 2026-04">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#251-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.1] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.1] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#250-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.5.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.5.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#240-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.4.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.4.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#230-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.3.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.3.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#221-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.2.1] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.2.1] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#220-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.2.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.2.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#210-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.1.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.1.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#200-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [2.0.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[2.0.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#130-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.3.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.3.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#120-2026-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.2.0] — 2026-03
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.2.0] — 2026-03">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#110-2026-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.1.0] — 2026-01
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.1.0] — 2026-01">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-10-15-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-10-15 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-10-15 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-09-28-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-09-28 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-09-28 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugs-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-07-27-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-07-27 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-07-27 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugs-fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-06-29-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-06-29 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-06-29 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugs-fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-06-15-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-06-15 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-06-15 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugs-fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-06-01-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-06-01 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-06-01 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugs-fixed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2021-05-18-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2021-05-18 Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2021-05-18 Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#new-features_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-changes_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugs-fixed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/demo_ABIDES-Markets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markets Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/demo_Config_System/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIDES Declarative Configuration System — Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to ABIDES-NG (post-fork) are documented here. The
+format follows <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
+and versioning follows <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<p>Entries dated <strong>2021-* and earlier</strong> are inherited verbatim from the
+upstream <code>abides-jpmc-public</code> project and are preserved for historical
+reference.</p>
+<hr />
+<h2 id="010-unreleased">[0.1.0] - Unreleased<a class="headerlink" href="#010-unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>SimulationConfig.to_builder()</code></strong> and <strong><code>SimulationBuilder.from_config(config)</code></strong>
+  let you round-trip an existing config back to a builder for incremental
+  modification, then re-compile.</li>
+<li><strong><code>SimulationBuilder.to_dict()</code></strong> serialises the builder's current state to a
+  plain dict for inspection or snapshot comparison.</li>
+<li><strong>Individual market-field setters</strong> — <code>.ticker()</code>, <code>.date()</code>, <code>.start_time()</code>,
+  <code>.end_time()</code>, and <code>.opening_price()</code> — let you adjust a single market field
+  without replacing the full <code>MarketConfig</code>. <code>.market()</code> continues to accept a
+  complete <code>MarketConfig</code> for wholesale replacement.</li>
+<li><strong><code>AgentRegistry.name_for_class(cls)</code></strong> returns the registered agent name for a
+  given config class.</li>
+</ul>
+<h3 id="changed-breaking">Changed (Breaking)<a class="headerlink" href="#changed-breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>SimulationBuilder.from_template()</code> renamed to <code>apply_template()</code>.</strong>
+  Replace every <code>.from_template(t)</code> call with <code>.apply_template(t)</code>. The old
+  name is gone.</li>
+<li><strong><code>SimulationBuilder.enable_agent()</code> now requires a typed config instance.</strong>
+  The string-name-plus-kwargs form is removed. Old:
+  <code>.enable_agent("noise", count=10, computation_delay=200)</code>. New:
+  <code>.enable_agent(NoiseAgentConfig(computation_delay=200), count=10)</code>.
+  Keyword arguments that were previously passed inline now belong on the config
+  object.</li>
+<li><strong><code>SimulationBuilder.oracle()</code>, <code>.exchange()</code>, <code>.latency()</code>, and <code>.meta()</code> now
+  accept typed instances, not keyword dicts.</strong> For example,
+  <code>.oracle(SparseMeanRevertingOracleConfig(...))</code> replaces any kwargs form.
+  Passing <code>None</code> to <code>.oracle()</code> remains valid.</li>
+</ul>
+<h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>ExternalDataOracleConfig</code></strong> is removed. Subclass one of the concrete oracle
+  configs (<code>SparseMeanRevertingOracleConfig</code>, <code>MeanRevertingOracleConfig</code>) to
+  inject custom fundamental data, or open a feature request for a supported
+  extension point.</li>
+<li><strong><code>SimulationBuilder.oracle_instance()</code></strong>, <code>compile(oracle_instance=...)</code>, and
+  <code>run_simulation(oracle_instance=...)</code> are removed. The external-oracle injection
+  escape hatch is gone with no replacement in this release.</li>
+</ul>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>EventType</code> StrEnum</strong> in <code>abides_core.telemetry.event_payloads</code>. All
+  statically-known <code>logEvent</code> event type strings are now <code>StrEnum</code> members.
+  Because <code>StrEnum</code> IS <code>str</code>, existing DataFrame comparisons and log-parsing
+  code are backward compatible with no changes required. The <code>EVENT_TYPE_SCHEMA</code>
+  dict now uses <code>EventType</code> keys.</li>
+<li><strong>Runtime validation in <code>Agent.logEvent()</code>.</strong> Passing a raw <code>str</code> that is not
+  an <code>EventType</code> member emits a <code>UserWarning</code> at call time, surfacing typos that
+  were previously silent.</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>End-to-end order-rejection analytics.</strong> Rejected submissions flow
+  through the bus as typed <code>OrderRejectedMsg(order_id, reason)</code> events
+  under the registered <code>ORDER_REJECTED</code> schema (payload tuple
+  <code>(order_id, reason)</code>). <code>OrderLifecycle</code> marks rejected orders
+  terminal as <code>"rejected"</code> (they are not tracked as still resting), and
+  <code>TradingAgent.on_order_rejected()</code> removes the rejected order from
+  <code>self.orders</code> so open-order state stays consistent.</li>
+<li><strong><code>ExchangeAgent</code> rejects unknown symbols on every order-lifecycle
+  path.</strong> Limit, market, cancel, partial-cancel, modify, replace, and
+  stop handlers all emit <code>OrderRejectedMsg(UNKNOWN_SYMBOL)</code> for
+  requests that reference an unregistered symbol, instead of dropping
+  them silently.</li>
+</ul>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>OrderRejectedMsg</code> and <code>RejectReason</code></strong> (defined in
+  <code>abides_markets.messages.orderbook</code>) are re-exported from the
+  top-level <code>abides_markets</code> package. <code>RejectReason</code> members are
+  <code>INVALID_QUANTITY</code>, <code>INVALID_PRICE</code>, and <code>UNKNOWN_SYMBOL</code>;
+  <code>INSUFFICIENT_LIQUIDITY</code> is reserved in the enum but unused — FOK
+  orders continue to produce <code>OrderCancelledMsg</code> per FIX convention.</li>
+<li><strong><code>TradingAgent.on_order_rejected(order_id, reason)</code></strong> is an
+  overridable hook for custom rejection handling. The base
+  implementation logs at <code>WARNING</code> level and clears the order from
+  <code>self.orders</code>. Orders routed through <code>OrderBook.handle_limit_order</code>
+  with <code>quiet=True</code> continue to suppress the reject silently,
+  consistent with how <code>quiet</code> suppresses fills and accepts.</li>
+<li><strong><code>SimulationResult.rejected_order_logs()</code></strong> returns a DataFrame of
+  <code>ORDER_REJECTED</code> rows shaped by the new <strong><code>RejectedOrderLogsSchema</code></strong>.
+  This accessor is separate from the strict <code>order_logs()</code>, which
+  excludes rejections to keep its schema free of nullable
+  rejection-only columns.</li>
+<li><strong><code>OrderLifecycle.rejection_latency_ns: int | None</code></strong> —
+  submission-to-rejection elapsed time for rejected orders.
+  <code>resting_time_ns</code> is <code>None</code> for rejected orders (they never entered
+  the book).</li>
+<li><strong><code>BOOK_LIMIT</code> and <code>BOOK_EXEC</code> schema field collision with <code>InMemorySink</code>.</strong>
+  Both <code>PayloadSchema</code> instances had <code>"agent_id"</code> as a field name, which silently
+  collided with the <code>"agent_id"</code> column in <code>InMemorySink._COMMON_COLS</code>, causing
+  double-appends and an <code>IndexError</code> when <code>agent_log()</code> was called. The conflicting
+  field was renamed to <code>"submitter_id"</code> in both schemas. A runtime guard was added
+  to <code>InMemorySink.on_event()</code> that raises <code>ValueError</code> immediately when any
+  <code>PayloadSchema</code> field name overlaps with a common column, preventing silent
+  data corruption.</li>
+<li><strong><code>Kernel.run()</code> now finalises sinks even when the runner raises.</strong>
+  The main loop is wrapped in <code>try</code> / <code>finally</code> semantics: if
+  <code>runner()</code> raises, <code>terminate()</code> is invoked from the cleanup branch
+  so every <code>EventSink.on_simulation_end()</code> callback fires (flushing
+  <code>BZ2PickleSink</code> / <code>ParquetSink</code> output and shutting the
+  <code>EventBus</code> down) before the original exception propagates. If
+  <code>terminate()</code> itself fails during cleanup, the failure is logged via
+  <code>logger.exception</code> and the original runner exception is re-raised
+  intact — never masked.</li>
+<li><strong><code>AdaptivePOVMarketMakerAgent</code> polling loop no longer goes permanently
+  silent when a spread query returns an empty book.</strong>
+  <code>set_wakeup</code> was gated on <code>mid is not None</code> — when the exchange returned
+  no bid or ask, the agent never rescheduled itself and executed zero
+  trades for the rest of the session. The reschedule is now unconditional
+  once both <code>AWAITING_SPREAD</code> and <code>AWAITING_TRANSACTED_VOLUME</code> are cleared;
+  only <code>place_orders</code> remains gated on <code>mid</code>.</li>
+<li><strong>Removed <code>append_summary_log=True</code> from <code>NoiseAgent.kernel_stopping</code>
+  and <code>ValueAgent.kernel_stopping</code>,</strong> eliminating the remaining two
+  <code>DeprecationWarning</code>s that persisted after the earlier <code>TradingAgent</code>
+  fix.</li>
+<li><strong><code>scripts/risk_eval.py</code> warning printer is now ASCII-safe on Windows.</strong>
+  Captured warning messages are encoded to ASCII (replacing non-ASCII
+  characters) before printing, preventing a <code>UnicodeEncodeError</code> on
+  cp1252 terminals when library code emits Unicode symbols.</li>
+</ul>
+<h3 id="added_3">Added<a class="headerlink" href="#added_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Declarative event-sink configuration.</strong>
+  <code>SimulationMeta</code> now exposes <code>event_sinks</code>, <code>log_root</code>,
+  <code>show_trace_messages</code>, and <code>disable_event_log_for</code> fields. A new
+  discriminated <code>SinkConfig</code> family (<code>MemorySinkConfig</code>,
+  <code>BZ2PickleSinkConfig</code>, <code>ParquetSinkConfig</code>,
+  <code>OrderBookSnapshotMemorySinkConfig</code>,
+  <code>OrderBookHistoryMemorySinkConfig</code>) lets users wire any sink layout
+  through the declarative config — including disk-backed <code>ParquetSink</code>
+  output — without dropping to the low-level <code>Kernel</code> API. The compiler
+  translates these into live sink instances at <code>compile()</code> time and
+  validates symbol references against the exchange. When
+  <code>event_sinks is None</code> (the default), behaviour is byte-identical to
+  the prior auto-registered sink set. New <code>SimulationBuilder.meta(**kw)</code>
+  escape-hatch covers fields without a dedicated builder method, and
+  the dedicated <code>SimulationBuilder.event_sinks(*sinks)</code> method offers
+  a typed, discoverable shortcut for configuring the sink list.</li>
+<li><strong><code>ConfigError</code></strong> (subclass of <code>ValueError</code>) raised by the compiler
+  when an explicit <code>event_sinks</code> list is combined with
+  <code>exchange.book_logging=True</code>, when an order-book sink references a
+  symbol absent from the exchange, or when a <code>ParquetSinkConfig</code> is
+  requested in an environment that does not have <code>pyarrow</code> installed.</li>
+</ul>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>SinkConfig</code> is now a tagged (discriminated) union</strong> built with
+  <code>Annotated[..., Field(discriminator="kind")]</code>. The set of accepted
+  kinds is unchanged; validation errors are sharper (mentioning the
+  offending <code>kind</code>) and dispatch is faster.</li>
+</ul>
+<h3 id="changed-breaking_1">Changed (Breaking)<a class="headerlink" href="#changed-breaking_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Book-sink configs use singular <code>symbol: str | None</code></strong> instead of
+  <code>symbols: list[str] | None</code>. <code>OrderBookSnapshotMemorySinkConfig</code> and
+  <code>OrderBookHistoryMemorySinkConfig</code> now describe exactly one sink:
+  <code>symbol=None</code> still expands to one sink per exchange symbol, and a
+  non-<code>None</code> <code>symbol</code> must exist on the exchange. For multi-symbol
+  capture, supply one config per symbol.</li>
+</ul>
+<h3 id="removed_1">Removed<a class="headerlink" href="#removed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>OrderBookSnapshotMemorySinkConfig.sampling</code></strong> field. The
+  underlying <code>OrderBookSnapshotMemorySink</code> took no sampling parameter,
+  so the field was silently ignored. It may return if and when the
+  sink gains real sampling support; today, configs that set it are
+  rejected by <code>extra=forbid</code>.</li>
+</ul>
+<h3 id="changed-breaking_2">Changed (Breaking)<a class="headerlink" href="#changed-breaking_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong><code>Kernel.__init__</code> no longer accepts <code>log_root</code>.</strong> Callers that need
+  a non-default log root must construct <code>BZ2PickleLogWriter(root, dir)</code>
+  themselves and pass it as <code>log_writer=...</code>. The compiler now wires
+  this from <code>SimulationMeta.log_root</code>, so users of <code>compile()</code> /
+  <code>run_simulation()</code> are unaffected.</p>
+</li>
+<li>
+<p><strong>Payload schemas as a contract.</strong>
+  <code>abides_core.event_payloads.EVENT_TYPE_SCHEMA</code> is now a complete,
+  frozen registry of every shipped event type. Each entry maps to a
+  <code>PayloadSchema(name, version, fields)</code> whose <code>fields</code> arity
+  determines the on-wire payload shape (0 → <code>EMPTY_PAYLOAD</code>, 1 → bare
+  scalar, ≥ 2 → positional tuple). New schemas: <code>FILL_PNL</code>,
+  <code>IMBALANCE_PAYLOAD</code>, <code>CIRCUIT_BREAKER</code>. New singleton
+  <code>EMPTY_PAYLOAD</code> (<code>()</code>).</p>
+</li>
+<li><strong>Typed Arrow columns in <code>ParquetSink</code> and <code>HOLDINGS_UPDATED</code> delta reshape.</strong></li>
+<li><code>ParquetSink</code> now builds one typed Arrow schema per registered
+    <code>PayloadSchema</code>, so each event-type file carries one named, typed
+    column per field (e.g. <code>order_id: int64</code>, <code>symbol: string</code>,
+    <code>delta_qty: int64</code>). No unpickling step is needed when reading
+    typed event buckets. <code>BUS_FORMAT_VERSION</code> bumped to <code>"2"</code>;
+    existing v1 files are rejected at read time.</li>
+<li><code>HOLDINGS_UPDATED</code> reshaped from a deep-copied <code>dict[str,int]</code>
+    snapshot to the lean <code>HOLDINGS_DELTA</code> v2 schema: positional tuple
+    <code>(symbol, delta_qty, qty_after, cash_after_cents)</code>. <code>delta_qty</code> is
+    signed (positive for buys, negative for sells). At <code>first_wake</code> one
+    row per held symbol is emitted with <code>delta_qty == qty_after</code>, making
+    the stream self-contained.</li>
+<li>New <code>abides_markets.utils.reconstruct_holdings(rows)</code> folds an
+    iterable of <code>HOLDINGS_DELTA</code> tuples (or a DataFrame) back into a
+    <code>dict[str, int]</code> holdings snapshot using last-write-wins semantics.</li>
+<li>Removed <code>deepcopy_event=True</code> from all <code>HOLDINGS_UPDATED</code> call
+    sites (tuples are immutable).</li>
+<li>Removed three stale call sites that emitted <code>HOLDINGS_UPDATED</code> on
+    order-state-refresh paths that do not mutate <code>self.holdings</code>
+    (<code>order_partial_cancelled</code>, <code>order_modified</code>, <code>order_replaced</code>).</li>
+<li><code>Side.legacy_str()</code> and <code>TimeInForce.legacy_str()</code> — explicit
+  human-readable accessors retained for reporting; the enum values
+  themselves are now <code>IntEnum</code> and cross the wire as integers.</li>
+<li><code>InMemorySink.columns</code> (zero-copy access to the per-event-type
+  columnar storage) and <code>InMemorySink.bucket_schema(event_type)</code>
+  (returns the <code>PayloadSchema</code> chosen for a given bucket, or <code>None</code>).</li>
+<li><code>abides-core/tests/test_event_payload_schema.py</code> — build-time AST
+  audit that walks every in-tree <code>.py</code> file and fails if a publisher
+  call site uses an unregistered string-literal <code>event_type</code> or an
+  f-string / <code>str(x)</code> payload literal.</li>
+<li>Three-valued <code>book_capture</code> field on <code>ExchangeAgent</code> (<code>"off"</code> / <code>"l1"</code> /
+  <code>"l2"</code>) — fine-grained control over order-book snapshot retention.</li>
+<li>Order-book capture flows through the <code>EventBus</code>: new
+  <code>OrderBookSnapshotMemorySink</code> and <code>OrderBookHistoryMemorySink</code>, one
+  pair per symbol. Typed <code>NamedTuple</code> payloads for <code>LIMIT</code>, <code>EXEC</code>,
+  <code>CANCEL</code>, <code>CANCEL_PARTIAL</code>, <code>MODIFY</code>, <code>REPLACE</code>.</li>
+<li>Publisher-side L1 deduplication for <code>book_capture="l1"</code>.</li>
+<li>Optional <code>ParquetSink</code> (<code>abides_core.parquet_sink</code>) for columnar
+  persistence of bus emissions to per-bucket Parquet files, with
+  atomic writes via a <code>.partial/</code> staging directory, optional
+  row-count checkpoint rotation, schema/bus-format version metadata,
+  and a <code>__generic__</code> fallback for unknown event types. Install with
+  <code>pip install 'abides-ng[parquet]'</code>. Companion <code>read_parquet_logs</code>
+  reader returns a <code>dict[kind, dict[key, DataFrame]]</code>, and
+  <code>unpickle_payloads</code> materializes pickled payload columns.</li>
+<li><code>Order</code>, <code>LimitOrder</code>, <code>MarketOrder</code> and <code>StopOrder</code> now use
+  <code>__slots__</code> — instances drop the per-instance <code>__dict__</code>, saving
+  roughly 280 bytes per order on CPython 3.12.</li>
+<li><code>Order.to_payload_tuple()</code> (new abstract method) returns an
+  11-field positional tuple aligned with the <code>ORDER_EVENT</code> schema in
+  <code>abides_core.event_payloads</code>, with an <code>order_kind</code> class
+  discriminator (<code>"LIMIT"</code> / <code>"MARKET"</code> / <code>"STOP"</code>) per subclass.</li>
+</ul>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Breaking — order-lifecycle payloads.</strong> Every event in the
+  <code>ORDER_EVENT</code> family (<code>ORDER_SUBMITTED</code>, <code>ORDER_ACCEPTED</code>,
+  <code>ORDER_EXECUTED</code>, <code>ORDER_CANCELLED</code>, <code>PARTIAL_CANCELLED</code>,
+  <code>ORDER_MODIFIED</code>, <code>ORDER_REPLACED</code>, <code>CANCEL_SUBMITTED</code>,
+  <code>CANCEL_PARTIAL_ORDER</code>, <code>MODIFY_ORDER</code>, <code>REPLACE_ORDER</code>,
+  <code>STOP_ORDER_SUBMITTED</code>, <code>STOP_TRIGGERED</code>, <code>STOP_ORDER_ACCEPTED</code>,
+  plus the dynamic <code>&lt;message.type()&gt;</code> echoes from <code>ExchangeAgent</code>)
+  now ships the 11-field <code>ORDER_EVENT</code> positional tuple produced by
+  <code>order.to_payload_tuple()</code> instead of the legacy <code>order.to_dict()</code>
+  dict. <code>parse_logs_df()</code> projects the tuple back into the same
+  named columns existing consumers expect.</li>
+<li><strong>Breaking — <code>Side</code> and <code>TimeInForce</code> are <code>IntEnum</code>.</strong> Wire payloads
+  now carry the integer enum value; use <code>Side.legacy_str()</code> /
+  <code>TimeInForce.legacy_str()</code> for human-readable rendering.</li>
+<li><strong>Breaking — <code>BEST_BID</code> / <code>BEST_ASK</code></strong> now ship
+  <code>(symbol, price, qty)</code>; <strong><code>LAST_TRADE</code></strong> now ships
+  <code>(symbol, avg_price_cents, qty)</code>. The CSV-in-string payloads are
+  gone.</li>
+<li><strong>Breaking — <code>CIRCUIT_BREAKER_TRIPPED</code></strong> now ships
+  <code>(reason, value)</code>; the previously asymmetric <code>loss</code> / <code>orders</code>
+  integer is harmonised under one field.</li>
+<li><strong>Breaking — <code>MARK_TO_MARKET</code></strong> now ships a bare integer (cents)
+  under the <code>CASH</code> schema (was a free-form <code>str</code> under the <code>SUMMARY</code>
+  schema). The per-symbol breakdown that used to share the name is
+  now a <code>logger.debug</code> line, not a logged event.</li>
+<li><strong>Breaking — <code>EXECUTION_SUMMARY</code>, <code>SLICE_DECISION</code>, <code>POV_SUMMARY</code>,
+  <code>AMM_FLATTEN</code>, <code>FILL_PNL</code>, <code>MKT_CLOSED</code></strong> now ship the positional
+  tuple / <code>EMPTY_PAYLOAD</code> form mandated by their registered schemas.</li>
+<li><strong><code>ExchangeAgent</code> receipt echoes</strong> are now allowlisted to
+  <code>QueryMsg</code>, <code>MarketHoursRequestMsg</code>, <code>MarketClosePriceRequestMsg</code>
+  and <code>MarketDataSubReqMsg</code>, each logged with an <code>EMPTY_PAYLOAD</code>
+  under the message class name. Any other message type is dropped
+  with a stdlib-logger warning rather than leaking the raw
+  <code>Message</code> instance onto the bus.</li>
+<li><strong><code>InMemorySink</code></strong> rebuilt around a per-event-type columnar layout
+  (<code>_cols: dict[event_type, dict[column, list]]</code>). Each bucket
+  carries the four common wire columns (<code>agent_id</code>, <code>agent_type</code>,
+  <code>sim_time_ns</code>, <code>seq</code>) plus one column per registered schema
+  field; payload shape is validated before any column is touched
+  (mismatches are diverted to a per-type
+  <code>"&lt;event_type&gt;::generic"</code> fallback bucket). <code>events</code>,
+  <code>agent_log()</code> and <code>to_dataframe()</code> reconstruct on demand and
+  remain fully backwards-compatible.</li>
+<li><strong><code>parse_logs_df</code></strong> is now schema-aware: registered payloads are
+  projected into named columns via <code>EVENT_TYPE_SCHEMA</code>; arity 0 →
+  <code>{"EmptyEvent": True}</code>, arity 1 → <code>{fields[0]: value}</code>, arity ≥ 2
+  → <code>dict(zip(fields, payload, strict=True))</code>. Dict payloads pass
+  through unchanged.</li>
+<li><code>EventBus</code> is now the single dispatch hub for agent events, metrics,
+  and order-book snapshots. <code>Agent.logEvent()</code> and <code>Agent.report_metric()</code>
+  publish through the bus; <code>InMemorySink</code> is the default sink.</li>
+<li><code>Kernel</code> accepts injectable <code>LogWriter</code> and <code>event_sinks</code>; <code>log_root</code>
+  is a first-class kwarg.</li>
+<li><code>parse_logs_df</code> rebuilt around a single <code>pd.DataFrame.from_records</code>
+  call.</li>
+<li><code>Order.__eq__</code> now compares the MRO-walked slot tuple instead of
+  <code>self.__dict__</code> (slotted instances expose no instance dict). The
+  semantics are preserved: same concrete type, same data → equal.
+  <code>Order</code> instances remain unhashable (<code>__hash__ = None</code>).</li>
+<li><code>Order.to_dict()</code> no longer round-trips through <code>deepcopy(self).__dict__</code>
+  — it now reads slot values directly. The returned key set and
+  shape are preserved; the change drops an unnecessary defensive copy
+  (sinks must not mutate received payloads).</li>
+<li><code>Kernel.write_summary_log()</code> now honours <code>skip_log</code>: when set, the
+  method early-returns instead of building the summary <code>DataFrame</code>.
+  The injected <code>_log_writer</code> was already a <code>NoOpLogWriter</code> in that
+  mode, so on-disk behaviour is unchanged — the wasted per-terminate
+  <code>pd.DataFrame</code> allocation is dropped.</li>
+<li><code>STOP_ORDER_ACCEPTED</code> now emits the <code>ORDER_EVENT</code> tuple, joining
+  the rest of the order lifecycle. (Earlier in this release it had
+  already been changed from <code>str(order)</code> to <code>order.to_dict()</code>; the
+  payload-schema migration supersedes that intermediate form.)</li>
+</ul>
+<h3 id="deprecated">Deprecated<a class="headerlink" href="#deprecated" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Order.to_dict()</code> is retained as a deprecation-window wrapper that
+  rebuilds the legacy dict from the slot values; it will be removed
+  in a future release. New producers must call
+  <code>order.to_payload_tuple()</code> (enforced by the AST audit).</li>
+<li><code>OrderBook.book_log2</code> and <code>OrderBook.history</code> — read from the
+  corresponding sink instead.</li>
+<li>Direct <code>agent.log</code> access — use
+  <code>kernel.event_bus.in_memory_sink.agent_log(agent_id)</code>.</li>
+<li>Legacy bzip2-pickle log path: <code>BZ2PickleLogWriter</code> and
+  <code>BZ2PickleSink</code> now emit a <code>DeprecationWarning</code> (once per process)
+  on construction. Migrate to <code>ParquetSink</code>
+  (<code>abides_core.parquet_sink.ParquetSink</code>) or another EventBus-
+  registered columnar sink.</li>
+<li><code>Agent.logEvent(append_summary_log=True)</code> and
+  <code>Kernel.append_summary_log</code> now emit a <code>DeprecationWarning</code> (once
+  per process). The <code>summary_log</code> path will be removed; register a
+  <code>MetricsObserverSink</code> (or any custom <code>EventSink</code>) on
+  <code>Kernel.event_bus</code> instead.</li>
+</ul>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>ExchangeAgent</code> raw-<code>Message</code> leak.</strong> The previous catch-all
+  <code>self.logEvent(message.type(), message)</code> could push a raw
+  <code>Message</code> instance onto the bus (causing pickle / Parquet
+  serialisation failures downstream). The new isinstance allowlist
+  forces an <code>EMPTY_PAYLOAD</code> for query / subscription receipts and
+  drops anything else with a logger warning.</li>
+<li>Repeated <code>OrderBook.history</code> / <code>book_log2</code> reads no longer emit
+  spurious deprecation warnings during normal operation.</li>
+<li><strong><code>create_limit_order</code></strong> logs a <code>WARNING</code> instead of emitting a
+  <code>DeprecationWarning</code> when the requested quantity is zero.</li>
+<li><strong>Symbol-mismatch paths in <code>OrderBook</code></strong> log at <code>ERROR</code> level instead
+  of emitting a <code>DeprecationWarning</code>.</li>
+</ul>
+<hr />
+<h2 id="pre-rename-history">Pre-rename history<a class="headerlink" href="#pre-rename-history" title="Permanent link">&para;</a></h2>
+<p>Entries below describe work done while the project was a private
+detached fork (internal versions through <code>v2.6.0</code>). They are preserved
+for provenance. Corresponding git tags are retained under the
+<code>archive/</code> prefix.</p>
+<hr />
+<h2 id="260-2026-05">[2.6.0] — 2026-05<a class="headerlink" href="#260-2026-05" title="Permanent link">&para;</a></h2>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Breaking:</strong> distribution renamed from <code>abides</code> to <code>abides-ng</code> on
+  PyPI. Import paths (<code>abides_core</code>, <code>abides_markets</code>, <code>abides_gym</code>)
+  are unchanged.</li>
+<li>Documentation site moved to MkDocs Material; published from <code>main</code>
+  via GitHub Actions.</li>
+</ul>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Numerous correctness fixes across the agent suite — see git history
+  for details.</li>
+</ul>
+<hr />
+<h2 id="258-2026-04">[2.5.8] — 2026-04<a class="headerlink" href="#258-2026-04" title="Permanent link">&para;</a></h2>
+<h3 id="added_4">Added<a class="headerlink" href="#added_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>SimulationResult.get_agents_by_category()</code> helper.</li>
+</ul>
+<h2 id="257-2026-04">[2.5.7] — 2026-04<a class="headerlink" href="#257-2026-04" title="Permanent link">&para;</a></h2>
+<h3 id="added_5">Added<a class="headerlink" href="#added_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Per-agent execution-quality metrics surfaced on
+  <code>compute_rich_metrics()</code>.</li>
+</ul>
+<h2 id="256-2026-04">[2.5.6] — 2026-04<a class="headerlink" href="#256-2026-04" title="Permanent link">&para;</a></h2>
+<h3 id="added_6">Added<a class="headerlink" href="#added_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>VPIN (Easley et al. 2012) added to the microstructure metrics
+  surface.</li>
+</ul>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Edge cases in trade-attribution bucketing under thin liquidity.</li>
+</ul>
+<h2 id="254-2026-04">[2.5.4] — 2026-04<a class="headerlink" href="#254-2026-04" title="Permanent link">&para;</a></h2>
+<h3 id="added_7">Added<a class="headerlink" href="#added_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>MiFID II RTS 9 market-wide order-to-trade ratio
+  (<code>MicrostructureMetrics.market_ott_ratio</code>).</li>
+<li>Spread-resilience indicator (Foucault, Pagano &amp; Röell 2013).</li>
+</ul>
+<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Adverse-selection window alignment for sub-second horizons.</li>
+</ul>
+<h2 id="253-2026-04">[2.5.3] — 2026-04<a class="headerlink" href="#253-2026-04" title="Permanent link">&para;</a></h2>
+<h3 id="added_8">Added<a class="headerlink" href="#added_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ResultProfile.FULL</code> exposes raw event logs (<code>SimulationResult.logs</code>)
+  as a parsed DataFrame.</li>
+<li>Declarative config templates for thin-liquidity and volatile-regime
+  scenarios.</li>
+</ul>
+<h3 id="changed_3">Changed<a class="headerlink" href="#changed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Config validation messages now point at the offending field path.</li>
+</ul>
+<h2 id="252-2026-04">[2.5.2] — 2026-04<a class="headerlink" href="#252-2026-04" title="Permanent link">&para;</a></h2>
+<h3 id="added_9">Added<a class="headerlink" href="#added_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>compute_rich_metrics(include_fills=True)</code> returns per-fill
+  attribution and VWAP slippage.</li>
+</ul>
+<h3 id="fixed_5">Fixed<a class="headerlink" href="#fixed_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>BaseAgentConfig._prepare_constructor_kwargs()</code> propagates non-
+  serializable strategy instances correctly.</li>
+</ul>
+<h2 id="251-2026-03">[2.5.1] — 2026-03<a class="headerlink" href="#251-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="changed_4">Changed<a class="headerlink" href="#changed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Lower per-message overhead in the kernel hot path.</li>
+</ul>
+<h3 id="fixed_6">Fixed<a class="headerlink" href="#fixed_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Several test-only fixtures that leaked state between runs.</li>
+</ul>
+<h2 id="250-2026-03">[2.5.0] — 2026-03<a class="headerlink" href="#250-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="added_10">Added<a class="headerlink" href="#added_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Execution agents:</strong> TWAP, VWAP, and POV implementations with
+  declarative scheduling and order-rate caps.</li>
+<li><strong>Time-in-force order types:</strong> <code>IOC</code>, <code>FOK</code>, <code>DAY</code>.</li>
+<li><strong>Exchange-side stop orders</strong> with deterministic trigger semantics.</li>
+<li><strong>Market-maker enhancements:</strong> configurable inventory bands and
+  quote-skew under inventory pressure.</li>
+<li><strong>Trade attribution</strong> exposed on <code>SimulationResult.markets</code>.</li>
+</ul>
+<h2 id="240-2026-03">[2.4.0] — 2026-03<a class="headerlink" href="#240-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="changed_5">Changed<a class="headerlink" href="#changed_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Breaking:</strong> RNG hierarchy reworked to SHA-256 identity hashing —
+  adding or removing an agent no longer shifts the random draws of
+  any other agent. Per-worker seeds in <code>run_batch</code> are now
+  composition-invariant.</li>
+</ul>
+<h2 id="230-2026-03">[2.3.0] — 2026-03<a class="headerlink" href="#230-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="added_11">Added<a class="headerlink" href="#added_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Human-readable units in declarative config (<code>"100ms"</code>, <code>"30s"</code>,
+  <code>"$10.00"</code>).</li>
+</ul>
+<h2 id="221-2026-03">[2.2.1] — 2026-03<a class="headerlink" href="#221-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="changed_6">Changed<a class="headerlink" href="#changed_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Internal code-quality pass; no behaviour changes.</li>
+</ul>
+<h2 id="220-2026-03">[2.2.0] — 2026-03<a class="headerlink" href="#220-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="added_12">Added<a class="headerlink" href="#added_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Risk controls:</strong> declarative position limits, drawdown kill-switch,
+  and order-rate caps enforced at order entry.</li>
+<li><strong>Oracle redesign:</strong> every <code>MarketConfig</code> must explicitly choose an
+  oracle (or <code>oracle: null</code>). <code>ValueAgent</code> auto-inherits oracle
+  parameters. External-data oracles are injected via
+  <code>builder.oracle_instance(...)</code>.</li>
+<li><code>compute_rich_metrics()</code> first release: Sharpe, max drawdown, mean
+  spread, LOB imbalance.</li>
+</ul>
+<h3 id="changed_7">Changed<a class="headerlink" href="#changed_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>All constructor-side defaults aligned with their config-side
+  counterparts.</li>
+<li>Order-management hot path vectorised.</li>
+</ul>
+<h3 id="fixed_7">Fixed<a class="headerlink" href="#fixed_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Off-by-one in the closing-cross fallback when no oracle is present.</li>
+</ul>
+<h2 id="210-2026-03">[2.1.0] — 2026-03<a class="headerlink" href="#210-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="changed_8">Changed<a class="headerlink" href="#changed_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Code-quality pass; type annotations modernised to <code>X | None</code> syntax
+  (Python 3.12+).</li>
+</ul>
+<h2 id="200-2026-03">[2.0.0] — 2026-03<a class="headerlink" href="#200-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_8">Fixed<a class="headerlink" href="#fixed_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Breaking:</strong> several long-standing correctness bugs in
+  <code>MeanReversionAgent</code>, <code>ValueAgent</code>, and <code>MeanRevertingOracle</code>.
+  Results from earlier versions are not directly comparable.</li>
+</ul>
+<h2 id="130-2026-03">[1.3.0] — 2026-03<a class="headerlink" href="#130-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="added_13">Added<a class="headerlink" href="#added_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Declarative configuration system:</strong> <code>SimulationConfig</code>,
+  <code>SimulationBuilder</code>, agent registry, YAML / JSON serialisation,
+  composable templates.</li>
+<li><code>run_simulation()</code> and <code>SimulationResult</code> as the recommended entry
+  points.</li>
+</ul>
+<h3 id="changed_9">Changed<a class="headerlink" href="#changed_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Breaking:</strong> project renamed in source from upstream layout.</li>
+</ul>
+<h2 id="120-2026-03">[1.2.0] — 2026-03<a class="headerlink" href="#120-2026-03" title="Permanent link">&para;</a></h2>
+<h3 id="changed_10">Changed<a class="headerlink" href="#changed_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Hot-path performance improvements in message dispatch and order-book
+  matching.</li>
+</ul>
+<h3 id="fixed_9">Fixed<a class="headerlink" href="#fixed_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Multiple correctness fixes carried over from the upstream backlog.</li>
+</ul>
+<h2 id="110-2026-01">[1.1.0] — 2026-01<a class="headerlink" href="#110-2026-01" title="Permanent link">&para;</a></h2>
+<p>First release after forking the archived <code>abides-jpmc-public</code> project.</p>
+<h3 id="added_14">Added<a class="headerlink" href="#added_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>POVExecutionAgent</code> implementation (referenced in upstream RMSC03
+  but never shipped).</li>
+</ul>
+<h3 id="changed_11">Changed<a class="headerlink" href="#changed_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Modernised dependency stack: Python 3.12+, NumPy 2.x, Pandas 2.x,
+  Gymnasium (replaces deprecated Gym), Ray 2.40+, SciPy 1.14+,
+  matplotlib 3.9+. <code>pomegranate</code> removed.</li>
+</ul>
+<h3 id="fixed_10">Fixed<a class="headerlink" href="#fixed_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>version_testing</code> regression suite restored; hard-coded commit
+  comparisons removed.</li>
+</ul>
+<hr />
+<h2 id="2021-10-15-release">2021-10-15 Release<a class="headerlink" href="#2021-10-15-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features">New Features<a class="headerlink" href="#new-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li>WandB + rllib custom metrics + background V2 + autocalib (PR #86)</li>
+</ul>
+<h3 id="other-changes">Other Changes<a class="headerlink" href="#other-changes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Code cleanup for open source release (PR #87, #88, #90)</li>
+<li>Separation Gym core into markets and true gym core (PR #91)</li>
+</ul>
+<h2 id="2021-09-28-release">2021-09-28 Release<a class="headerlink" href="#2021-09-28-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features_1">New Features<a class="headerlink" href="#new-features_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Order book state subscriptions and alerts (PR #73)</li>
+<li>ABIDES-gym (PRs #77, #79, #82)</li>
+<li>Event data subscriptions (PR #81)</li>
+<li>Background Agents v2 + wandB scripts (PR #85)</li>
+</ul>
+<h3 id="other-changes_1">Other Changes<a class="headerlink" href="#other-changes_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Optimise agent event log data structures for memory use (PR #74)</li>
+<li>Feature marketreplay realdata2 (PR #75)</li>
+<li>Replace use of pd.Timestamp with raw ints (PR #76)</li>
+<li>Simplify kernel initialisation (PR #80)</li>
+<li>Add message batches (PR #83)</li>
+</ul>
+<h3 id="bugs-fixed">Bugs Fixed<a class="headerlink" href="#bugs-fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Fix debug message for modify order msg (PR #72)</li>
+<li>Fix Order Book Imbalance subscription (PR #78)</li>
+</ul>
+<h2 id="2021-07-27-release">2021-07-27 Release<a class="headerlink" href="#2021-07-27-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features_2">New Features<a class="headerlink" href="#new-features_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add price to comply order types (PR #64)</li>
+<li>Add insert by ID option for limit orders (PR #68)</li>
+</ul>
+<h3 id="other-changes_2">Other Changes<a class="headerlink" href="#other-changes_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Improve abides-cmd and config layout (PR #62)</li>
+</ul>
+<h3 id="bugs-fixed_1">Bugs Fixed<a class="headerlink" href="#bugs-fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Fix the place order of MM to not place order of size 0 when backstop qty = 0 (PR #63)</li>
+<li>Fix attempts to cancel MarketOrders (PR #65)</li>
+<li>Remove placing orders when size is 0 (PR #66)</li>
+<li>Add test for negative price on limit orders (PR #67)</li>
+<li>Fix regression tests (PR #69)</li>
+<li>Fix r_bar types (PR #70)</li>
+<li>Fix end of day mark to market (PR #71)</li>
+</ul>
+<h2 id="2021-06-29-release">2021-06-29 Release<a class="headerlink" href="#2021-06-29-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features_3">New Features<a class="headerlink" href="#new-features_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add hidden orders to order book (PR #56)</li>
+<li>Use built-in Python logging library (PR #57)</li>
+</ul>
+<h3 id="other-changes_3">Other Changes<a class="headerlink" href="#other-changes_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Reorganise directory layout (PR #54)</li>
+<li>Add initial pre-commit hooks and RMSC unit test (PR #58)</li>
+<li>Update generated documentation to work with refactored code layout (PR #59)</li>
+<li>Replace is_buy_order flag with Side.BID or Side.ASK enum (PR #60)</li>
+</ul>
+<h3 id="bugs-fixed_2">Bugs Fixed<a class="headerlink" href="#bugs-fixed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Correcting markToMarket function to multiply by shares (PR #61)</li>
+</ul>
+<h2 id="2021-06-15-release">2021-06-15 Release<a class="headerlink" href="#2021-06-15-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features_4">New Features<a class="headerlink" href="#new-features_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add transacted volume and L1 and L3 data subscriptions (PR #42)</li>
+<li>Change message types to use dataclasses (PR #45)</li>
+<li>Add replaceOrder command to OrderBook (PR #48)</li>
+</ul>
+<h3 id="other-changes_4">Other Changes<a class="headerlink" href="#other-changes_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Refactor subscription message and data classes (PR #42)</li>
+<li>Simplify market order handling code by removing limit order creation (PR #43)</li>
+<li>Use a flat data structure to store order history (PR #44)</li>
+<li>Simplify handleLimitOrder (PR #46)</li>
+<li>Refining message stream logging and orderbook log2 (PR #47)</li>
+<li>Add more unit tests for OrderBook (PR #49)</li>
+</ul>
+<h3 id="bugs-fixed_3">Bugs Fixed<a class="headerlink" href="#bugs-fixed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Fix NoiseAgent and Value agent random seed sources (PR #50)</li>
+<li>Fix various Message class issues (PR #51)</li>
+</ul>
+<h2 id="2021-06-01-release">2021-06-01 Release<a class="headerlink" href="#2021-06-01-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features_5">New Features<a class="headerlink" href="#new-features_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Initial OrderBook unit tests (PR #39)</li>
+<li>New order book data getting methods (L1, L3 data) (PR #40)</li>
+</ul>
+<h3 id="other-changes_5">Other Changes<a class="headerlink" href="#other-changes_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>OrderBook history and tracking now optional (PR #27)</li>
+<li>Removed unused ExchangeAgent code (PR #30)</li>
+<li>Reduce number of Python deepcopies (PR #32)</li>
+<li>General tidy of Order classes (PR #38)</li>
+<li>Add warning if invalid arguments passed to abides_cmd (PR #41)</li>
+</ul>
+<h3 id="bugs-fixed_4">Bugs Fixed<a class="headerlink" href="#bugs-fixed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Fix RMSC03 spec documentation (PR #35)</li>
+<li>Fix version testing script timer (PR #36)</li>
+</ul>
+<h2 id="2021-05-18-release">2021-05-18 Release<a class="headerlink" href="#2021-05-18-release" title="Permanent link">&para;</a></h2>
+<h3 id="new-features_6">New Features<a class="headerlink" href="#new-features_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Automatically generated documentation using Sphinx-Doc (PR #18)</li>
+<li>Developer guide in documentation with best practices (PR #18)</li>
+</ul>
+<h3 id="other-changes_6">Other Changes<a class="headerlink" href="#other-changes_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Improved documentation strings in code (PR #18)</li>
+<li>Type annotations added for most files (PR #18)</li>
+<li>Faster deepcopy of orders (PR #21)</li>
+<li>Simplified order ID generation (PR #25)</li>
+<li>Agent class 'type', 'name' and 'RandomState' parameters now optional (PR #26)</li>
+</ul>
+<h3 id="bugs-fixed_5">Bugs Fixed<a class="headerlink" href="#bugs-fixed_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Correction of type errors in Noise agent (PR #23)</li>
+<li>Noise calculation error fix (PR #17)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

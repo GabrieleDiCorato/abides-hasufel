@@ -1,0 +1,1698 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent-Based Interactive Discrete Event Simulation for financial markets research">
+      
+      
+      
+        <link rel="canonical" href="https://gabrieledicorato.github.io/abides-ng/project/one-pager/">
+      
+      
+        <link rel="prev" href="../../getting-started/quickstart/">
+      
+      
+        <link rel="next" href="../../reference/config-system/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Why ABIDES-NG - ABIDES-NG</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#abides-ng-research-grade-market-microstructure-simulation-for-strategy-research" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ABIDES-NG" class="md-header__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ABIDES-NG
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Why ABIDES-NG
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../getting-started/quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/config-system/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/kernel-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reproducibility/" class="md-tabs__link">
+          
+  
+  
+  Operations & Governance
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/llm-gotchas/" class="md-tabs__link">
+          
+  
+  
+  For LLM / Agent Builders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../notebooks/demo_ABIDES-Markets/" class="md-tabs__link">
+          
+  
+  
+  Examples
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ABIDES-NG" class="md-nav__button md-logo" aria-label="ABIDES-NG" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ABIDES-NG
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GabrieleDiCorato/abides-ng" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GabrieleDiCorato/abides-ng
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why ABIDES-NG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-contribution-abides-ng" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Contribution: ABIDES-NG
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Contribution: ABIDES-NG">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-makes-it-novel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Makes It Novel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-features-in-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features in Detail
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simulation-output-before-and-after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation Output: Before and After
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-engineering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality &amp; Engineering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Cases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Technology
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/config-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/custom-agent-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a Custom Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data-extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extracting Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/metrics-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Computing Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/parallel-simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Experiments in Parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/kernel-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernel & Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/logging-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Bus & Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/event-vocabulary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Vocabulary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/metrics-algorithms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations & Governance
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations & Governance
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For LLM / Agent Builders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For LLM / Agent Builders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/llm-gotchas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Gotchas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_ABIDES-Markets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markets Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/demo_Config_System/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIDES Declarative Configuration System — Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="abides-ng-research-grade-market-microstructure-simulation-for-strategy-research">ABIDES-NG — Research-Grade Market Microstructure Simulation for Strategy Research<a class="headerlink" href="#abides-ng-research-grade-market-microstructure-simulation-for-strategy-research" title="Permanent link">&para;</a></h1>
+<hr />
+<h2 id="the-problem">The Problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h2>
+<p>Financial institutions need to test trading strategies, execution algorithms, and risk controls <em>before</em> deploying real capital. The available options are expensive, incomplete, or both:</p>
+<ul>
+<li><strong>Historical backtesting</strong> replays past data but cannot answer "what if" questions — it assumes the strategy does not move the market.</li>
+<li><strong>Proprietary simulators</strong> (e.g. Goldman's SecDB, JPMC's Athena) are locked behind institutional walls.</li>
+<li><strong>Academic agent-based models</strong> exist but typically lack production-grade execution logic, risk controls, and structured analytics — leaving a gap between research insight and deployable prototype.</li>
+</ul>
+<p>ABIDES (Byrd &amp; Balch, 2019) was a promising academic simulator from Georgia Tech, later maintained by J.P. Morgan Chase, but its public release was archived with unresolved runtime bugs, no configuration system, and no analytics pipeline.</p>
+<h2 id="the-contribution-abides-ng">The Contribution: ABIDES-NG<a class="headerlink" href="#the-contribution-abides-ng" title="Permanent link">&para;</a></h2>
+<p>ABIDES-NG <strong>revives, modernises, and substantially extends</strong> the ABIDES simulator into a research-ready platform where AI-driven strategies can be developed, tested, and measured under realistic market conditions — with full transparency and reproducibility.</p>
+<h3 id="what-makes-it-novel">What Makes It Novel<a class="headerlink" href="#what-makes-it-novel" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Capability</th>
+<th style="text-align: left;">State of the Art</th>
+<th style="text-align: left;">ABIDES-NG</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Declarative configuration</strong></td>
+<td style="text-align: left;">Procedural scripts; hard to reproduce</td>
+<td style="text-align: left;">YAML/JSON configs, fluent <code>SimulationBuilder</code>, immutable <code>SimulationConfig</code> — same config always yields same result</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Composition-invariant RNG</strong></td>
+<td style="text-align: left;">Sequential seed draws — adding an agent shifts all other agents' behaviour</td>
+<td style="text-align: left;">SHA-256 identity hashing — inject a new strategy and <em>all other agents behave identically</em> to the baseline</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Rich agent taxonomy</strong></td>
+<td style="text-align: left;">Noise + value + 1 market maker</td>
+<td style="text-align: left;">9 agent types across 4 categories: background, strategy, execution (TWAP/VWAP/POV), market making</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Institutional risk controls</strong></td>
+<td style="text-align: left;">Not present in academic simulators</td>
+<td style="text-align: left;">Per-agent position limits, circuit breakers, drawdown kill-switch, order-rate limiters — all declarative via <code>RiskConfig</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Order type coverage</strong></td>
+<td style="text-align: left;">Limit and market only</td>
+<td style="text-align: left;">+ IOC, FOK, DAY time-in-force qualifiers, stop orders with exchange-side trigger</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Quantitative analytics</strong></td>
+<td style="text-align: left;">Manual log parsing</td>
+<td style="text-align: left;"><code>compute_rich_metrics()</code> → Sharpe, max drawdown, VWAP, LOB imbalance, resilience, VPIN, OTT ratio, adverse selection — all as typed Pydantic models</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Parallel experimentation</strong></td>
+<td style="text-align: left;">Manual scripting</td>
+<td style="text-align: left;"><code>run_batch()</code> with multiprocessing, deterministic per-worker seeding, UUID-isolated logs</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>AI/LLM integration</strong></td>
+<td style="text-align: left;">None</td>
+<td style="text-align: left;">Schema-introspectable configs, <code>@register_agent</code> plugin system, structured <code>SimulationResult</code> for tool-calling agents</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-features-in-detail">Key Features in Detail<a class="headerlink" href="#key-features-in-detail" title="Permanent link">&para;</a></h3>
+<p><strong>1. Discrete-Event Market Simulation Engine</strong> — A NASDAQ-like exchange with a continuous double-auction order book, nanosecond-resolution event scheduling, and configurable network latency. Prices are integer cents everywhere, matching real exchange precision.</p>
+<p><strong>2. Pluggable Agent Architecture</strong> — Heterogeneous agent populations drive emergent price discovery: noise traders provide liquidity, value agents form Bayesian estimates of fundamental value, momentum agents exploit trends, and market makers quote two-sided depth. New strategies plug in via <code>@register_agent</code> with zero framework changes.</p>
+<p><strong>3. Execution Algorithm Suite</strong> — TWAP, VWAP, and POV execution agents slice parent orders across the trading session. Each inherits from a shared <code>BaseSlicingExecutionAgent</code> with fill tracking, arrival-price capture, and IOC child order submission — mirroring how institutional execution desks operate.</p>
+<p><strong>4. Risk Management Layer</strong> — Every trading agent inherits <code>RiskConfig</code>: symmetric position limits with clamp-or-block enforcement, maximum drawdown kill-switch (latching), and tumbling-window order-rate throttling. Risk is checked on every order submission and every fill.</p>
+<p><strong>5. Quantitative Metrics Pipeline</strong> — A single <code>compute_rich_metrics()</code> call produces agent-level analytics (PnL, Sharpe, drawdown, fill rate, inventory volatility) and market microstructure indicators (LOB imbalance per Cont, Kukanov &amp; Stoikov 2014; resilience per Foucault, Kadan &amp; Kandel 2013; VPIN per Easley et al. 2012; OTT ratio per MiFID II RTS 9). All metrics degrade gracefully when data is unavailable.</p>
+<p><strong>6. Scenario Templates</strong> — Five pre-built market regimes (<code>stable_day</code>, <code>volatile_day</code>, <code>low_liquidity</code>, <code>trending_day</code>, <code>stress_test</code>) plus overlay templates for controlled experimentation. Each template is composable and fully reproducible from a single seed integer.</p>
+<h3 id="simulation-output-before-and-after">Simulation Output: Before and After<a class="headerlink" href="#simulation-output-before-and-after" title="Permanent link">&para;</a></h3>
+<p>The original ABIDES produced a single opaque <code>end_state</code> dictionary. Extracting any useful information required manual log parsing, DataFrame archaeology, and intimate knowledge of agent internals. There was no structured result, no typed analytics, and no way to compare runs programmatically.</p>
+<p>ABIDES-NG replaces this with a <strong>layered, profile-gated output system</strong> — from a lightweight summary to full per-order lifecycle tracking — all returned as immutable, typed Pydantic models.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">What you get</th>
+<th style="text-align: left;">Original ABIDES</th>
+<th style="text-align: left;">ABIDES-NG</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Simulation result</strong></td>
+<td style="text-align: left;">Raw dict; parse it yourself</td>
+<td style="text-align: left;"><code>SimulationResult</code> — immutable, typed, with <code>.summary()</code> and <code>.summary_dict()</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Per-agent PnL</strong></td>
+<td style="text-align: left;">Manually compute from <code>holdings</code> dict and <code>last_trade</code></td>
+<td style="text-align: left;"><code>AgentData.pnl_cents</code>, <code>pnl_pct</code>, <code>mark_to_market_cents</code> — mark-to-market, always present</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Agent categorisation</strong></td>
+<td style="text-align: left;">Not tracked</td>
+<td style="text-align: left;"><code>agent_category</code> stamped from registry; query with <code>get_agents_by_category()</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Equity curves</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;"><code>EquityCurve</code> — per-fill or L1-sampled NAV time-series with high-water mark</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Sharpe ratio</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">Annualised from equity curve, with minimum-observation guard</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Max drawdown</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">Peak-to-trough in cents; <code>0</code> if monotonically increasing</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>L1 / L2 book history</strong></td>
+<td style="text-align: left;">Raw order book object; manual extraction</td>
+<td style="text-align: left;"><code>L1Snapshots</code>, <code>L2Snapshots</code> — NumPy arrays, profile-gated</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Trade attribution</strong></td>
+<td style="text-align: left;">Not tracked</td>
+<td style="text-align: left;"><code>TradeAttribution</code> — links every fill to passive and aggressive agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Execution quality</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;"><code>ExecutionMetrics</code> — VWAP slippage, participation rate, implementation shortfall, arrival-price comparison</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fill slippage</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">Per-fill signed slippage vs. L1 mid (basis points)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Adverse selection</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">Per-fill mid-price move at configurable look-ahead windows</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Order lifecycle</strong></td>
+<td style="text-align: left;">Not tracked</td>
+<td style="text-align: left;"><code>OrderLifecycle</code> — per-order status, resting time, per-fill detail tuples</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Fill rate</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">Order-level fill rate (executed / submitted) per agent and market-wide</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Microstructure metrics</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">LOB imbalance (Cont et al. 2014), resilience (Foucault et al. 2013), VPIN (Easley et al. 2012), OTT ratio (MiFID II RTS 9)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Volatility</strong></td>
+<td style="text-align: left;">Not available</td>
+<td style="text-align: left;">Annualised mid-price return std from two-sided L1 observations</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Extraction control</strong></td>
+<td style="text-align: left;">All or nothing</td>
+<td style="text-align: left;"><code>ResultProfile</code> flags: <code>SUMMARY</code> (KB-scale) → <code>QUANT</code> (L1/L2 + analytics) → <code>FULL</code> (raw logs)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Single-call convenience API:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">rich</span> <span class="o">=</span> <span class="n">compute_rich_metrics</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">include_fills</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                            <span class="n">adverse_selection_windows</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;100ms&quot;</span><span class="p">,</span> <span class="s2">&quot;1s&quot;</span><span class="p">])</span>
+</code></pre></div>
+<p>Returns <code>RichSimulationMetrics</code> with per-agent analytics and per-symbol microstructure indicators in one call. Every field degrades gracefully to <code>None</code> when the required data profile is absent — no exceptions, no surprises.</p>
+<p><strong>Standalone compute functions</strong> — all 20+ metric functions (<code>compute_sharpe_ratio</code>, <code>compute_lob_imbalance</code>, <code>compute_vpin</code>, <code>compute_resilience</code>, etc.) are exposed as independent, stateless functions that accept plain Python data. No simulation required — feed them your own arrays and get institutional-grade analytics.</p>
+<h3 id="quality-engineering">Quality &amp; Engineering<a class="headerlink" href="#quality-engineering" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>1 140 automated tests</strong> covering order book invariants, agent lifecycle, risk enforcement, configuration integrity, and long-simulation health.</li>
+<li><strong>42 critical bug fixes</strong> from the original ABIDES codebase — including ValueAgent Bayesian update errors, market maker crashes on empty books, and exchange price-recording failures.</li>
+<li><strong>O(log N) order book operations</strong> (bisect-based), dictionary-dispatch message handling (O(1) vs O(N) isinstance chains), and bounded collections to prevent memory growth.</li>
+</ul>
+<h2 id="use-cases">Use Cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Strategy Research:</strong> Develop and backtest trading algorithms in a controlled agent-based environment where market impact is endogenous — not assumed away.</li>
+<li><strong>Execution Quality Analysis:</strong> Measure TWAP/VWAP slippage, adverse selection, and implementation shortfall across market regimes.</li>
+<li><strong>Risk Model Validation:</strong> Stress-test position limits and circuit breakers before live deployment.</li>
+<li><strong>Regulatory Analytics:</strong> Compute MiFID II order-to-trade ratios and book quality metrics from simulated order flow.</li>
+<li><strong>AI/RL Integration:</strong> Use the OpenAI Gym interface (<code>abides-gym</code>) to train reinforcement-learning agents in a realistic market environment.</li>
+</ul>
+<h2 id="technology">Technology<a class="headerlink" href="#technology" title="Permanent link">&para;</a></h2>
+<p>Built on Python 3.11+, Pydantic v2, NumPy, and Pandas. Managed with UV for reproducible dependency resolution. CI via GitHub Actions with full test, lint (ruff, black, isort), and type-checking (mypy, pyright) pipelines. BSD-3-Clause licensed.</p>
+<hr />
+<blockquote>
+<p>ABIDES-NG bridges the gap between academic market simulation and institutional-grade strategy research tooling — providing the configurability, analytics, and rigour that quantitative teams require, in an open-source package designed for AI-era workflows.</p>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
